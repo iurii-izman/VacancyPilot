@@ -1,6 +1,6 @@
 # VacancyPilot Product Development Plan
 
-Status: Phase 1 implementation complete; closeout gate passed; Phase 2 pack complete; dependency maintenance pack complete; security-closure pack complete; workflow-assist pack complete; HR communication pack complete; post-audit reliability/scoring pack complete; final moderate security tail closed; private release readiness pack complete; AI assist quality/trust pack is the current active sequence (`ITER-060`..`ITER-062`)  
+Status: Phase 1 implementation complete; closeout gate passed; Phase 2 pack complete; dependency maintenance pack complete; security-closure pack complete; workflow-assist pack complete; HR communication pack complete; post-audit reliability/scoring pack complete; final moderate security tail closed; private release readiness pack complete; AI assist quality/trust pack is the current active sequence (`ITER-060`..`ITER-062`)
 Source of truth: `docs/Техническое заданиеV.1.md` v1.1 FINAL
 
 Implementation note:

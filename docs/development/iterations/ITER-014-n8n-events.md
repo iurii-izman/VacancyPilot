@@ -1,6 +1,6 @@
 # ITER-014: n8n Events
 
-Epic: EPIC-09  
+Epic: EPIC-09
 Commit: `feat: add opt in n8n events`
 
 ## Goal
@@ -37,4 +37,3 @@ Add opt-in webhook events with safe payloads, HMAC, retry, and event logging.
 pnpm typecheck
 pnpm test
 ```
-

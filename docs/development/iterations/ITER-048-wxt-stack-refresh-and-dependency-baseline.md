@@ -1,6 +1,6 @@
 # ITER-048: WXT Stack Refresh And Dependency Baseline
 
-Epic: EPIC-27  
+Epic: EPIC-27
 Commit: `chore: refresh wxt dependency baseline`
 
 ## Goal

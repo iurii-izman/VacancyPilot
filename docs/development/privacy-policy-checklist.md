@@ -1,6 +1,6 @@
 # Privacy Policy Draft Checklist — VacancyPilot
 
-Status: ITER-064  
+Status: ITER-064
 Source: spec sections 20, 22.6, 26.4; EPIC-10
 
 Use this checklist when drafting the public privacy policy. Each item must be addressed in the final policy document. A public privacy policy is **mandatory** for Chrome Web Store submission (spec 26.4).

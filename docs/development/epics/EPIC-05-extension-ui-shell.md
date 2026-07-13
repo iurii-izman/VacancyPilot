@@ -30,4 +30,3 @@ Create the user-facing workspace: popup, side panel, dashboard/options shell, an
 ## Safety Notes
 
 The content script UI must remain minimal. Main UI belongs in side panel/dashboard.
-

@@ -333,10 +333,10 @@ interface Job {
   scrapedAt: string;
 }
 
-type JobStatus = 
-  | 'new' 
-  | 'viewed' 
-  | 'saved' 
+type JobStatus =
+  | 'new'
+  | 'viewed'
+  | 'saved'
   | 'rejected_by_me'
   | 'letter_ready'
   | 'applied'
@@ -538,7 +538,7 @@ interface Event {
   createdAt: string;
 }
 
-type EventType = 
+type EventType =
   | 'vacancy_saved'
   | 'vacancy_viewed'
   | 'status_changed'
@@ -707,8 +707,8 @@ function skillLevelMultiplier(level?: string): number {
 
 ```typescript
 function calculateTitleScore(
-  jobTitle: string, 
-  profileTitle: string, 
+  jobTitle: string,
+  profileTitle: string,
   keywords: string[]
 ): number {
   const jobWords = tokenize(jobTitle.toLowerCase());
@@ -722,11 +722,11 @@ function calculateTitleScore(
   const coverage = overlap / Math.max(jobWords.length, profileWords.length);
 
   // Ключевые слова
-  const keywordMatches = keywords.filter(k => 
+  const keywordMatches = keywords.filter(k =>
     jobTitle.toLowerCase().includes(k.toLowerCase())
   ).length;
-  const keywordScore = keywords.length > 0 
-    ? (keywordMatches / keywords.length) * 100 
+  const keywordScore = keywords.length > 0
+    ? (keywordMatches / keywords.length) * 100
     : 0;
 
   return coverage * 60 + keywordScore * 40;
@@ -758,7 +758,7 @@ function calculateLocationScore(location: JobLocation, profile: Profile): number
 
 ```typescript
 function calculateSalaryScore(
-  jobSalary?: JobSalary, 
+  jobSalary?: JobSalary,
   desiredSalary?: DesiredSalary
 ): number {
   if (!jobSalary || !desiredSalary) return 50; // Нейтрально
@@ -794,7 +794,7 @@ function detectRiskFlags(job: Job, profile: Profile): RiskFlag[] {
   }
 
   // Зарплата ниже ожиданий
-  if (job.salary?.to && profile.desiredSalary?.from && 
+  if (job.salary?.to && profile.desiredSalary?.from &&
       job.salary.to < profile.desiredSalary.from * 0.7) {
     flags.push({
       type: 'salary_too_low',
@@ -823,7 +823,7 @@ function detectRiskFlags(job: Job, profile: Profile): RiskFlag[] {
 
   // Подозрительное описание
   const suspiciousPatterns = [
-    /family/i, /стартап.*?без.*?зп/i, /бесплатно/i, 
+    /family/i, /стартап.*?без.*?зп/i, /бесплатно/i,
     /стажировка.*?без.*?оплаты/i, /волонт[её]р/i,
   ];
   for (const pattern of suspiciousPatterns) {
@@ -886,7 +886,7 @@ function getRecommendation(score: number, riskFlags: RiskFlag[]): Recommendation
 
 ```
 SYSTEM PROMPT:
-You are an expert career advisor and job market analyst. Analyze the provided job vacancy 
+You are an expert career advisor and job market analyst. Analyze the provided job vacancy
 and candidate profile to give structured recommendations. Be objective, specific, and actionable.
 
 Respond in Russian unless the vacancy is clearly for an English-speaking position.
@@ -946,8 +946,8 @@ Additional context: {{userNotes || "None"}}
 
 ```
 SYSTEM PROMPT:
-You are an expert in writing compelling cover letters for the Russian job market. 
-Write a cover letter that is authentic, specific to the vacancy, and highlights 
+You are an expert in writing compelling cover letters for the Russian job market.
+Write a cover letter that is authentic, specific to the vacancy, and highlights
 the candidate's relevant experience.
 
 CRITICAL RULES:
@@ -982,12 +982,12 @@ Candidate Profile:
 {{profile.summary}}
 
 Relevant experience:
-{{profile.experience.filter(e => isRelevant(e, job)).map(e => 
+{{profile.experience.filter(e => isRelevant(e, job)).map(e =>
   `- ${e.title} at ${e.company} (${e.years} years): ${e.achievements.join("; ")}`
 ).join("\n")}}
 
 Relevant skills:
-{{profile.skills.filter(s => job.skills.some(js => matchSkill(js, s.name))).map(s => 
+{{profile.skills.filter(s => job.skills.some(js => matchSkill(js, s.name))).map(s =>
   `- ${s.name}: ${s.level} level, ${s.yearsOfExperience || "N/A"} years`
 ).join("\n")}}
 

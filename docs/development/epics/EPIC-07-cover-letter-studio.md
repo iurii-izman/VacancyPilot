@@ -31,4 +31,3 @@ Make cover letter generation, editing, saving, and copying a strong Core feature
 ## Safety Notes
 
 The product prepares text; the user reviews, copies, pastes, and submits manually.
-

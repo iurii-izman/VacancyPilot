@@ -1,6 +1,6 @@
 # ITER-010: AI Privacy Layer
 
-Epic: EPIC-06  
+Epic: EPIC-06
 Commit: `feat: add ai privacy layer`
 
 ## Goal
@@ -36,4 +36,3 @@ Implement redaction, payload builder, payload preview data, and privacy modes be
 pnpm typecheck
 pnpm test
 ```
-

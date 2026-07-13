@@ -1,6 +1,6 @@
 # ITER-041: Kanban Queue And Manual Stage Actions
 
-Epic: EPIC-25  
+Epic: EPIC-25
 Commit: `feat: add kanban queue workflow`
 
 ## Goal

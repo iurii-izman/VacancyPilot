@@ -1,6 +1,6 @@
 # ITER-073: Onboarding And About Role Separation
 
-Epic: EPIC-36  
+Epic: EPIC-36
 Commit: `refactor: separate onboarding and about surfaces`
 
 ## Goal

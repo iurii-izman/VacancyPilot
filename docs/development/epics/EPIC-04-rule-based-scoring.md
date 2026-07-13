@@ -30,4 +30,3 @@ Provide useful, explainable vacancy matching without AI.
 ## Safety Notes
 
 Scoring is advice, not an automated decision to apply.
-

@@ -1,6 +1,6 @@
 # ITER-066: Shared UI States And Responsive Polish
 
-Epic: EPIC-33  
+Epic: EPIC-33
 Commit: `feat: polish shared ui states and responsiveness`
 
 ## Goal

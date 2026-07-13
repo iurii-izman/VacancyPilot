@@ -1,6 +1,6 @@
 # ITER-034: Search Result Badges
 
-Epic: EPIC-20  
+Epic: EPIC-20
 Commit: `feat: add search result badges`
 
 ## Goal

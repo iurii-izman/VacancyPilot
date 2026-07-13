@@ -1,6 +1,6 @@
 # ITER-025: Privacy And Profile Lifecycle Hardening
 
-Epic: EPIC-13  
+Epic: EPIC-13
 Commit: `fix: close privacy gap and clean profile lifecycle refs`
 
 ## Goal

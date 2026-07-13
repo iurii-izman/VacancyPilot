@@ -1,6 +1,6 @@
 # Side Panel / Popup Overlap Report
 
-**Date:** 2026-06-22  
+**Date:** 2026-06-22
 **Branch:** `fix/ai-and-sidepanel-runtime-ux`
 
 ## Problem

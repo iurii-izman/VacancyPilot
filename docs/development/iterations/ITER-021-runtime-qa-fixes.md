@@ -1,6 +1,6 @@
 # ITER-021: Runtime QA Fixes
 
-Epic: EPIC-11  
+Epic: EPIC-11
 Commit: `fix: address runtime qa findings`
 
 ## Goal

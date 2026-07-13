@@ -30,4 +30,3 @@ Give the user practical ownership of their local data through CSV/JSON export an
 ## Safety Notes
 
 Data deletion must be explicit and confirmable. Do not silently wipe user data during migrations.
-

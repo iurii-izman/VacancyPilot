@@ -1,6 +1,6 @@
 # Known Risks — VacancyPilot
 
-Status: ITER-064  
+Status: ITER-064
 Source: EPIC-10, EPIC-11, release-checklist.md, spec sections 22, 26
 
 This document lists all known risks, open decisions, and unresolved gaps at Phase 1 release-candidate. Risks are classified and must be addressed or explicitly accepted before public release.

@@ -1,6 +1,6 @@
 # ITER-061: AI Budget Preview Controls
 
-Epic: EPIC-31  
+Epic: EPIC-31
 Commit: `feat: add ai budget preview controls`
 
 ## Goal

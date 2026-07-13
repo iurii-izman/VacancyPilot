@@ -1,6 +1,6 @@
 # ITER-001: WXT Scaffold
 
-Epic: EPIC-00  
+Epic: EPIC-00
 Commit: `chore: scaffold extension foundation`
 
 ## Goal
@@ -36,4 +36,3 @@ Create the initial WXT + React + TypeScript extension skeleton.
 pnpm install
 pnpm build
 ```
-

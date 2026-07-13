@@ -1,6 +1,6 @@
 # ITER-049: TypeScript 6 Migration
 
-Epic: EPIC-27  
+Epic: EPIC-27
 Commit: `chore: migrate to typescript 6`
 
 ## Goal

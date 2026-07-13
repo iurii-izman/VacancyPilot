@@ -1,6 +1,6 @@
 # ITER-011: AI Provider And Cache
 
-Epic: EPIC-06  
+Epic: EPIC-06
 Commit: `feat: add ai analysis workflow`
 
 ## Goal
@@ -35,4 +35,3 @@ Add provider abstraction, mock provider, validation, and AI request cache.
 pnpm typecheck
 pnpm test
 ```
-

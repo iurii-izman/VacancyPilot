@@ -30,4 +30,3 @@ pnpm test
 ```
 
 Expected commit message: `test: add vacancy parser fixtures`
-

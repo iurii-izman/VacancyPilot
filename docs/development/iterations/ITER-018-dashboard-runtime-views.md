@@ -1,6 +1,6 @@
 # ITER-018: Dashboard Runtime Views
 
-Epic: EPIC-11  
+Epic: EPIC-11
 Commit: `feat: add dashboard runtime views`
 
 ## Goal

@@ -1,6 +1,6 @@
 # ITER-059: Final Moderate Dependency Alert
 
-Epic: EPIC-30  
+Epic: EPIC-30
 Commit: `fix: close final moderate dependency alert`
 
 ## Goal

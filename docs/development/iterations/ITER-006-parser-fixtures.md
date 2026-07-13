@@ -1,6 +1,6 @@
 # ITER-006: Parser Fixtures
 
-Epic: EPIC-02  
+Epic: EPIC-02
 Commit: `test: add vacancy parser fixtures`
 
 ## Goal
@@ -32,4 +32,3 @@ Add a repeatable parser fixture test harness with first sanitized vacancy fixtur
 ```text
 pnpm test
 ```
-

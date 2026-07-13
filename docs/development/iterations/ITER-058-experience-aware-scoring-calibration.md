@@ -1,6 +1,6 @@
 # ITER-058: Experience-Aware Scoring Calibration
 
-Epic: EPIC-29  
+Epic: EPIC-29
 Commit: `feat: improve scoring fit signals`
 
 ## Goal

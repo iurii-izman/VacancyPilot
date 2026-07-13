@@ -30,4 +30,3 @@ pnpm test
 ```
 
 Expected commit message: `feat: add rule based scoring`
-

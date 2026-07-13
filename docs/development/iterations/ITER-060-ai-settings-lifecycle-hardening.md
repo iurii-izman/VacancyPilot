@@ -1,6 +1,6 @@
 # ITER-060: AI Settings Lifecycle Hardening And First Real Provider
 
-Epic: EPIC-31  
+Epic: EPIC-31
 Commit: `feat: harden ai settings and add first real provider`
 
 ## Goal

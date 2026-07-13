@@ -1,6 +1,6 @@
 # ITER-071: Dashboard Responsive Ergonomics
 
-Epic: EPIC-35  
+Epic: EPIC-35
 Commit: `feat: polish dashboard responsive ergonomics`
 
 ## Goal

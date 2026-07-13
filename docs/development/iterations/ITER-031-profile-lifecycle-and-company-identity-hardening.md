@@ -1,6 +1,6 @@
 # ITER-031: Profile Lifecycle And Company Identity Hardening
 
-Epic: EPIC-14  
+Epic: EPIC-14
 Commit: `fix: make coverLetter profileId nullable, parse employer ID, verify recompute UX`
 
 ## Goal

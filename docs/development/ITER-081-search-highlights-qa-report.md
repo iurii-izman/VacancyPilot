@@ -1,6 +1,6 @@
 # ITER-081 Search Highlights QA Report
 
-Date: 2026-06-22  
+Date: 2026-06-22
 Scope: `ITER-081-search-highlights-controls-and-qa.md`
 
 ## What Changed

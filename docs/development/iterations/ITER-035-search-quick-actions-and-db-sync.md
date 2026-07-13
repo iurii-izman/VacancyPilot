@@ -1,6 +1,6 @@
 # ITER-035: Search Quick Actions And DB Sync
 
-Epic: EPIC-20  
+Epic: EPIC-20
 Commit: `feat: add search quick actions`
 
 ## Goal

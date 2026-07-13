@@ -1,6 +1,6 @@
 # ITER-054: Security Closure Rerun And Report
 
-Epic: EPIC-28  
+Epic: EPIC-28
 Commit: `docs: finalize security alert closure status`
 
 ## Goal

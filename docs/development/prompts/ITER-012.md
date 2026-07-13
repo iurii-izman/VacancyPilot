@@ -33,4 +33,3 @@ pnpm build
 ```
 
 Expected commit message: `feat: add cover letter studio`
-

@@ -1,6 +1,6 @@
 # ITER-036: Search Triage Runtime Hardening
 
-Epic: EPIC-20  
+Epic: EPIC-20
 Commit: `fix: harden search triage runtime`
 
 ## Goal

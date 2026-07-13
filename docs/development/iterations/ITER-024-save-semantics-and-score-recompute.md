@@ -1,6 +1,6 @@
 # ITER-024: Save Semantics And Score Recompute
 
-Epic: EPIC-13  
+Epic: EPIC-13
 Commit: `fix: align save semantics and score recompute`
 
 ## Goal

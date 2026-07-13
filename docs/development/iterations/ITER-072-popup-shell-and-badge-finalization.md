@@ -1,6 +1,6 @@
 # ITER-072: Popup Shell And Badge Finalization
 
-Epic: EPIC-36  
+Epic: EPIC-36
 Commit: `fix: stabilize popup shell and badge placement`
 
 ## Goal

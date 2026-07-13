@@ -1,6 +1,6 @@
 # ITER-016: Release Candidate Docs
 
-Epic: EPIC-10  
+Epic: EPIC-10
 Commit: `docs: prepare phase 1 release candidate`
 
 ## Goal
@@ -33,4 +33,3 @@ Prepare Phase 1 release candidate documentation after implementation passes auto
 ```text
 pnpm build
 ```
-

@@ -31,4 +31,3 @@ Make Phase 1 safe to use privately and ready for public release preparation.
 ## Safety Notes
 
 Release hardening is not polish. It is the point where account safety, data safety, and extension review risk are verified.
-

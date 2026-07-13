@@ -1,7 +1,7 @@
 # ITER-022: Audit Confirmation And Triage — Final Report
 
-**Date:** 2026-06-20  
-**Audit source:** `docs/vacancypilot_deep_repo_audit_2026-06-20.md`  
+**Date:** 2026-06-20
+**Audit source:** `docs/vacancypilot_deep_repo_audit_2026-06-20.md`
 **Repo commit:** `b5af869`
 
 ---

@@ -1,6 +1,6 @@
 # ITER-070: Popup And Badge UX Polish
 
-Epic: EPIC-35  
+Epic: EPIC-35
 Commit: `polish: improve popup and page badge UX`
 
 ## Goal

@@ -1,6 +1,6 @@
 # ITER-075: Runtime Forms, Empty States, And Final Report
 
-Epic: EPIC-36  
+Epic: EPIC-36
 Commit: `docs: finalize runtime visual consistency pass`
 
 ## Goal

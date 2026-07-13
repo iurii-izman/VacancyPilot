@@ -1,6 +1,6 @@
 # ITER-045: Reply Draft And Follow-Up Workspace
 
-Epic: EPIC-23  
+Epic: EPIC-23
 Commit: `feat: add hr follow up workspace`
 
 ## Goal

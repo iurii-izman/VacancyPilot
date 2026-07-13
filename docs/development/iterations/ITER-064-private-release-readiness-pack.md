@@ -1,6 +1,6 @@
 # ITER-064: Private Release Readiness Pack
 
-Epic: EPIC-32  
+Epic: EPIC-32
 Commit: `docs: finalize private release readiness pack`
 
 ## Goal

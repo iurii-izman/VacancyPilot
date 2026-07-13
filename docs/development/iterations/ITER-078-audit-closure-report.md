@@ -1,6 +1,6 @@
 # ITER-078: Audit Closure Report
 
-Epic: EPIC-37  
+Epic: EPIC-37
 Commit: `docs: finalize 2026-06-22 audit closure`
 
 ## Goal

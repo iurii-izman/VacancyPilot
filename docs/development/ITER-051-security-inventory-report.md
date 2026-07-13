@@ -266,13 +266,13 @@ Dev (1 vuln, deferred):
 Dev (all resolved):
   wxt@0.20.26 → c12@3.3.4 → giget@2.0.0 → nypm@0.6.7
   → tar removed. No advisories.
-  
+
   wxt/vite/vitest → esbuild@0.28.1
   → Patched. No advisories.
-  
+
   wxt → web-ext-run → tmp@0.2.7
   → Patched. No advisories.
-  
+
   wxt → web-ext-run → fx-runner → shell-quote@1.8.4 (override)
   → Previously resolved. No advisories.
 ```

@@ -1,6 +1,6 @@
 # ITER-033: Search Card Parser And Fixtures
 
-Epic: EPIC-20  
+Epic: EPIC-20
 Commit: `feat: add hh search card parser`
 
 ## Goal

@@ -1,6 +1,6 @@
 # ITER-003: Domain Models
 
-Epic: EPIC-01  
+Epic: EPIC-01
 Commit: `feat: add domain model contracts`
 
 ## Goal
@@ -43,4 +43,3 @@ Implement typed domain models from the master specification.
 pnpm typecheck
 pnpm test
 ```
-

@@ -1,6 +1,6 @@
 # ITER-028: Dashboard Storage And Release Audit Hardening
 
-Epic: EPIC-14  
+Epic: EPIC-14
 Commit: `fix: correct dashboard storage listener and add release audit scripts`
 
 ## Goal

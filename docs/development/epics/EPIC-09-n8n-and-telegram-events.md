@@ -33,4 +33,3 @@ Add opt-in local webhook events for user-owned automations without leaking sensi
 ## Safety Notes
 
 Webhook URL is sensitive. Treat it as local-only configuration and never expose it in logs or export unless explicitly requested.
-

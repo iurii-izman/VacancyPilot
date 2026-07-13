@@ -1,6 +1,6 @@
 # Chrome Web Store Listing Draft — VacancyPilot
 
-Status: first real release baseline  
+Status: first real release baseline
 Date: 2026-06-22
 
 This file contains ready-to-edit store copy and review-facing text for a future public release. It is intentionally narrower than the full public-release prerequisites checklist.

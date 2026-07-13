@@ -1,6 +1,6 @@
 # ITER-063: Onboarding And Permission Disclosure
 
-Epic: EPIC-32  
+Epic: EPIC-32
 Commit: `feat: complete onboarding and permission disclosure`
 
 ## Goal

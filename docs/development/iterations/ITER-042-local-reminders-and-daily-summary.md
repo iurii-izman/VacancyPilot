@@ -1,6 +1,6 @@
 # ITER-042: Local Reminders And Daily Summary
 
-Epic: EPIC-25  
+Epic: EPIC-25
 Commit: `feat: add workflow reminders and summary`
 
 ## Goal

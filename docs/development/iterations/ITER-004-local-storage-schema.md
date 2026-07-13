@@ -1,6 +1,6 @@
 # ITER-004: Local Storage Schema
 
-Epic: EPIC-01  
+Epic: EPIC-01
 Commit: `feat: add local storage schema`
 
 ## Goal
@@ -34,4 +34,3 @@ Create Dexie schema v1, migrations structure, and local settings storage boundar
 pnpm typecheck
 pnpm test
 ```
-

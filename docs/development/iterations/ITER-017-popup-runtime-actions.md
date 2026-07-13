@@ -1,6 +1,6 @@
 # ITER-017: Popup Runtime Actions
 
-Epic: EPIC-11  
+Epic: EPIC-11
 Commit: `feat: wire popup runtime actions`
 
 ## Goal

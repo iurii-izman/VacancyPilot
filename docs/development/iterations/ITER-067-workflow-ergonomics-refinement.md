@@ -1,6 +1,6 @@
 # ITER-067: Workflow Ergonomics Refinement
 
-Epic: EPIC-34  
+Epic: EPIC-34
 Commit: `feat: refine workflow ergonomics`
 
 ## Goal

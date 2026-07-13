@@ -1,6 +1,6 @@
 # ITER-057: Profile Experience And Seniority Model
 
-Epic: EPIC-29  
+Epic: EPIC-29
 Commit: `feat: add profile experience model`
 
 ## Goal

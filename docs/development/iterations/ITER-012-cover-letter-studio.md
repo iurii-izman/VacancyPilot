@@ -1,6 +1,6 @@
 # ITER-012: Cover Letter Studio
 
-Epic: EPIC-07  
+Epic: EPIC-07
 Commit: `feat: add cover letter studio`
 
 ## Goal
@@ -37,4 +37,3 @@ pnpm typecheck
 pnpm test
 pnpm build
 ```
-

@@ -1,6 +1,6 @@
 # ITER-002: Quality Scripts
 
-Epic: EPIC-00  
+Epic: EPIC-00
 Commit: `chore: add project quality scripts`
 
 ## Goal
@@ -35,4 +35,3 @@ pnpm typecheck
 pnpm test
 pnpm build
 ```
-

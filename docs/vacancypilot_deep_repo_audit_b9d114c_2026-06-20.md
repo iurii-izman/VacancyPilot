@@ -1,11 +1,11 @@
 # VacancyPilot — повторный глубокий аудит после последних патчей
 
-**Дата аудита:** 2026-06-20  
-**Репозиторий:** `iurii-izman/VacancyPilot`  
-**Проверяемый коммит:** `b9d114c92788c399a1bc51ffbd852328456c625f`  
-**Предыдущая база:** `c547273010e9fe3112f6c298e35e12be0aef53b7`  
-**Цель:** повторно проверить исправления последних патчей, найти остаточные баги, несоответствия ТЗ, runtime-риски и подготовить добивочный план для Codex.  
-**Метод:** GitHub connector audit + compare commits + статический code review + проверка контрактов, сервисов, тестов и документации.  
+**Дата аудита:** 2026-06-20
+**Репозиторий:** `iurii-izman/VacancyPilot`
+**Проверяемый коммит:** `b9d114c92788c399a1bc51ffbd852328456c625f`
+**Предыдущая база:** `c547273010e9fe3112f6c298e35e12be0aef53b7`
+**Цель:** повторно проверить исправления последних патчей, найти остаточные баги, несоответствия ТЗ, runtime-риски и подготовить добивочный план для Codex.
+**Метод:** GitHub connector audit + compare commits + статический code review + проверка контрактов, сервисов, тестов и документации.
 
 > Ограничение: живой запуск расширения в Chrome/Edge из этой среды невозможен. Runtime-выводы, которые нельзя доказать кодом, помечены как требующие manual rerun.
 
@@ -48,8 +48,8 @@
 | Tests/release safety | 72 | 80 |
 | Release readiness | 48 | 68 |
 
-**Итоговая оценка:** `80/100` как codebase foundation.  
-**Release readiness:** `68/100` до живого rerun и фикса dashboard storage listener.  
+**Итоговая оценка:** `80/100` как codebase foundation.
+**Release readiness:** `68/100` до живого rerun и фикса dashboard storage listener.
 **После добивочного Codex-прогона + Chrome/Edge rerun:** потенциально `86–90/100`.
 
 ---
@@ -111,7 +111,7 @@ pre-commit.ci - push: error
 
 ### P0-1. Dashboard auto-refresh использует вероятно неверный Chrome Storage API
 
-**Файл:** `entrypoints/options/App.tsx`  
+**Файл:** `entrypoints/options/App.tsx`
 **Место:** `VacancySection`, auto-refresh effect.
 
 Текущий код:

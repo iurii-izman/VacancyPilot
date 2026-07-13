@@ -23,4 +23,3 @@ Operating mode:
 - At the end, provide: files changed, commands run, validation status, known issues, and the suggested commit message from the iteration prompt.
 
 Wait for the target iteration prompt before changing files.
-

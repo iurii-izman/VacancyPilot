@@ -31,4 +31,3 @@ Read data from the HH vacancy page opened by the user, normalize it, and validat
 ## Safety Notes
 
 Prefer structured state only if it is already present in the opened page and does not require private endpoints.
-

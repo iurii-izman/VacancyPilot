@@ -1,6 +1,6 @@
 # ITER-044: HR Timeline Capture And Classification
 
-Epic: EPIC-23  
+Epic: EPIC-23
 Commit: `feat: add hr timeline capture`
 
 ## Goal

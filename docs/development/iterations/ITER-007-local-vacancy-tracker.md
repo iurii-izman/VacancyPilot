@@ -1,6 +1,6 @@
 # ITER-007: Local Vacancy Tracker
 
-Epic: EPIC-03  
+Epic: EPIC-03
 Commit: `feat: add local vacancy tracker`
 
 ## Goal
@@ -35,4 +35,3 @@ Allow saving and updating parsed vacancies in local storage.
 pnpm typecheck
 pnpm test
 ```
-

@@ -1,6 +1,6 @@
 # ITER-037: Queue Task List And Duplicate Detection
 
-Epic: EPIC-21  
+Epic: EPIC-21
 Commit: `feat: add queue task list`
 
 ## Goal

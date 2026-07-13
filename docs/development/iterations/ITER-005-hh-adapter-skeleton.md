@@ -1,6 +1,6 @@
 # ITER-005: HH Adapter Skeleton
 
-Epic: EPIC-02  
+Epic: EPIC-02
 Commit: `feat: add hh vacancy parser skeleton`
 
 ## Goal
@@ -34,4 +34,3 @@ Add the adapter contract and a safe HH vacancy parser skeleton.
 pnpm typecheck
 pnpm test
 ```
-

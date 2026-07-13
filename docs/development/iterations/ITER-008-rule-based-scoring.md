@@ -1,6 +1,6 @@
 # ITER-008: Rule-Based Scoring
 
-Epic: EPIC-04  
+Epic: EPIC-04
 Commit: `feat: add rule based scoring`
 
 ## Goal
@@ -35,4 +35,3 @@ Implement the first deterministic scoring engine.
 pnpm typecheck
 pnpm test
 ```
-

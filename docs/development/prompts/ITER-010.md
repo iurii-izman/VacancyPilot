@@ -31,4 +31,3 @@ pnpm test
 ```
 
 Expected commit message: `feat: add ai privacy layer`
-

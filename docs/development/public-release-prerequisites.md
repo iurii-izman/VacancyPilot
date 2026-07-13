@@ -1,6 +1,6 @@
 # Public Release Prerequisites — VacancyPilot
 
-Status: ITER-064  
+Status: ITER-064
 Source: spec sections 26.1, 26.4, 26.5, 26.6; EPIC-10
 
 This document lists everything that must be completed or resolved before VacancyPilot can be published to the Chrome Web Store or distributed publicly. Most items are **not required** for private/personal use.

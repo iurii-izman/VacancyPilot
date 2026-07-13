@@ -164,7 +164,7 @@ interface Event {
 **1. Анализ вакансии (AI Score & Risks):**
 ```text
 System: You are an expert tech recruiter. Analyze the job description against the candidate's profile. Output JSON.
-User: 
+User:
 Candidate Profile: {profile.name}, Skills: {profile.skills}, Experience: {profile.yearsExp} years.
 Job Description: {job.description}
 

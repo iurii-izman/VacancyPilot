@@ -1,6 +1,6 @@
 # ITER-019: Profile And Resume Management
 
-Epic: EPIC-11  
+Epic: EPIC-11
 Commit: `feat: add profile resume management`
 
 ## Goal

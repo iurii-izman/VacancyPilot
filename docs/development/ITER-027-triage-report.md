@@ -1,8 +1,8 @@
 # ITER-027: Second Audit Triage Report
 
-**Date:** 2026-06-20  
-**Audit commit:** `b9d114c92788c399a1bc51ffbd852328456c625f`  
-**Triage performed on:** current `main` (matching `b9d114c` with pre-existing doc changes)  
+**Date:** 2026-06-20
+**Audit commit:** `b9d114c92788c399a1bc51ffbd852328456c625f`
+**Triage performed on:** current `main` (matching `b9d114c` with pre-existing doc changes)
 **Author:** Zed + DeepSeek V4 Pro
 
 ---

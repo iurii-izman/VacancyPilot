@@ -1,7 +1,7 @@
 # VacancyPilot Privacy Policy
 
-Effective date: 2026-06-22  
-Last updated: 2026-06-22  
+Effective date: 2026-06-22
+Last updated: 2026-06-22
 Version: 0.1
 
 VacancyPilot is a local-first browser extension for HH.ru vacancy analysis, tracking, and writing assistance. This policy covers the VacancyPilot extension itself. It does not cover any separate developer website or backend because VacancyPilot does not operate one.
@@ -100,5 +100,5 @@ If this policy changes materially, the updated version will be published in the 
 
 ## Contact
 
-For general project questions, use the repository issue tracker: [GitHub Issues](https://github.com/VacancyPilot/VacancyPilot/issues)  
+For general project questions, use the repository issue tracker: [GitHub Issues](https://github.com/VacancyPilot/VacancyPilot/issues)
 For sensitive security matters, use: [GitHub Security Advisories](https://github.com/VacancyPilot/VacancyPilot/security/advisories/new)

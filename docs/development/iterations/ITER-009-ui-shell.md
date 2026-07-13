@@ -1,6 +1,6 @@
 # ITER-009: UI Shell
 
-Epic: EPIC-05  
+Epic: EPIC-05
 Commit: `feat: add extension ui shell`
 
 ## Goal
@@ -36,4 +36,3 @@ pnpm typecheck
 pnpm test
 pnpm build
 ```
-

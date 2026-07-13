@@ -1,6 +1,6 @@
 # ITER-076: Sonar Coverage Baseline
 
-Epic: EPIC-37  
+Epic: EPIC-37
 Commit: `ci: add sonar coverage baseline`
 
 ## Goal

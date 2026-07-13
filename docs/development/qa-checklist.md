@@ -1,6 +1,6 @@
 # Manual QA Checklist — VacancyPilot
 
-Status: ITER-056 refresh (post-audit runtime QA)  
+Status: ITER-056 refresh (post-audit runtime QA)
 Source: spec section 22.4, EPIC-10, EPIC-15, EPIC-29
 
 > **Current surface**: vacancy popup, side panel, search quick actions, HR timeline extraction, export/delete, Edge rerun. This checklist was refreshed after `ITER-056` to reflect the post-audit product surface. The earlier Phase 1 closeout gate is documented in `docs/development/manual-qa-run-2026-06-20.md`.

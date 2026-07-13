@@ -35,4 +35,3 @@ Create an installable, testable WXT + Manifest V3 + React + TypeScript extension
 ## Safety Notes
 
 Manifest changes are security-sensitive. Any new permission must be justified against the master spec.
-

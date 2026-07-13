@@ -1,6 +1,6 @@
 # ITER-055: Schema Source Of Truth And HR Data Lifecycle
 
-Epic: EPIC-29  
+Epic: EPIC-29
 Commit: `fix: align schema lifecycle utilities`
 
 ## Goal

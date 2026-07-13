@@ -1,6 +1,6 @@
 # ITER-038: Company Greylist And Phase 2 Dashboard
 
-Epic: EPIC-21  
+Epic: EPIC-21
 Commit: `feat: add company greylist workflow`
 
 ## Goal

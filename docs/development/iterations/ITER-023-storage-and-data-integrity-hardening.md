@@ -1,6 +1,6 @@
 # ITER-023: Storage And Data Integrity Hardening
 
-Epic: EPIC-13  
+Epic: EPIC-13
 Commit: `fix: harden vacancy storage and badge cleanup`
 
 ## Goal

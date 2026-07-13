@@ -1,6 +1,6 @@
 # ITER-077: HR Timeline Trust Surface
 
-Epic: EPIC-37  
+Epic: EPIC-37
 Commit: `fix: harden hr timeline trust surface`
 
 ## Goal

@@ -34,4 +34,3 @@ Add AI analysis safely: explicit opt-in, payload preview, redaction, Strict Priv
 ## Safety Notes
 
 Never let content scripts see API keys. Do not claim `chrome.storage.local` is a secure vault.
-

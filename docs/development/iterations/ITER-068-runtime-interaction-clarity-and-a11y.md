@@ -1,6 +1,6 @@
 # ITER-068: Runtime Interaction Clarity And Accessibility
 
-Epic: EPIC-34  
+Epic: EPIC-34
 Commit: `feat: improve runtime interaction clarity`
 
 ## Goal

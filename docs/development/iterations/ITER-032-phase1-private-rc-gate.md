@@ -1,6 +1,6 @@
 # ITER-032: Phase 1 Private RC Gate
 
-Epic: EPIC-15  
+Epic: EPIC-15
 Commit: `docs: finalize phase 1 private rc gate`
 
 ## Goal

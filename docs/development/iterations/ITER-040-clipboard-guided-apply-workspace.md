@@ -1,6 +1,6 @@
 # ITER-040: Clipboard Guided Apply Workspace
 
-Epic: EPIC-22  
+Epic: EPIC-22
 Commit: `feat: add guided apply workspace`
 
 ## Goal

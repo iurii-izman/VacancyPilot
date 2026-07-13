@@ -1,6 +1,6 @@
 # ITER-065: UI Foundations And Shell Consistency
 
-Epic: EPIC-33  
+Epic: EPIC-33
 Commit: `refactor: unify ui surface foundations`
 
 ## Goal

@@ -43,4 +43,3 @@ Final response must include:
 - validation result;
 - remaining risks, if any;
 - suggested commit message from the original iteration.
-

@@ -1,6 +1,6 @@
 # ITER-022: Audit Confirmation And Triage
 
-Epic: EPIC-12  
+Epic: EPIC-12
 Commit: `docs: triage external audit findings`
 
 ## Goal

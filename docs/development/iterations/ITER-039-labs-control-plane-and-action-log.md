@@ -1,6 +1,6 @@
 # ITER-039: Labs Control Plane And Action Log
 
-Epic: EPIC-22  
+Epic: EPIC-22
 Commit: `feat: add labs safety controls`
 
 ## Goal

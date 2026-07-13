@@ -1,6 +1,6 @@
 # Release Checklist — VacancyPilot
 
-Status: ITER-064  
+Status: ITER-064
 Source: spec sections 19.6, 22.4, 26.5, 26.6; EPIC-11; EPIC-15; PHASE-1-SIGNOFF
 
 ## Automated Checks (CI Gate)

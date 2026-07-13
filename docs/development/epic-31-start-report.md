@@ -24,7 +24,7 @@ Run exactly one row at a time:
 2. `ITER-061` — add token/cost preview and local request-budget controls
 3. `ITER-062` — add letter quality guardrails and provenance markers
 
-Do not start `ITER-061` before `ITER-060` is reviewed, committed, and pushed.  
+Do not start `ITER-061` before `ITER-060` is reviewed, committed, and pushed.
 Do not start `ITER-062` before `ITER-061` is reviewed, committed, and pushed.
 
 ## Scope Boundary
@@ -47,8 +47,8 @@ Out of scope for this pack:
 
 ## Why This Order
 
-`ITER-060` must go first because the rest of the pack depends on a real provider path existing at all.  
-`ITER-061` then adds user control over AI cost and volume.  
+`ITER-060` must go first because the rest of the pack depends on a real provider path existing at all.
+`ITER-061` then adds user control over AI cost and volume.
 `ITER-062` finishes the trust layer at the output surface where users actually consume AI text.
 
 ## Ready Prompt Files

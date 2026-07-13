@@ -1,8 +1,8 @@
 # VacancyPilot — Private Alpha Release Notes
 
-**Version**: 0.1.0  
-**Date**: 2026-06-22  
-**Status**: Private alpha / dogfooding build  
+**Version**: 0.1.0
+**Date**: 2026-06-22
+**Status**: Private alpha / dogfooding build
 **Target**: First real private release baseline
 
 ---

@@ -1,6 +1,6 @@
 # ITER-030: Passive Status And Side Panel Context
 
-Epic: EPIC-14  
+Epic: EPIC-14
 Commit: `feat: integrate passive HH status parser and fix side panel context`
 
 ## Goal

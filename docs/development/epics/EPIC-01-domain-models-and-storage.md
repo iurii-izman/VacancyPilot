@@ -31,4 +31,3 @@ Implement the local contracts that all features use: typed domain models, Dexie 
 ## Safety Notes
 
 Local-first does not mean secure vault. Keep API key handling separate and explicit.
-

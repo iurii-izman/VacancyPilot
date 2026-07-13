@@ -1,6 +1,6 @@
 # ITER-026: Parser, Dashboard, And Release Safety Hardening
 
-Epic: EPIC-13  
+Epic: EPIC-13
 Commit: `fix: harden parser and release safety`
 
 ## Goal

@@ -48,5 +48,5 @@ That order reduces churn and avoids repeatedly restyling the same surfaces.
 
 ## Rule
 
-Keep this pack queued until the current AI trust row is reviewed and merged.  
+Keep this pack queued until the current AI trust row is reviewed and merged.
 Do not run UI/UX prompts in parallel with unfinished implementation prompts that touch the same surfaces.

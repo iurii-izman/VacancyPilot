@@ -1,6 +1,6 @@
 # ITER-074: Dashboard Shell Consolidation
 
-Epic: EPIC-36  
+Epic: EPIC-36
 Commit: `feat: consolidate dashboard shell responsiveness`
 
 ## Goal

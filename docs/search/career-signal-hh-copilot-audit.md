@@ -284,7 +284,7 @@ Candidate profile:
 
 Output JSON:
 {
-  "score": ..., 
+  "score": ...,
   "fit_reasons": [...],
   "risk_flags": [...],
   "recommended_profile": "...",

@@ -1,6 +1,6 @@
 # ITER-013: Export And Delete
 
-Epic: EPIC-08  
+Epic: EPIC-08
 Commit: `feat: add export and data deletion`
 
 ## Goal
@@ -35,4 +35,3 @@ Add CSV/JSON export and explicit local data deletion workflows.
 pnpm typecheck
 pnpm test
 ```
-

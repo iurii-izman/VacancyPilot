@@ -1,6 +1,6 @@
 # Private Install & Validation Guide — VacancyPilot
 
-Status: ITER-064  
+Status: ITER-064
 Target audience: developer or early tester installing from source
 
 This guide covers building and loading the extension for private/personal use. It does NOT cover Chrome Web Store submission.

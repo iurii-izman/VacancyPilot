@@ -1,6 +1,6 @@
 # ITER-015: Release Safety Tests
 
-Epic: EPIC-10  
+Epic: EPIC-10
 Commit: `test: add release safety checks`
 
 ## Goal
@@ -33,4 +33,3 @@ Add automated checks that prevent unsafe release regressions.
 pnpm test
 pnpm build
 ```
-

@@ -29,4 +29,3 @@ Allow the user to save vacancies locally, update statuses, and preserve a clear 
 ## Safety Notes
 
 The extension can track what the user did, but must not perform the HH action for the user.
-

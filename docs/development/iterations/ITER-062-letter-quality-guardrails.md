@@ -1,6 +1,6 @@
 # ITER-062: Letter Quality Guardrails
 
-Epic: EPIC-31  
+Epic: EPIC-31
 Commit: `feat: add letter quality guardrails`
 
 ## Goal

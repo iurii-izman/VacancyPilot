@@ -33,4 +33,3 @@ pnpm build
 ```
 
 Expected commit message: `feat: add extension ui shell`
-

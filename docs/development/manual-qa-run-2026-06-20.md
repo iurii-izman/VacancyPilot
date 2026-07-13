@@ -74,7 +74,7 @@ These findings are the basis for `EPIC-11: Runtime Workflow Completion`.
 
 ## ITER-021 Rerun Analysis — 2026-06-20
 
-Build: `c547273` + ITER-021 fixes  
+Build: `c547273` + ITER-021 fixes
 Analysis: code review + automated validation (no live browser rerun yet)
 
 ### Previously Failed → Status After ITER-017..020

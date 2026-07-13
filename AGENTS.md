@@ -48,4 +48,3 @@ Keep permissions minimal. Do not add broad host permissions or sensitive extensi
 - Use clear, short commit messages.
 - Do not commit generated build outputs, secrets, API keys, browser profiles, or local logs.
 - If adding implementation code, include the relevant test or fixture coverage in the same change when practical.
-

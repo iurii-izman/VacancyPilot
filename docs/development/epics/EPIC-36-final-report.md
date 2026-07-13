@@ -1,7 +1,7 @@
 # EPIC-36 Final Report: Runtime Visual Consistency
 
-Status: **Complete**  
-Date: 2026-06-22  
+Status: **Complete**
+Date: 2026-06-22
 Input: `docs/vacancypilot_runtime_visual_consistency_audit_2026-06-21.md`
 
 ## Summary

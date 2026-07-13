@@ -33,4 +33,3 @@ pnpm test
 ```
 
 Expected commit message: `feat: add hh vacancy parser skeleton`
-

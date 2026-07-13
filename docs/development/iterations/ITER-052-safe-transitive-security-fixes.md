@@ -1,6 +1,6 @@
 # ITER-052: Safe Transitive Security Fixes
 
-Epic: EPIC-28  
+Epic: EPIC-28
 Commit: `fix: close safe transitive security alerts`
 
 ## Goal

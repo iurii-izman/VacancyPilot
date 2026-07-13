@@ -1,6 +1,6 @@
 # ITER-051: Security Alert Inventory And Fix Map
 
-Epic: EPIC-28  
+Epic: EPIC-28
 Commit: `docs: inventory remaining security alerts`
 
 ## Goal

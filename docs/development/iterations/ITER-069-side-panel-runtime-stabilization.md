@@ -1,6 +1,6 @@
 # ITER-069: Side Panel Runtime Stabilization
 
-Epic: EPIC-35  
+Epic: EPIC-35
 Commit: `fix: stabilize side panel open flow`
 
 ## Goal

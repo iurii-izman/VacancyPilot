@@ -1,6 +1,6 @@
 # ITER-056: Migration Boot And Runtime QA Evidence
 
-Epic: EPIC-29  
+Epic: EPIC-29
 Commit: `fix: wire migrations and refresh runtime qa gate`
 
 ## Goal

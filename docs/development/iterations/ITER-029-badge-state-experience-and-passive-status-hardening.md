@@ -1,6 +1,6 @@
 # ITER-029: Badge State, Experience, And Passive Status Hardening
 
-Epic: EPIC-14  
+Epic: EPIC-14
 Commit: `fix: dedup badge helpers, add experience parser, tighten passive status regex`
 
 ## Goal

@@ -1,6 +1,6 @@
 # ITER-050: React Stack Alignment
 
-Epic: EPIC-27  
+Epic: EPIC-27
 Commit: `chore: align react stack`
 
 ## Goal

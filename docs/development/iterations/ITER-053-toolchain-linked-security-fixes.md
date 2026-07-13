@@ -1,6 +1,6 @@
 # ITER-053: Toolchain-Linked Security Fixes
 
-Epic: EPIC-28  
+Epic: EPIC-28
 Commit: `fix: resolve toolchain linked security alerts`
 
 ## Goal

@@ -1,6 +1,6 @@
 # ITER-020: Surface State Consistency
 
-Epic: EPIC-11  
+Epic: EPIC-11
 Commit: `feat: sync runtime surfaces`
 
 ## Goal

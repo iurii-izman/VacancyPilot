@@ -240,7 +240,7 @@ interface Application {
   notes: string;
 }
 
-type ApplicationStatus = 
+type ApplicationStatus =
   | 'new'
   | 'viewed'
   | 'saved'
@@ -608,7 +608,7 @@ interface AIPayload {
   profileSkills: string[];
   profileBio: string;
   resumeExperiences: Array<{role: string, company: string, description: string}>;
-  
+
   // НЕ отправляется:
   // - job.id (HH vacancy id)
   // - job.sourceUrl

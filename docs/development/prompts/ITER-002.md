@@ -32,4 +32,3 @@ pnpm build
 ```
 
 Expected commit message: `chore: add project quality scripts`
-
