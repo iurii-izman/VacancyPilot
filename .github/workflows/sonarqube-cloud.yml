@@ -46,7 +46,7 @@ jobs:
         if: steps.check-token.outputs.has_token == 'true'
         run: corepack enable
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         if: steps.check-token.outputs.has_token == 'true'
         with:
           node-version: 22
