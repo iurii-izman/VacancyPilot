@@ -1,6 +1,6 @@
 # Application Ops — Implementation Status
 
-Status: AOPS-00 complete (reviewed baseline and contract freeze)
+Status: AOPS-01 complete (reviewed companion foundation); AOPS-02 next
 Date: 2026-07-29
 
 ## Baseline Snapshot
@@ -31,6 +31,27 @@ All commands executed against `e13eec2` with a clean worktree:
 
 Expected `stderr` logging from two negative `openSidePanel` tests appeared;
 both tests passed and the full command exited 0.
+
+## AOPS-01 Validation (2026-07-29)
+
+Reviewed against clean start commit
+`32e0443a9a0e44686d67d38ee59ae3dd89f0848b`. The review replaced placeholder
+validation/500 checks with behavioral tests, added an executable OpenAPI
+generator and drift check, constrained configuration to loopback, verified
+fresh-environment dependency installation, and sanitized error responses.
+
+| Command / probe | Exit | Result |
+| --- | --- | --- |
+| `pnpm verify:companion` | 0 | Ruff format/lint, strict mypy, 37 pytest tests, OpenAPI drift check PASS |
+| isolated `uv ... pytest` | 0 | 32 locked packages installed; 37 tests PASS |
+| documented Uvicorn command + HTTP probe | 0 | `127.0.0.1:8765`, health 200, supplied request ID echoed |
+| `pnpm verify` | 0 | 65 files, 1701 tests, chrome-mv3 build PASS |
+| `pnpm test:release` | 0 | 10 files, 392 tests, build PASS |
+| `git diff --check` | 0 | PASS (line-ending conversion warnings only) |
+
+The TestClient run emits one upstream Starlette deprecation warning about its
+current `httpx` compatibility shim; it does not affect the result. The live
+probe used no external service or credential.
 
 ## Existing Extension Capabilities (Preserved)
 
@@ -124,7 +145,7 @@ does not authorize product integration.
 | Epic | Name | Status |
 | --- | --- | --- |
 | AOPS-00 | Baseline and contract freeze | complete |
-| AOPS-01 | Companion foundation | not started |
+| AOPS-01 | Companion foundation | complete |
 | AOPS-02 | SQLite domain and migrations | not started |
 | AOPS-03 | Localhost security, pairing and secrets | not started |
 | AOPS-04 | Extension Ops client and offline mode | not started |
@@ -215,8 +236,8 @@ does not authorize product integration.
 ## Contract and Manifest Verification
 
 - `wxt.config.ts` permissions unchanged: `storage`, `sidePanel`, `activeTab`
-- `package.json` dependencies unchanged
-- No new packages, no version bumps
+- Extension runtime/dev dependencies unchanged; root `package.json` adds only companion scripts
+- Companion Python dependencies are isolated under `companion/` and locked by `uv.lock`
 - No Dexie schema changes
 - No Application Engine runtime edits
 - No HH or AI calls introduced

@@ -12,6 +12,9 @@ export default tseslint.config(
       "build/",
       "coverage/",
       "node_modules/",
+      "companion/.venv/",
+      "companion/__pycache__/",
+      "shared/contracts/*.json",
     ],
   },
 );

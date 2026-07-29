@@ -14,7 +14,7 @@ interfaces.
 ## Decision
 
 FastAPI's auto-generated OpenAPI 3.x schema is the **canonical contract
-source**. A checked-in snapshot (`companion/openapi.json`) is used to:
+source**. A checked-in snapshot (`shared/contracts/openapi.json`) is used to:
 
 1. Generate TypeScript types via a code-generation tool (e.g., `openapi-typescript`)
 2. Validate the running companion against the frozen contract in CI

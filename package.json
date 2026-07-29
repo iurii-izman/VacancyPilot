@@ -17,7 +17,16 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm build",
-    "test:release": "pnpm build && vitest run --config vitest.release.config.ts src/release-safety"
+    "test:release": "pnpm build && vitest run --config vitest.release.config.ts src/release-safety",
+    "companion:format-check": "uv run --project companion --extra dev ruff format --check companion/",
+    "companion:format": "uv run --project companion --extra dev ruff format companion/",
+    "companion:lint": "uv run --project companion --extra dev ruff check companion/",
+    "companion:typecheck": "uv run --project companion --extra dev mypy companion/app/",
+    "companion:test": "uv run --project companion --extra dev pytest companion/tests/ -v",
+    "companion:openapi": "uv run --project companion python -m app.openapi",
+    "companion:openapi-check": "uv run --project companion python -m app.openapi --check",
+    "verify:companion": "pnpm companion:format-check && pnpm companion:lint && pnpm companion:typecheck && pnpm companion:test && pnpm companion:openapi-check",
+    "verify:all": "pnpm verify && pnpm verify:companion"
   },
   "dependencies": {
     "dexie": "^4.4.4",
