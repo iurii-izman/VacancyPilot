@@ -15,6 +15,18 @@ Read in order:
 9. target file in `iterations/`
 10. matching prompt in `prompts/`
 
+For the Application Ops MVP, use the repo-native pack:
+
+```text
+docs/mvp/VACANCYPILOT_APPLICATION_OPS_MVP.md
+docs/development/application-ops-pack/README.md
+docs/development/application-ops-pack/ZED_SESSION_START.md
+docs/development/application-ops-pack/prompts/AOPS-00.md
+```
+
+The separate private Application Engine workspace is not part of this
+repository and must not be copied into Git.
+
 ## Start Here
 
 Current implementation status:
