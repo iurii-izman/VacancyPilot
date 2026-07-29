@@ -204,6 +204,16 @@ Status values:
 | ITER-077 | EPIC-37 | Reduce HR timeline export/privacy risk by storing safer content and documenting the trust boundary precisely | done | `fix: harden hr timeline trust surface` |
 | ITER-078 | EPIC-37 | Capture the 2026-06-22 audit closure report and manual infra handoff without reopening duplicated runtime/UI work | done | `docs: finalize 2026-06-22 audit closure` |
 
+## Phase 6.1: HH Visual Triage And Search Highlights MVP
+
+| Iteration | Epic | Goal | Status | Commit |
+| --- | --- | --- | --- | --- |
+| ITER-079 | EPIC-38 | Add local visit marks, vacancy-open recording, and lifecycle coverage without polluting saved jobs | done | `1d55ab0` |
+| ITER-080 | EPIC-38 | Replace storage-only search badge reads with a batched highlight-state pipeline and render viewed/saved/rejected/score states safely on HH search cards | done | `63474fb` |
+| ITER-081 | EPIC-38 | Add Search Highlights settings, optional local search-surface controls, and final manual QA/reporting for the MVP pack | done | `e6c3958` |
+
+Post-iteration rendering/discovery hardening landed in `71ab48c` and `083d360`.
+
 ## Phase 5: Expansion And Release
 
 | Iteration | Epic | Goal | Status | Commit |

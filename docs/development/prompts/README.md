@@ -111,3 +111,5 @@ Recommended use after `ITER-016`:
 19. If manual QA still shows popup/side-panel runtime bugs or narrow-layout friction after that, continue with `ITER-069.md` through `ITER-071.md`
 20. After the runtime stabilization pass, use `ITER-072.md` through `ITER-075.md` for the screenshot-driven visual consistency consolidation pack
 21. After the 2026-06-22 full audit, do not duplicate its runtime/UI findings in a new pack; keep those on `ITER-069.md` through `ITER-075.md`, then use `ITER-076.md` through `ITER-078.md` only for the remaining repo-local quality/trust closure work
+22. For late-stage implementation rows, read `AGENTS.md` + the full master spec + `docs/development/CODEX-RUNTIME-BRIEF.md` + the target epic/iteration docs; the brief is a navigation aid, not a substitute for the spec
+23. `ITER-079.md` through `ITER-081.md` use this bounded-context pattern for the completed HH Visual Triage / Search Highlights MVP pack

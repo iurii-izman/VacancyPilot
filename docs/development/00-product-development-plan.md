@@ -16,6 +16,7 @@ Implementation note:
 - a post-polish runtime stabilization pack is prepared as `EPIC-35` (`ITER-069`..`ITER-071`) for defects confirmed by manual QA/screenshots;
 - a visual consistency consolidation pack is prepared as `EPIC-36` (`ITER-072`..`ITER-075`) from the 2026-06-21 runtime UX audit;
 - a non-duplicated audit-closure follow-up pack is prepared as `EPIC-37` (`ITER-076`..`ITER-078`) for repo-local quality/trust items from the 2026-06-22 full audit, while the duplicated runtime/UI findings remain intentionally mapped to `EPIC-35` and `EPIC-36`;
+- the Codex-led `EPIC-38` pack (`ITER-079`..`ITER-081`) delivered HH Visual Triage / Search Highlights MVP and its follow-up search-card discovery hardening;
 - `n8n` remains deferred until its permission model is explicitly reopened.
 
 ## Decision

@@ -58,6 +58,7 @@ This file is the working map from the master specification to implementation epi
 | EPIC-35 | Runtime Stabilization And Surface Hardening | 5.7 | ready |
 | EPIC-36 | Runtime Visual Consistency Consolidation | 5.8 | ready |
 | EPIC-37 | Audit Closure And Trust Surface Alignment | 5.9 | ready |
+| EPIC-38 | HH Visual Triage And Search Highlights MVP | 6.1 | done |
 
 ## Later Epics
 
