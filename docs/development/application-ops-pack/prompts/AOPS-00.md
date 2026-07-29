@@ -24,8 +24,9 @@ first API/data contract without changing runtime product behavior.
 
 - Worktree must be clean.
 - Branch must be `codex/application-ops-mvp`.
-- Prepared predecessor `e36a067ae4e8ef931bf0f151712016cb4dbce47e` must be an
-  ancestor of HEAD, and the repo-native pack/spec must be present. If not, do
+- Repo-native pack import `8117cc7ec479210a027bc09954d9069c65d23bd4` and
+  prepared predecessor `e36a067ae4e8ef931bf0f151712016cb4dbce47e` must be
+  ancestors of HEAD, and the repo-native pack/spec must be present. If not, do
   not reset or switch; report the actual HEAD and stop for review.
 - Do not reset to historical commit
   `71ab48c48376a1e7b44ed0733fdc9aa435f39e76`.

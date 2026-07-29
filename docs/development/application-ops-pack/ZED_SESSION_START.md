@@ -44,8 +44,9 @@ to reset to. Verify ancestry when relevant; record the actual clean start
 commit.
 
 Prepared predecessor `e36a067ae4e8ef931bf0f151712016cb4dbce47e` must also be
-an ancestor of the current HEAD. The pack and canonical MVP spec must be
-present in the open repository.
+an ancestor of the current HEAD. Repo-native pack import
+`8117cc7ec479210a027bc09954d9069c65d23bd4` must also be an ancestor. The pack
+and canonical MVP spec must be present in the open repository.
 
 ## Absolute product constraints
 

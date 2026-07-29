@@ -9,7 +9,7 @@ Target: the VacancyPilot repository root containing this file.
 ```text
 branch: codex/application-ops-mvp
 pre-import predecessor: e36a067ae4e8ef931bf0f151712016cb4dbce47e
-repo-native pack import: current clean branch HEAD; record with git rev-parse
+repo-native pack import: 8117cc7ec479210a027bc09954d9069c65d23bd4
 worktree: clean
 v4.0.0: ABSENT
 ```
@@ -94,6 +94,7 @@ git branch --show-current
 git rev-parse HEAD
 git merge-base --is-ancestor 71ab48c48376a1e7b44ed0733fdc9aa435f39e76 HEAD
 git merge-base --is-ancestor e36a067ae4e8ef931bf0f151712016cb4dbce47e HEAD
+git merge-base --is-ancestor 8117cc7ec479210a027bc09954d9069c65d23bd4 HEAD
 ```
 
 Expected:
@@ -101,7 +102,7 @@ Expected:
 ```text
 branch: codex/application-ops-mvp
 worktree: clean
-both ancestry commands exit: 0
+all ancestry commands exit: 0
 ```
 
 If any value differs, stop and review the new state instead of resetting it.

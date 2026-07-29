@@ -50,9 +50,10 @@ The prior Search Highlights runtime fix and its documentation were preserved.
 Its documentation closure is commit
 `e36a067ae4e8ef931bf0f151712016cb4dbce47e`; local `main` was fast-forwarded,
 
-The current clean HEAD must contain this repo-native pack and the canonical MVP
-spec, and prepared predecessor `e36a067` must remain an ancestor. AOPS-00
-records the exact start commit.
+Repo-native pack import commit
+`8117cc7ec479210a027bc09954d9069c65d23bd4` and prepared predecessor
+`e36a067` must remain ancestors of the current clean HEAD. AOPS-00 records the
+exact start commit.
 
 Run this read-only preflight before pasting AOPS-00:
 
@@ -65,10 +66,10 @@ pnpm verify
 pnpm test:release
 ```
 
-Expected branch is `codex/application-ops-mvp`; prepared predecessor `e36a067`
-must be an ancestor of HEAD. If the branch differs or the worktree is dirty, do
-not reset, clean, stash, switch, or pull from inside the Zed run; return the
-exact blocker for review.
+Expected branch is `codex/application-ops-mvp`; repo-native import `8117cc7`
+and prepared predecessor `e36a067` must be ancestors of HEAD. If the branch
+differs or the worktree is dirty, do not reset, clean, stash, switch, or pull
+from inside the Zed run; return the exact blocker for review.
 
 The inspected local clone and its configured `origin` had no `v4.0.0` tag on
 2026-07-29. Treat tag state as an invariant: if a later clean baseline contains
