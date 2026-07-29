@@ -24,6 +24,12 @@ docs/development/application-ops-pack/ZED_SESSION_START.md
 docs/development/application-ops-pack/prompts/AOPS-00.md
 ```
 
+Application Ops documentation hub (frozen contracts, ADRs, status):
+
+```text
+docs/development/application-ops/README.md
+```
+
 The separate private Application Engine workspace is not part of this
 repository and must not be copied into Git.
 
