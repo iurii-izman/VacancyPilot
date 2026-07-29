@@ -80,13 +80,29 @@ part of these epics.
 
 1. Open the VacancyPilot repository root in Zed.
 2. Start a new DeepSeek chat for the epic.
-3. Paste `ZED_SESSION_START.md`.
-4. Paste the matching file from `prompts/`.
-5. Let the agent inspect, implement, test, and produce its handoff.
-6. Do not accept a textual PASS without command output.
-7. Return the diff and handoff to Codex for review.
-8. Apply a focused micro-prompt if review finds a bounded issue.
-9. Commit only after review passes.
+3. Ask the agent to read the repo-local session contract and exactly one
+   matching prompt completely.
+4. Let the agent inspect, implement, test, and produce its handoff.
+5. Do not accept a textual PASS without command output.
+6. Return the diff and handoff to Codex for review.
+7. Apply a focused micro-prompt if review finds a bounded issue.
+8. Commit only after review passes.
+
+For AOPS-00, the preferred text pasted into Zed is now only:
+
+```text
+Read these two repo-local files completely and follow them as one combined
+instruction, in this order:
+
+1. docs/development/application-ops-pack/ZED_SESSION_START.md
+2. docs/development/application-ops-pack/prompts/AOPS-00.md
+
+Implement only AOPS-00. Do not commit or push. Return the required handoff and
+leave the reviewed diff in the worktree.
+```
+
+If the Zed agent cannot resolve repo-local paths, attach those two files from
+the open workspace. No file from another workspace is required.
 
 One epic prompt may contain many coding steps, but it must remain one coherent
 review unit. Do not concatenate two epic prompts.
