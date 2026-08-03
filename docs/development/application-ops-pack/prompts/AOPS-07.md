@@ -2,6 +2,9 @@
 
 Implement only epic `AOPS-07` in the open VacancyPilot repository root.
 
+Follow `../ZED_SESSION_START.md`: work only on synchronized `main`; do not
+create a branch or PR, and leave commit/push to the Codex review gate.
+
 ## Goal
 
 Load and validate a versioned Application Engine V4 package, build a

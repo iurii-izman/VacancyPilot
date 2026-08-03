@@ -2,6 +2,9 @@
 
 Implement only epic `AOPS-09` in the open VacancyPilot repository root.
 
+Follow `../ZED_SESSION_START.md`: work only on synchronized `main`; do not
+create a branch or PR, and leave commit/push to the Codex review gate.
+
 ## Goal
 
 Complete the human-controlled letter workflow: generate or manually import a

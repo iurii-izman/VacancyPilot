@@ -2,6 +2,10 @@
 
 Implement only epic `AOPS-03` in the open VacancyPilot repository root.
 
+Precondition: run on clean synchronized `main` with AOPS-02 commit
+`8d8c11efecb50b10fed77d8a3bb855a76b653a40` in the ancestry. Follow the
+repo-local session contract; do not create a branch or pull request.
+
 ## Goal
 
 Secure the loopback companion before exposing domain operations: strict

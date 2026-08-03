@@ -4,7 +4,8 @@ Use after each DeepSeek epic and before committing it.
 
 ## Review order
 
-1. Confirm target branch and that the diff contains only the current epic.
+1. Confirm the target branch is `main`, `HEAD` started at `origin/main`, and
+   the diff contains only the current epic.
 2. Read the DeepSeek handoff, but independently inspect the code.
 3. Inspect:
 
@@ -65,6 +66,8 @@ Use only when completion depends on a real external prerequisite, such as:
 
 ## Commit after PASS
 
-DeepSeek does not commit. The reviewer/user commits only reviewed paths with the
-message specified in the epic prompt, then confirms a clean worktree before the
-next epic.
+DeepSeek does not commit. After PASS, the reviewer/user commits only reviewed
+paths with the message specified in the epic prompt directly to `main`, pushes
+`main` to `origin`, and confirms `HEAD == origin/main` plus a clean worktree.
+Do not create a feature branch or pull request. Do not start the next epic
+until that direct-main checkpoint is complete.

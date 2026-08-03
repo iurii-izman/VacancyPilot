@@ -4,7 +4,10 @@ This epic is conditional. Do not start it until AOPS-17 has an independently rev
 
 ## Mandatory session contract
 
-Read and follow `../ZED_SESSION_START.md` from this prompt pack before changing anything. Do not commit, push, switch branches, reset, clean, tag, publish, or rewrite unrelated files.
+Read and follow `../ZED_SESSION_START.md` before changing anything. Work only
+on synchronized `main`; do not create/switch branches or open a PR. Do not
+commit or push; leave that to the Codex review gate after PASS. Do not tag or
+publish without a separate explicit owner action.
 
 ## Goal
 
@@ -41,7 +44,11 @@ Use stable selection IDs and implement only selected items:
 
 The manual ChatGPT bridge is already P0 in AOPS-09; extend it only if the approved selection identifies a specific missing P1 acceptance criterion.
 
-Runtime DeepSeek integration is not part of the MVP’s listed P1 scope. Using DeepSeek inside Zed as the coding executor does not authorize adding it as a product provider. A product-level DeepSeek provider requires a separate owner decision, ADR, security review, schema compatibility proof, and bounded epic.
+Runtime DeepSeek integration is not part of the MVP’s listed P1 scope. Using
+DeepSeek through Claude as the coding executor does not authorize adding it as
+a product provider. A product-level DeepSeek provider requires a separate
+owner decision, ADR, security review, schema compatibility proof, and bounded
+epic.
 
 ## Cross-cutting requirements
 

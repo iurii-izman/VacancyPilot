@@ -81,7 +81,9 @@ Every epic must satisfy all applicable gates:
 4. Contract gate — OpenAPI/shared contracts and consumers stay synchronized.
 5. Test gate — actual commands pass; skipped tests are explained and accepted.
 6. Evidence gate — no candidate fact or V4 evidence level is invented.
-7. Git gate — no commit/push by DeepSeek; review begins from a visible diff.
+7. Git gate — Claude/DeepSeek does not commit or push; review begins from a
+   visible diff on `main`. After PASS, Codex commits and pushes directly to
+   `main`; no feature branch or PR is created.
 
 ## Cross-cutting decisions added to the source plan
 

@@ -1,12 +1,12 @@
 # Application Ops — Implementation Status
 
-Status: AOPS-01 complete (reviewed companion foundation); AOPS-02 next
-Date: 2026-07-29
+Status: AOPS-02 complete and independently validated; AOPS-03 next
+Date: 2026-08-03
 
 ## Baseline Snapshot
 
 ```text
-branch:            codex/application-ops-mvp
+branch:            main (direct commits; no feature branches or PRs)
 start commit:      e13eec2535f0c32534a659489262df3c052af99f
                    ("docs: add repo-local Zed launcher")
 pack import:       8117cc7ec479210a027bc09954d9069c65d23bd4 (ancestor ✓)
@@ -52,6 +52,26 @@ fresh-environment dependency installation, and sanitized error responses.
 The TestClient run emits one upstream Starlette deprecation warning about its
 current `httpx` compatibility shim; it does not affect the result. The live
 probe used no external service or credential.
+
+## AOPS-02 Validation (2026-08-03)
+
+AOPS-02 is committed on `main` as
+`8d8c11efecb50b10fed77d8a3bb855a76b653a40`. It provides the reviewed SQLite
+domain, Alembic round-trip, repository invariants, request transaction
+boundary and DB health contribution.
+
+| Command | Exit | Result |
+| --- | --- | --- |
+| `pnpm verify:companion` | 0 | 26 files formatted, Ruff PASS, strict mypy 17 files PASS, 103 pytest tests PASS, OpenAPI current |
+| migration tests inside companion suite | 0 | clean upgrade, repeated upgrade, downgrade/upgrade, metadata check and SQLite PRAGMAs PASS |
+| `pnpm verify` | 0 | 65 files, 1697 tests, chrome-mv3 build PASS |
+| `pnpm test:release` | 0 | 10 files, 388 tests, chrome-mv3 build PASS |
+| `git diff --check` | 0 | PASS |
+
+The companion suite emits one upstream Starlette TestClient deprecation
+warning; no test is skipped or failed. Extension/release test totals are the
+actual current counts and supersede older historical counts for this
+checkpoint.
 
 ## Existing Extension Capabilities (Preserved)
 
@@ -125,7 +145,7 @@ throughout all AOPS epics:
 
 The manual ChatGPT Project bridge is explicitly promoted from the source
 specification's conditional P1 list into P0 by ADR-006. A DeepSeek runtime
-provider remains post-MVP unless separately approved; use of DeepSeek in Zed
+provider remains post-MVP unless separately approved; use of DeepSeek through Claude
 does not authorize product integration.
 
 ### Non-goals (never in Application Ops MVP)
@@ -146,7 +166,7 @@ does not authorize product integration.
 | --- | --- | --- |
 | AOPS-00 | Baseline and contract freeze | complete |
 | AOPS-01 | Companion foundation | complete |
-| AOPS-02 | SQLite domain and migrations | not started |
+| AOPS-02 | SQLite domain and migrations | complete |
 | AOPS-03 | Localhost security, pairing and secrets | not started |
 | AOPS-04 | Extension Ops client and offline mode | not started |
 | AOPS-05 | Dexie migration and outbox | not started |

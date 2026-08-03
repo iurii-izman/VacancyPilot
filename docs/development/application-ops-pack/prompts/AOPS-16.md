@@ -4,7 +4,9 @@ You are implementing one bounded epic in the existing VacancyPilot repository.
 
 ## Mandatory session contract
 
-Read and follow `../ZED_SESSION_START.md` from this prompt pack before changing anything. Do not commit, push, switch branches, reset, clean, or rewrite unrelated files.
+Read and follow `../ZED_SESSION_START.md` before changing anything. Work only
+on synchronized `main`; do not create/switch branches or open a PR. Do not
+commit or push; leave that to the Codex review gate after PASS.
 
 ## Goal
 

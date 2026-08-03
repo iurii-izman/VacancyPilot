@@ -4,7 +4,11 @@ You are closing the P0 Application Ops milestone. This is a verification-and-rel
 
 ## Mandatory session contract
 
-Read and follow `../ZED_SESSION_START.md` from this prompt pack before changing anything. Do not commit, push, switch branches, reset, clean, move tags, or rewrite unrelated files.
+Read and follow `../ZED_SESSION_START.md` before changing anything. Work only
+on synchronized `main`; do not create/switch branches or open a PR. During the
+executor session do not commit, push, move tags, publish, reset or clean. After
+an independent PASS, Codex may commit and push `main`; tagging/publication
+remains a separate explicit owner action.
 
 ## Goal
 

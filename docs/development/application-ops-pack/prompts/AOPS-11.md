@@ -2,6 +2,9 @@
 
 Implement only epic `AOPS-11` in the open VacancyPilot repository root.
 
+Follow `../ZED_SESSION_START.md`: work only on synchronized `main`; do not
+create a branch or PR, and leave commit/push to the Codex review gate.
+
 ## Goal
 
 Add user-controlled HH OAuth with PKCE, secure token refresh/disconnect, account

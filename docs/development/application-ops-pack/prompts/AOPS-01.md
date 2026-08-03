@@ -20,7 +20,7 @@ tests. Do not implement domain behavior yet.
 ## Preconditions
 
 - `AOPS-00` is committed.
-- Clean `codex/application-ops-mvp` worktree.
+- Clean `main` worktree with `HEAD` matching `origin/main`.
 - Python 3.12+ and `uv` are available. If not, report BLOCKED; do not silently
   replace the agreed toolchain.
 

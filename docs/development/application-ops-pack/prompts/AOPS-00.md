@@ -23,7 +23,7 @@ first API/data contract without changing runtime product behavior.
 ## Preconditions
 
 - Worktree must be clean.
-- Branch must be `codex/application-ops-mvp`.
+- Branch must be `main` and `HEAD` must match `origin/main`.
 - Repo-native pack import `8117cc7ec479210a027bc09954d9069c65d23bd4` and
   prepared predecessor `e36a067ae4e8ef931bf0f151712016cb4dbce47e` must be
   ancestors of HEAD, and the repo-native pack/spec must be present. If not, do
@@ -84,7 +84,7 @@ docs/development/application-ops/
 - versioned `/api/v1` response/error envelope and request ID;
 - loopback-only companion;
 - official HH API only; no extension-side hidden HH requests;
-- DeepSeek in Zed is a coding tool, not automatically a product provider.
+- DeepSeek through Claude is a coding tool, not automatically a product provider.
 
 4. In ADR-005 choose the privacy-safe default:
 

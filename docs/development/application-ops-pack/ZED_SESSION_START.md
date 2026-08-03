@@ -1,4 +1,7 @@
-# Zed + DeepSeek Session Contract
+# Claude + DeepSeek Session Contract
+
+The filename is retained for compatibility with existing launcher prompts.
+Claude is the coding-agent surface and DeepSeek is the selected executor/model.
 
 You are implementing exactly one VacancyPilot Application Ops epic in the open
 VacancyPilot repository root containing
@@ -24,15 +27,19 @@ Before editing:
 git status --short --branch
 git branch --show-current
 git rev-parse HEAD
+git rev-parse refs/remotes/origin/main
 git log --oneline --decorate -5
 git show-ref --tags --verify refs/tags/v4.0.0
 ```
 
-Except for AOPS-00 bootstrap, the expected branch is
-`codex/application-ops-mvp`, the worktree must be clean, and the preceding epic
-must already be committed. If these conditions are not true, stop without
-editing and report the exact blocker. Never erase, reset, stash, or overwrite
-unknown changes.
+The only implementation branch is `main`. Pull requests and feature branches
+are not part of this workflow. At preflight the worktree must be clean, `HEAD`
+must equal the existing `origin/main` remote-tracking ref, and the preceding
+epic must be committed and marked complete in
+`docs/development/application-ops/IMPLEMENTATION_STATUS.md`. If any condition
+is false, stop without editing and report the exact blocker. Do not pull,
+merge, rebase, switch/create branches, reset, clean, stash, or overwrite
+unknown changes from the executor session.
 
 The tag command may exit nonzero when `v4.0.0` is absent. Record either its
 exact object ID or `ABSENT` at preflight. The same state must remain at handoff:
@@ -101,9 +108,15 @@ You may inspect Git and create normal source files. Do not:
 - force anything;
 - change remote configuration;
 - switch branches;
+- create a pull request or feature branch;
 - delete or rewrite unrelated work.
 
 Leave the completed reviewed diff in the worktree.
+
+After handoff, Codex independently reviews and tests the diff. Only Codex/user
+may commit the accepted epic directly to `main` and push `main` to `origin`.
+No PR is opened. Epics are strictly serial: do not start the next executor
+session until the reviewed commit is pushed and the worktree is clean.
 
 ## Validation
 
@@ -134,5 +147,7 @@ Return:
 6. Acceptance checklist with PASS/FAIL/NOT RUN per item.
 7. Residual risks, manual gates, or blockers.
 8. `git diff --stat` and `git status --short`.
+9. Start `HEAD`, current branch, and whether it matched `origin/main` at
+   preflight.
 
 Do not say “done” or “PASS” for an item that was not verified.
