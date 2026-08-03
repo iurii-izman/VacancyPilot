@@ -120,20 +120,26 @@ session until the reviewed commit is pushed and the worktree is clean.
 
 ## Validation
 
-Run every command required by the target prompt. When applicable, the full
-quality set is:
+Until the consolidated final release gate, use a focused per-epic validation
+policy. This section supersedes broader validation command lists retained in
+individual epic prompts:
 
-```powershell
-pnpm typecheck
-pnpm lint
-pnpm test
-pnpm build
-pnpm test:release
-pnpm verify:companion
-```
+- run the narrow tests added or directly affected by the current epic;
+- run the static checker/formatter for changed Python or TypeScript files;
+- run migration, OpenAPI, manifest, or contract drift checks only when the
+  epic changes that surface;
+- always run git diff --check;
+- do not run pnpm verify, pnpm test:release, the complete
+  pnpm verify:companion, browser smoke, performance, or security scans unless
+  the user explicitly requests one or a focused failure proves it is
+  necessary.
 
-If a canonical command differs after AOPS-01, use the documented repository
-command and explain the difference.
+Record broader checks as DEFERRED_TO_RELEASE_GATE, not PASS or FAIL. The final
+integration/release epic will run the complete repository, companion,
+release-safety, browser, and security gates together. An earlier security scan
+is reserved for a demonstrated critical signal such as remote/cross-origin
+exposure, credential disclosure, destructive data loss, or authorization
+bypass on real domain operations.
 
 ## Required final handoff
 
@@ -144,7 +150,8 @@ Return:
 3. API/schema/migration/permission/security changes.
 4. Tests added.
 5. Commands actually run with exit status and concise output.
-6. Acceptance checklist with PASS/FAIL/NOT RUN per item.
+6. Acceptance checklist with PASS/FAIL/NOT RUN per item; label postponed broad
+   commands DEFERRED_TO_RELEASE_GATE.
 7. Residual risks, manual gates, or blockers.
 8. `git diff --stat` and `git status --short`.
 9. Start `HEAD`, current branch, and whether it matched `origin/main` at

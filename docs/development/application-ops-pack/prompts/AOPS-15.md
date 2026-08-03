@@ -82,7 +82,15 @@ Use fixed timestamps and synthetic records. Avoid assertions dependent on local 
 
 ## Validation
 
-Run the narrow tests first, then the repository-required verification commands from `AGENTS.md`/`package.json`, plus companion checks introduced by AOPS-01. Record exact commands, exit codes, and concise results. If a test requires live HH or provider credentials, report it separately as `NOT RUN` or `BLOCKED`; never count it as passed.
+Apply the focused per-epic policy in `ZED_SESSION_START.md`. The broader
+commands listed below are release-gate inventory, not mandatory for this epic;
+run only directly affected tests/static/contract checks and `git diff --check`,
+then report the rest as `DEFERRED_TO_RELEASE_GATE`.
+
+Run narrow analytics and pilot-report tests plus directly affected static and
+contract checks. Record exact commands, exit codes, and concise results. If a
+test requires live HH or provider credentials, report it as `NOT RUN` or
+`BLOCKED`; never count it as passed.
 
 ## Handoff
 

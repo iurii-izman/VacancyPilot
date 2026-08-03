@@ -19,18 +19,37 @@ from app.api.errors import (
     validation_exception_handler,
 )
 from app.api.health import router as health_router
+from app.api.pairing import router as pairing_router
 from app.config import settings
+from app.db import Base  # noqa: F401 — register models with metadata
 from app.db.engine import create_engine
 from app.observability.request_context import RequestContextMiddleware
+from app.security.middleware import (
+    BodySizeLimitMiddleware,
+    ContentTypeMiddleware,
+    build_cors_middleware,
+    get_configured_origins,
+    validate_loopback_bind,
+)
 
 
 @asynccontextmanager
 async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Graceful startup/shutdown hooks.
 
-    Startup creates the local SQLite engine when runtime initialization is
-    enabled. Shutdown disposes only an engine owned by this application.
+    Startup validates the loopback binding, creates the local SQLite engine
+    when runtime initialization is enabled, and configures the security logger.
+
+    Shutdown disposes only an engine owned by this application.
     """
+    # Validate binding before accepting any connections.
+    validate_loopback_bind(settings.host)
+
+    # Configure the root logger with redaction.
+    from app.security.redaction import install_redacting_filter
+
+    install_redacting_filter()
+
     owned_engine = None
     if app.state.initialize_db:
         owned_engine = create_engine()
@@ -58,11 +77,18 @@ def create_app(*, initialize_db: bool = True) -> FastAPI:
     )
     app.state.initialize_db = initialize_db
 
-    # Middleware — request ID must be available before any handler runs.
+    # Starlette executes the last added middleware first. CORS is outermost
+    # so valid OPTIONS preflights are answered before JSON enforcement.
+    app.add_middleware(ContentTypeMiddleware)
+    app.add_middleware(BodySizeLimitMiddleware)
     app.add_middleware(RequestContextMiddleware)
+    cors_middleware_class = build_cors_middleware(get_configured_origins())
+    app.add_middleware(cors_middleware_class)
 
     # Routes
-    app.include_router(health_router, prefix=settings.api_prefix)
+    api_prefix = settings.api_prefix
+    app.include_router(health_router, prefix=api_prefix)
+    app.include_router(pairing_router, prefix=api_prefix)
 
     # Error handlers
     app.add_exception_handler(RequestValidationError, validation_exception_handler)  # type: ignore[arg-type]

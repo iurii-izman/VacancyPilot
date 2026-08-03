@@ -1,6 +1,6 @@
 # Application Ops — Implementation Status
 
-Status: AOPS-02 complete and independently validated; AOPS-03 next
+Status: AOPS-03 complete with focused validation; AOPS-04 next
 Date: 2026-08-03
 
 ## Baseline Snapshot
@@ -72,6 +72,31 @@ The companion suite emits one upstream Starlette TestClient deprecation
 warning; no test is skipped or failed. Extension/release test totals are the
 actual current counts and supersede older historical counts for this
 checkpoint.
+
+## AOPS-03 Validation (2026-08-03)
+
+AOPS-03 implements loopback-only pairing, revocable client authentication,
+strict extension-origin CORS, bounded request/rate/state controls, OS-keyring
+abstraction, sanitized errors, and central log redaction. The production
+application exposes no sample/test domain route.
+
+| Command / artifact | Exit | Result |
+| --- | --- | --- |
+| Codex Security diff scan `ff4afcdd-6df6-467d-8cf4-ea2007c56a19` | 0 | sealed; 14/14 review receipts, three Low/P3 findings |
+| focused Ruff check | 0 | changed AOPS-03 app/test files PASS |
+| `pytest tests/test_security.py -q` | 0 | 87 tests PASS; one upstream TestClient warning |
+| strict mypy on `companion/app/` | 0 | 25 source files PASS |
+| OpenAPI generate + drift check | 0 | checked-in snapshot current |
+
+The three scan findings were corrected before acceptance: pairing ignores
+untrusted forwarding headers and bounds in-memory state, and the one MiB body
+limit counts actual ASGI receive bytes. Focused regressions also cover valid
+CORS preflight, wildcard configuration rejection, protected-route rate
+limiting, production-route absence, and propagated log redaction.
+
+Per the current review policy, repository-wide extension/release/browser
+suites and a second security scan are DEFERRED_TO_RELEASE_GATE. They are not
+claimed as passed for this epic.
 
 ## Existing Extension Capabilities (Preserved)
 
@@ -167,7 +192,7 @@ does not authorize product integration.
 | AOPS-00 | Baseline and contract freeze | complete |
 | AOPS-01 | Companion foundation | complete |
 | AOPS-02 | SQLite domain and migrations | complete |
-| AOPS-03 | Localhost security, pairing and secrets | not started |
+| AOPS-03 | Localhost security, pairing and secrets | complete |
 | AOPS-04 | Extension Ops client and offline mode | not started |
 | AOPS-05 | Dexie migration and outbox | not started |
 | AOPS-06 | Vacancy intake, deduplication and local triage | not started |

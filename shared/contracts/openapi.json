@@ -50,6 +50,19 @@
         "title": "ErrorResponse",
         "type": "object"
       },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
       "HealthData": {
         "description": "Typed health payload inside the standard success envelope.",
         "properties": {
@@ -108,6 +121,189 @@
         ],
         "title": "HealthResponse",
         "type": "object"
+      },
+      "PairConfirmData": {
+        "description": "The client token is returned exactly once on successful confirm.",
+        "properties": {
+          "client_token": {
+            "description": "Revocable local client token — store and protect",
+            "title": "Client Token",
+            "type": "string"
+          },
+          "message": {
+            "default": "Pairing successful. Store this token securely — it will not be shown again.",
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_token"
+        ],
+        "title": "PairConfirmData",
+        "type": "object"
+      },
+      "PairConfirmRequest": {
+        "description": "Confirm a pairing challenge with the code displayed out-of-band.",
+        "properties": {
+          "challenge_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Challenge Id",
+            "type": "string"
+          },
+          "code": {
+            "maxLength": 6,
+            "minLength": 6,
+            "pattern": "^\\d{6}$",
+            "title": "Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "challenge_id",
+          "code"
+        ],
+        "title": "PairConfirmRequest",
+        "type": "object"
+      },
+      "PairConfirmResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/PairConfirmData"
+          },
+          "meta": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Meta",
+            "type": "object"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "PairConfirmResponse",
+        "type": "object"
+      },
+      "PairRevokeData": {
+        "properties": {
+          "message": {
+            "default": "Client token has been revoked.",
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "title": "PairRevokeData",
+        "type": "object"
+      },
+      "PairRevokeResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/PairRevokeData"
+          },
+          "meta": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Meta",
+            "type": "object"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "PairRevokeResponse",
+        "type": "object"
+      },
+      "PairStartData": {
+        "description": "Returned by start — the challenge ID, not the code.",
+        "properties": {
+          "challenge_id": {
+            "description": "UUID of the created challenge",
+            "title": "Challenge Id",
+            "type": "string"
+          },
+          "expires_in_seconds": {
+            "default": 300,
+            "description": "Challenge lifetime in seconds",
+            "title": "Expires In Seconds",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "challenge_id"
+        ],
+        "title": "PairStartData",
+        "type": "object"
+      },
+      "PairStartResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/PairStartData"
+          },
+          "meta": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Meta",
+            "type": "object"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "PairStartResponse",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "APIKeyHeader": {
+        "in": "header",
+        "name": "X-VacancyPilot-Client",
+        "type": "apiKey"
       }
     }
   },
@@ -157,6 +353,167 @@
         "summary": "Companion health check",
         "tags": [
           "health"
+        ]
+      }
+    },
+    "/api/v1/pair/confirm": {
+      "post": {
+        "description": "Validates the challenge ID and six-digit code.  Returns a cryptographically random client token exactly once.  The token must be stored securely by the caller — it will not be shown again.",
+        "operationId": "pair_confirm_api_v1_pair_confirm_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PairConfirmRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PairConfirmResponse"
+                }
+              }
+            },
+            "description": "Pairing successful — client token returned"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid challenge or code"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many pairing attempts"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Database unavailable"
+          }
+        },
+        "summary": "Confirm pairing challenge",
+        "tags": [
+          "pairing"
+        ]
+      }
+    },
+    "/api/v1/pair/revoke": {
+      "post": {
+        "description": "Invalidates the current paired client token.  After revocation, all protected endpoints require a new pairing.  Requires a valid client token.",
+        "operationId": "pair_revoke_api_v1_pair_revoke_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PairRevokeResponse"
+                }
+              }
+            },
+            "description": "Token revoked"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid or missing client token"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Database unavailable"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Revoke client token",
+        "tags": [
+          "pairing"
+        ]
+      }
+    },
+    "/api/v1/pair/start": {
+      "post": {
+        "description": "Creates a short-lived six-digit pairing code.  The code is displayed out-of-band by the companion process (stdout), never returned here. This endpoint is unauthenticated but rate-limited.",
+        "operationId": "pair_start_api_v1_pair_start_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PairStartResponse"
+                }
+              }
+            },
+            "description": "Challenge created"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many pairing attempts"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Database unavailable"
+          }
+        },
+        "summary": "Start pairing challenge",
+        "tags": [
+          "pairing"
         ]
       }
     }

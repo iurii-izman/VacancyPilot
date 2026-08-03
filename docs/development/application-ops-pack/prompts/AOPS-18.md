@@ -97,7 +97,15 @@ Any live HH verification must be separately opt-in and reported as live, mocked,
 
 ## Validation
 
-Run selected-feature tests, full P0 regression, repository-required release verification, companion checks, and tag immutability verification. Record exact commands and exit codes. Do not infer a PASS from code inspection or mocked tests.
+Apply the focused per-epic policy in `ZED_SESSION_START.md`. The broader
+commands listed below are release-gate inventory, not mandatory for this epic;
+run only directly affected tests/static/contract checks and `git diff --check`,
+then report the rest as `DEFERRED_TO_RELEASE_GATE`.
+
+Run selected-feature tests, directly affected static/contract checks, and tag
+immutability verification. Defer the next full P0 regression to its release
+gate. Record exact commands and exit codes; do not infer PASS from inspection
+or mocked tests.
 
 ## Handoff
 

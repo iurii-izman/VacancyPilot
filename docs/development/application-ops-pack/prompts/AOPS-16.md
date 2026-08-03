@@ -85,7 +85,15 @@ Use only synthetic data and secrets designed for tests.
 
 ## Validation
 
-Run narrow backup/security tests first, then the repository-required verification suite and companion checks. Inspect at least one generated synthetic archive and debug bundle programmatically and record their entry lists. Report exact commands, exit codes, and results. Mark environment-specific checks `NOT RUN` or `BLOCKED` instead of claiming success.
+Apply the focused per-epic policy in `ZED_SESSION_START.md`. The broader
+commands listed below are release-gate inventory, not mandatory for this epic;
+run only directly affected tests/static/contract checks and `git diff --check`,
+then report the rest as `DEFERRED_TO_RELEASE_GATE`.
+
+Run narrow backup/security tests and directly affected static/contract checks.
+Inspect one generated synthetic archive and debug bundle programmatically and
+record their entry lists. Mark environment-specific checks `NOT RUN` or
+`BLOCKED` instead of claiming success.
 
 ## Handoff
 

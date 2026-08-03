@@ -8,7 +8,7 @@ from collections.abc import AsyncGenerator, Generator
 from pathlib import Path
 
 import pytest
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import Engine
@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.db.base import Base
 from app.db.engine import create_engine
 from app.main import create_app
+from app.security.auth import ClientTokenDep
 
 # ── Temporary SQLite database fixtures ─────────────────────────────────
 
@@ -73,10 +74,50 @@ def db_session(db_engine: Engine) -> Generator[Session, None, None]:
 # ── FastAPI / TestClient fixtures ──────────────────────────────────────
 
 
+def _add_security_test_route(app: FastAPI) -> None:
+    """Mount an auth probe only in tests, never in the production factory."""
+
+    @app.get(
+        '/api/v1/_test/protected',
+        include_in_schema=True,
+        responses={
+            401: {'description': 'Invalid or missing client token'},
+            429: {'description': 'Protected request rate limit exceeded'},
+            503: {'description': 'Database unavailable'},
+        },
+    )
+    async def protected_test_route(
+        request: Request,
+        client_identity: ClientTokenDep,
+    ) -> dict[str, object]:
+        return {
+            'data': {'message': 'Authenticated'},
+            'meta': {'request_id': str(request.state.request_id)},
+        }
+
+
+@pytest.fixture(scope='function', autouse=True)
+def reset_security_state() -> Generator[None, None, None]:
+    """Keep module-level security state isolated between focused tests."""
+    from app.api.pairing import _pairing_limiter
+    from app.security.auth import _protected_limiter
+    from app.security.pairing import get_pairing_service
+
+    _pairing_limiter.reset()
+    _protected_limiter.reset()
+    get_pairing_service()._challenges.clear()
+    yield
+    _pairing_limiter.reset()
+    _protected_limiter.reset()
+    get_pairing_service()._challenges.clear()
+
+
 @pytest.fixture(scope='session')
 def app() -> FastAPI:
     """Return a configured FastAPI application instance."""
-    return create_app(initialize_db=False)
+    instance = create_app(initialize_db=False)
+    _add_security_test_route(instance)
+    return instance
 
 
 @pytest.fixture(scope='session')
@@ -101,6 +142,7 @@ def app_with_db(db_engine: Engine) -> Generator[FastAPI, None, None]:
     """Return a FastAPI app whose health endpoint uses the temporary DB."""
     Base.metadata.create_all(db_engine)
     app = create_app(initialize_db=False)
+    _add_security_test_route(app)
     app.state.db_engine = db_engine
     yield app
 

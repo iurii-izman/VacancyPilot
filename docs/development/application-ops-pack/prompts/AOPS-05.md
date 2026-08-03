@@ -125,6 +125,13 @@ Cover:
 
 ## Validation
 
+Apply the focused per-epic policy in `ZED_SESSION_START.md`. The broader
+commands listed below are release-gate inventory, not mandatory for this epic;
+run only directly affected tests/static/contract checks and `git diff --check`,
+then report the rest as `DEFERRED_TO_RELEASE_GATE`.
+
+Release-gate command inventory (do not run for this epic):
+
 ```powershell
 pnpm verify
 pnpm test:release

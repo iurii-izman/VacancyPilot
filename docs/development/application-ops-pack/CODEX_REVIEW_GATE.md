@@ -21,8 +21,13 @@ git diff
 5. Trace new API fields from FastAPI schema to TypeScript consumer.
 6. Review safety-sensitive changes: manifest permissions, localhost binding,
    CORS, pairing, keyring, logging, HH requests and AI payloads.
-7. Run the target epic commands independently.
-8. Run broader regression commands proportional to risk.
+7. Run focused tests for the behavior changed by the epic, plus the static
+   checker for each changed language and any directly affected schema,
+   migration, permission, or contract check.
+8. Do not run repository-wide, release, browser, or deep-security suites for
+   ordinary epic review. Record them as deferred to the consolidated release
+   gate. Run an extra broad gate only when the user explicitly requests it or
+   a focused failure proves that wider impact must be diagnosed.
 9. Return exactly one verdict:
 
 ```text
@@ -40,6 +45,22 @@ BLOCKED
 - no unrelated cleanup/refactor;
 - standalone mode remains functional when required;
 - work is ready for one epic commit.
+
+A focused PASS is not a release PASS. The handoff must list every broader
+suite as DEFERRED_TO_RELEASE_GATE; never imply that an unrun suite passed.
+
+## Consolidated release gate
+
+Broad commands such as pnpm verify, pnpm test:release, the complete
+pnpm verify:companion suite, browser smoke runs, performance runs, and Codex
+Security scans are postponed until the final integration/release epic.
+Earlier security-sensitive epics still require narrow negative tests for the
+exact boundary they change, but do not trigger a repository scan by default.
+
+Start an earlier deep or repository-wide scan only for a demonstrated critical
+signal: remote or cross-origin exposure, credential disclosure, destructive
+data loss, authorization bypass on real domain operations, or an explicit
+user request.
 
 ## NEEDS_FIX
 

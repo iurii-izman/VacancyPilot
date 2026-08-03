@@ -54,7 +54,8 @@ const statusPath =
   "docs/development/application-ops/IMPLEMENTATION_STATUS.md";
 const status = read(statusPath);
 requireMatch(status, /\| AOPS-02 \|[^\n]*\| complete \|/, statusPath);
-requireMatch(status, /\| AOPS-03 \|[^\n]*\| not started \|/, statusPath);
+requireMatch(status, /\| AOPS-03 \|[^\n]*\| complete \|/, statusPath);
+requireMatch(status, /\| AOPS-04 \|[^\n]*\| not started \|/, statusPath);
 
 // Keep the path construction exercised so a moved pack fails loudly.
 readFileSync(resolve(packRoot, "README.md"), "utf8");
