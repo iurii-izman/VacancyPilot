@@ -20,6 +20,7 @@ from app.api.errors import (
 )
 from app.api.health import router as health_router
 from app.config import settings
+from app.db.engine import create_engine
 from app.observability.request_context import RequestContextMiddleware
 
 
@@ -27,16 +28,22 @@ from app.observability.request_context import RequestContextMiddleware
 async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Graceful startup/shutdown hooks.
 
-    Startup: no network calls, no DB connections yet — ready for later
-    SQLite engine boot.
-    Shutdown: clean teardown placeholder for future DB/services.
+    Startup creates the local SQLite engine when runtime initialization is
+    enabled. Shutdown disposes only an engine owned by this application.
     """
-    # Startup — intentionally minimal; no imports trigger network I/O.
-    yield
-    # Shutdown — placeholder for graceful DB/service teardown.
+    owned_engine = None
+    if app.state.initialize_db:
+        owned_engine = create_engine()
+        app.state.db_engine = owned_engine
+    try:
+        yield
+    finally:
+        if owned_engine is not None:
+            owned_engine.dispose()
+            del app.state.db_engine
 
 
-def create_app() -> FastAPI:
+def create_app(*, initialize_db: bool = True) -> FastAPI:
     """Build and return the configured FastAPI application.
 
     Does not bind a socket or make network calls.
@@ -49,6 +56,7 @@ def create_app() -> FastAPI:
         docs_url=None,
         redoc_url=None,
     )
+    app.state.initialize_db = initialize_db
 
     # Middleware — request ID must be available before any handler runs.
     app.add_middleware(RequestContextMiddleware)

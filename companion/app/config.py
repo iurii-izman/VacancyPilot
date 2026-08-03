@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     host: Literal['127.0.0.1'] = '127.0.0.1'
     port: int = 8765
 
+    # Database
+    db_path: str = ''  # empty => default under companion/data/
+
     # Observability
     log_level: str = 'info'
 

@@ -31,6 +31,11 @@ class TestHealth200:
         resp = client.get('/api/v1/health')
         assert resp.json()['data']['status'] == 'ok'
 
+    def test_data_includes_db_status(self, client: TestClient) -> None:
+        resp = client.get('/api/v1/health')
+        assert 'db' in resp.json()['data']
+        assert resp.json()['data']['db'] == 'unavailable'
+
     def test_data_includes_service_version(self, client: TestClient) -> None:
         resp = client.get('/api/v1/health')
         assert 'service_version' in resp.json()['data']
@@ -39,7 +44,6 @@ class TestHealth200:
     def test_data_includes_api_version(self, client: TestClient) -> None:
         resp = client.get('/api/v1/health')
         assert 'api_version' in resp.json()['data']
-        # api_version from config; it is the plain version number string
         assert resp.json()['data']['api_version'] == '1'
 
     def test_meta_includes_request_id(self, client: TestClient) -> None:
@@ -54,7 +58,6 @@ class TestHealth200:
     def test_request_id_is_uuid_format(self, client: TestClient) -> None:
         resp = client.get('/api/v1/health')
         rid = resp.json()['meta']['request_id']
-        # Basic UUID shape check
         parts = rid.split('-')
         assert len(parts) == 5
         assert all(len(p) > 0 for p in parts)
@@ -102,7 +105,6 @@ class TestGeneratedRequestId:
             headers={'X-VacancyPilot-Request-ID': 'not-a-uuid'},
         )
         rid = resp.json()['meta']['request_id']
-        # Should be a generated UUID, not the invalid input
         assert rid != 'not-a-uuid'
         assert rid != 'unknown'
 
@@ -133,7 +135,7 @@ class TestValidationErrorEnvelope:
         class ValidationProbe(BaseModel):
             count: int
 
-        app = create_app()
+        app = create_app(initialize_db=False)
 
         @app.post('/_test/validation')
         async def validation_probe(payload: ValidationProbe) -> dict[str, int]:
@@ -176,7 +178,7 @@ class TestValidationErrorEnvelope:
         """Trigger a 500 via an endpoint that raises intentionally."""
         from app.main import create_app
 
-        app = create_app()
+        app = create_app(initialize_db=False)
 
         @app.get('/_test/unhandled')
         async def unhandled_probe() -> None:
@@ -201,7 +203,7 @@ class TestAppFactory:
     def test_create_app_returns_fastapi_instance(self) -> None:
         from app.main import create_app
 
-        app = create_app()
+        app = create_app(initialize_db=False)
         assert app.title == 'VacancyPilot Ops Companion'
 
     def test_import_does_not_bind_socket(self) -> None:
@@ -215,7 +217,7 @@ def forbidden_socket(*args, **kwargs):
 
 socket.socket = forbidden_socket
 from app.main import create_app
-create_app()
+create_app(initialize_db=False)
 print('IMPORT_OK')
 """
         root = Path(__file__).resolve().parents[2]  # VacancyPilot/
@@ -236,7 +238,7 @@ print('IMPORT_OK')
 
         from app.main import create_app
 
-        app = create_app()
+        app = create_app(initialize_db=False)
         with TestClient(app) as c:
             resp = c.get('/api/v1/health')
             assert resp.status_code == 200
@@ -244,8 +246,7 @@ print('IMPORT_OK')
     def test_create_app_has_error_handlers(self) -> None:
         from app.main import create_app
 
-        app = create_app()
-        # Exception handlers are registered
+        app = create_app(initialize_db=False)
         assert len(app.exception_handlers) > 0
 
 
@@ -311,7 +312,6 @@ class TestOpenAPISnapshot:
         current_schema = client.get('/openapi.json').json()
         stored_schema = json.loads(snapshot.read_text(encoding='utf-8'))
 
-        # Sort keys for stable comparison
         assert current_schema == stored_schema, (
             'OpenAPI snapshot is out of date. Regenerate with the generation script.'
         )
@@ -376,3 +376,44 @@ class TestConfigEnvOverride:
 
         s = Settings(port=9999)
         assert s.port == 9999
+
+
+# ── DB health (with temporary database) ──────────────────────────────
+
+
+class TestHealthDB:
+    """Health endpoint reports DB status when a database is available."""
+
+    def test_db_status_ok_when_available(self, client_with_db: TestClient) -> None:
+        resp = client_with_db.get('/api/v1/health')
+        assert resp.status_code == 200
+        assert resp.json()['data']['db'] == 'ok'
+
+    def test_db_status_in_response(self, client_with_db: TestClient) -> None:
+        resp = client_with_db.get('/api/v1/health')
+        body = resp.json()
+        assert 'db' in body['data']
+        assert body['data']['db'] in ('ok', 'unavailable')
+
+    def test_no_local_paths_leaked(self, client_with_db: TestClient) -> None:
+        """The DB status field must not expose file paths."""
+        resp = client_with_db.get('/api/v1/health')
+        body = resp.json()
+        assert '.db' not in body['data']['db']
+        assert '/' not in body['data']['db']
+        assert '\\\\' not in body['data']['db']
+
+    def test_runtime_lifespan_configures_and_disposes_db(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from app.config import settings
+        from app.main import create_app
+
+        monkeypatch.setattr(settings, 'db_path', str(tmp_path / 'runtime.db'))
+        app = create_app()
+        with TestClient(app) as runtime_client:
+            assert runtime_client.get('/api/v1/health').json()['data']['db'] == 'ok'
+            assert hasattr(app.state, 'db_engine')
+        assert not hasattr(app.state, 'db_engine')

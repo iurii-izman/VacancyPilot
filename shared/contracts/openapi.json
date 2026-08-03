@@ -57,6 +57,10 @@
             "title": "Api Version",
             "type": "string"
           },
+          "db": {
+            "title": "Db",
+            "type": "string"
+          },
           "service_version": {
             "title": "Service Version",
             "type": "string"
@@ -69,7 +73,8 @@
         "required": [
           "status",
           "service_version",
-          "api_version"
+          "api_version",
+          "db"
         ],
         "title": "HealthData",
         "type": "object"
@@ -114,7 +119,7 @@
   "paths": {
     "/api/v1/health": {
       "get": {
-        "description": "Returns the companion process version, API version, and status. Public endpoint — no client token required.",
+        "description": "Returns the companion process version, API version, database status, and request metadata. Public endpoint — no client token required.",
         "operationId": "health_api_v1_health_get",
         "parameters": [
           {

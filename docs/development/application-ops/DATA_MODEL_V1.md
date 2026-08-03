@@ -51,6 +51,7 @@ contain versioned, validated JSON and never credentials.
 | `last_seen_at` | TEXT | NOT NULL |
 | `updated_at` | TEXT | NOT NULL |
 | `archived` | INTEGER | NOT NULL, boolean projection |
+| `revision` | INTEGER | NOT NULL; optimistic concurrency token |
 
 Unique constraint: `(source, source_vacancy_id)`.
 
@@ -66,6 +67,7 @@ Append-only.
 | `payload_json` | TEXT | Versioned sanitized intake payload |
 | `captured_at` | TEXT | NOT NULL |
 | `capture_source` | TEXT | NOT NULL |
+| `idempotency_key` | TEXT | UNIQUE retry identity; nullable for imported history |
 
 ### `applications`
 
@@ -205,6 +207,7 @@ An actually-sent version is immutable. “Copied” is not equivalent to “sent
 | `export_path` | TEXT | Local safe path/reference, never arbitrary extraction |
 | `created_at` | TEXT | NOT NULL |
 | `updated_at` | TEXT | NOT NULL |
+| `revision` | INTEGER | NOT NULL; optimistic concurrency token |
 
 ### `hh_accounts`
 
@@ -218,6 +221,9 @@ Account metadata only; no tokens.
 | `connected` | INTEGER | NOT NULL, boolean projection |
 | `capabilities_json` | TEXT | Verified official capabilities |
 | `last_sync_at` | TEXT | |
+| `revision` | INTEGER | NOT NULL; optimistic concurrency token |
+| `created_at` | TEXT | NOT NULL |
+| `updated_at` | TEXT | NOT NULL |
 
 ### `hh_sync_runs`
 
@@ -246,6 +252,8 @@ Append-only sync audit record.
 | `schedule` | TEXT | Nullable; P1 scheduler remains disabled by default |
 | `last_run_at` | TEXT | |
 | `revision` | INTEGER | NOT NULL |
+| `created_at` | TEXT | NOT NULL |
+| `updated_at` | TEXT | NOT NULL |
 
 ### `settings`
 
@@ -256,6 +264,7 @@ Non-secret companion settings.
 | `key` | TEXT | PK |
 | `value_json` | TEXT | NOT NULL |
 | `revision` | INTEGER | NOT NULL |
+| `created_at` | TEXT | NOT NULL |
 | `updated_at` | TEXT | NOT NULL |
 
 Provider/HH keys, OAuth tokens, pairing codes, and raw client tokens are never
