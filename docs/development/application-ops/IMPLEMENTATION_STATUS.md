@@ -1,7 +1,7 @@
 # Application Ops — Implementation Status
 
-Status: AOPS-03 complete with focused validation; AOPS-04 next
-Date: 2026-08-03
+Status: AOPS-04 complete with focused validation; AOPS-05 next
+Date: 2026-08-04
 
 ## Baseline Snapshot
 
@@ -98,6 +98,25 @@ Per the current review policy, repository-wide extension/release/browser
 suites and a second security scan are DEFERRED_TO_RELEASE_GATE. They are not
 claimed as passed for this epic.
 
+## AOPS-04 Validation (2026-08-04)
+
+AOPS-04 adds the extension-side loopback client, isolated client-token
+storage, explicit localhost permission, pairing controls, status surfaces and
+offline-safe fallback. Review corrected API-generation compatibility, JSON
+pairing requests, persisted-token initialization, fixed-loopback enforcement
+and malformed-token rejection before acceptance.
+
+| Command | Exit | Result |
+| --- | --- | --- |
+| focused companion adapter/service/component Vitest set | 0 | 6 files, 41 tests PASS |
+| `pnpm typecheck` | 0 | PASS |
+| ESLint on AOPS-04 extension files | 0 | PASS |
+| `git diff --check` | 0 | PASS |
+
+Repository-wide tests, builds, release-safety, browser QA and security scans
+remain DEFERRED_TO_RELEASE_GATE under the current validation policy. No result
+for those deferred gates is claimed here.
+
 ## Existing Extension Capabilities (Preserved)
 
 These capabilities exist in the current extension and must remain intact
@@ -128,7 +147,7 @@ throughout all AOPS epics:
 - WXT 0.20.26, Manifest V3, Chrome MV3
 - TypeScript 6, React 19, Dexie 4.4.4, Vitest 3.2.6
 - Permissions: `storage`, `sidePanel`, `activeTab`
-- Optional `host_permissions`: `https://api.openai.com/*`
+- Optional `host_permissions`: `https://api.openai.com/*`, exact companion loopback origin
 - No broad host permissions
 - Package manager: pnpm 11.1.1
 
@@ -193,7 +212,7 @@ does not authorize product integration.
 | AOPS-01 | Companion foundation | complete |
 | AOPS-02 | SQLite domain and migrations | complete |
 | AOPS-03 | Localhost security, pairing and secrets | complete |
-| AOPS-04 | Extension Ops client and offline mode | not started |
+| AOPS-04 | Extension Ops client and offline mode | complete |
 | AOPS-05 | Dexie migration and outbox | not started |
 | AOPS-06 | Vacancy intake, deduplication and local triage | not started |
 | AOPS-07 | Engine package, deterministic index and health | not started |
@@ -280,9 +299,10 @@ does not authorize product integration.
 
 ## Contract and Manifest Verification
 
-- `wxt.config.ts` permissions unchanged: `storage`, `sidePanel`, `activeTab`
+- `wxt.config.ts` required permissions unchanged: `storage`, `sidePanel`, `activeTab`
+- Exact `http://127.0.0.1:8765/*` added as an optional host permission for explicit Ops Mode opt-in
 - Extension runtime/dev dependencies unchanged; root `package.json` adds only companion scripts
 - Companion Python dependencies are isolated under `companion/` and locked by `uv.lock`
 - No Dexie schema changes
 - No Application Engine runtime edits
-- No HH or AI calls introduced
+- No HH or AI calls introduced; companion requests are explicit loopback-only calls

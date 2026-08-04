@@ -92,8 +92,11 @@ describe("manifest permission safety", () => {
       "optional_host_permissions",
     );
 
-    it("allows only the narrow OpenAI runtime origin", () => {
-      expect(optionalHostPerms).toEqual(["https://api.openai.com/*"]);
+    it("allows only the narrow OpenAI runtime origin and loopback companion", () => {
+      expect(optionalHostPerms).toEqual([
+        "https://api.openai.com/*",
+        "http://127.0.0.1:8765/*",
+      ]);
     });
   });
 
@@ -179,5 +182,13 @@ describe("content script safety boundaries", () => {
       (p) => p.includes("hh.ru") || p.includes("*://*"),
     );
     expect(unsafePatterns).toEqual([]);
+
+    // All optional host permissions must be loopback (127.0.0.1:8765) or the known OpenAI origin.
+    const unknown = optionalHosts.filter(
+      (p) =>
+        p !== "https://api.openai.com/*" &&
+        p !== "http://127.0.0.1:8765/*",
+    );
+    expect(unknown).toEqual([]);
   });
 });

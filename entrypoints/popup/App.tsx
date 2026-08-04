@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ErrorState } from "@/components/ErrorState";
 import { LoadingState } from "@/components/LoadingState";
+import { OpsStatusDot } from "@/components/OpsStatusIndicator";
 import { usePageStatus, PageStatus } from "@/components/PageStatus";
 import { EmptyState } from "@/components/EmptyState";
 import { tracker } from "@/services/tracker";
@@ -455,7 +456,9 @@ function PopupContent(): ReactNode {
       {/* Header */}
       <div style={{ ...panelHeader, marginBottom: spacing.lg }}>
         <h1 style={appTitle}>VacancyPilot</h1>
-        <span style={appSubtitle}>v0.1</span>
+        <span style={appSubtitle}>
+          v0.1 <OpsStatusDot />
+        </span>
       </div>
 
       {/* Page status */}

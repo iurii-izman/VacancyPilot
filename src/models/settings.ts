@@ -56,4 +56,20 @@ export interface AppSettings {
     killSwitchEnabled: boolean;
     dailyActionLimit: number;
   };
+
+  /** Companion/Ops Mode settings — AOPS-04. Persisted in chrome.storage.local only. */
+  companion: {
+    /** Whether the user has opted into Ops Mode. */
+    opsModeEnabled: boolean;
+    /** Companion base URL. */
+    baseUrl: string;
+    /** Last known companion service version from /health. */
+    lastServiceVersion: string | null;
+    /** Last known companion API version from /health. */
+    lastApiVersion: string | null;
+    /** Whether the last handshake reported API compatibility. */
+    lastApiCompatible: boolean;
+    /** ISO-8601 timestamp of the last successful connection. */
+    lastConnectedAt: string | null;
+  };
 }

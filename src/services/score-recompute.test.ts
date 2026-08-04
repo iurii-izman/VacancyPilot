@@ -52,6 +52,14 @@ let mockSettings: AppSettings = {
     killSwitchEnabled: false,
     dailyActionLimit: 50,
   },
+  companion: {
+    opsModeEnabled: false,
+    baseUrl: "http://127.0.0.1:8765/api/v1",
+    lastServiceVersion: null,
+    lastApiVersion: null,
+    lastApiCompatible: false,
+    lastConnectedAt: null,
+  },
 };
 
 function resetMocks() {
@@ -100,6 +108,14 @@ function resetMocks() {
       guidedApplyEnabled: false,
       killSwitchEnabled: false,
       dailyActionLimit: 50,
+    },
+    companion: {
+      opsModeEnabled: false,
+      baseUrl: "http://127.0.0.1:8765/api/v1",
+      lastServiceVersion: null,
+      lastApiVersion: null,
+      lastApiCompatible: false,
+      lastConnectedAt: null,
     },
   };
 }

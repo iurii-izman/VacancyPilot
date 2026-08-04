@@ -11,6 +11,7 @@ import { AboutSection } from "@/components/AboutSection";
 import { OnboardingSection } from "@/components/OnboardingSection";
 import { PermissionsSection } from "@/components/PermissionsSection";
 import { PrivacyDisclosureSection } from "@/components/PrivacyDisclosureSection";
+import { CompanionSettings } from "@/components/CompanionSettings";
 import { useState, useCallback, useEffect, type ReactNode } from "react";
 import {
   colors,
@@ -62,6 +63,7 @@ type SectionId =
   | "settings"
   | "privacy"
   | "permissions"
+  | "companion"
   | "about"
   | "onboarding"
   | "debug";
@@ -102,6 +104,7 @@ const SECTION_GROUPS: SectionGroup[] = [
       { id: "settings", label: "Settings", icon: "⚙️" },
       { id: "privacy", label: "Privacy", icon: "🔒" },
       { id: "permissions", label: "Permissions", icon: "🔑" },
+      { id: "companion", label: "Companion", icon: "🖥️" },
       { id: "about", label: "About", icon: "ℹ️" },
     ],
   },
@@ -466,6 +469,8 @@ function SectionContent({ section }: { section: SectionId }): ReactNode {
       );
     case "permissions":
       return <PermissionsSection />;
+    case "companion":
+      return <CompanionSettings />;
     case "about":
       return <AboutSection />;
     case "onboarding":

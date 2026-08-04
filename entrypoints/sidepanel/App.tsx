@@ -6,6 +6,7 @@ import { CoverLetterStudio } from "@/components/CoverLetterStudio";
 import { GuidedApplyWorkspace } from "@/components/GuidedApplyWorkspace";
 import { HrWorkspace } from "@/components/HrWorkspace";
 import { ProfileTab } from "@/components/ProfileTab";
+import { OpsStatusDot } from "@/components/OpsStatusIndicator";
 import { jobRepo } from "@/db/repositories";
 import { ensureMigrationsBootstrapped } from "@/db";
 import type { Job } from "@/models/job";
@@ -355,7 +356,9 @@ function SidePanelContent(): ReactNode {
       <div style={headerBar}>
         <div>
           <h1 style={appTitle}>VacancyPilot</h1>
-          <p style={appSubtitle}>HH.ru copilot</p>
+          <p style={appSubtitle}>
+            HH.ru copilot <OpsStatusDot />
+          </p>
         </div>
         <button
           type="button"

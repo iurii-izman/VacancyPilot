@@ -15,7 +15,7 @@ export default defineConfig({
     description: "Local-first HH.ru job search copilot",
     permissions: ["storage", "sidePanel", "activeTab"],
     host_permissions: [],
-    optional_host_permissions: ["https://api.openai.com/*"],
+    optional_host_permissions: ["https://api.openai.com/*", "http://127.0.0.1:8765/*"],
     optional_permissions: [],
     icons: {
       16: "/icons/icon-16.png",

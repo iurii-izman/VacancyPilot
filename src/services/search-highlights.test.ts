@@ -49,6 +49,14 @@ const mockSettings: AppSettings = {
     killSwitchEnabled: false,
     dailyActionLimit: 5,
   },
+  companion: {
+    opsModeEnabled: false,
+    baseUrl: "http://127.0.0.1:8765/api/v1",
+    lastServiceVersion: null,
+    lastApiVersion: null,
+    lastApiCompatible: false,
+    lastConnectedAt: null,
+  },
 };
 
 vi.mock("@/db/repositories", () => ({
