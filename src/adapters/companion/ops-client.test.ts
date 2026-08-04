@@ -333,6 +333,26 @@ describe('OpsClient', () => {
     expect(headers['X-VacancyPilot-Client']).toBe('paired-token');
     expect(headers['Content-Type']).toBe('application/json');
   });
+
+  it('adds the typed idempotency header without replacing auth metadata', async () => {
+    client.setClientToken('paired-token');
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify({ data: {}, meta: {} }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+    await client.authenticatedPost('/vacancies/intake', {}, undefined, {
+      idempotencyKey: 'stable-key',
+    });
+
+    const [, init] = fetchSpy.mock.calls[0];
+    const headers = (init as RequestInit).headers as Record<string, string>;
+    expect(headers['X-VacancyPilot-Idempotency-Key']).toBe('stable-key');
+    expect(headers['X-VacancyPilot-Client']).toBe('paired-token');
+    expect(headers['X-VacancyPilot-Request-ID']).toBeTruthy();
+  });
 });
 
 describe('CompanionError', () => {

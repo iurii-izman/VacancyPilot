@@ -86,6 +86,29 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "HardGateOut": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "explanation": {
+            "title": "Explanation",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "status",
+          "explanation"
+        ],
+        "title": "HardGateOut",
+        "type": "object"
+      },
       "HealthData": {
         "description": "Typed health payload inside the standard success envelope.",
         "properties": {
@@ -143,6 +166,86 @@
           "meta"
         ],
         "title": "HealthResponse",
+        "type": "object"
+      },
+      "IntakeData": {
+        "properties": {
+          "description_hash": {
+            "title": "Description Hash",
+            "type": "string"
+          },
+          "duplicate": {
+            "title": "Duplicate",
+            "type": "boolean"
+          },
+          "first_seen_at": {
+            "title": "First Seen At",
+            "type": "string"
+          },
+          "last_seen_at": {
+            "title": "Last Seen At",
+            "type": "string"
+          },
+          "result": {
+            "enum": [
+              "created",
+              "updated",
+              "unchanged"
+            ],
+            "title": "Result",
+            "type": "string"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "snapshot_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshot Id"
+          },
+          "vacancy_id": {
+            "title": "Vacancy Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "result",
+          "vacancy_id",
+          "revision",
+          "first_seen_at",
+          "last_seen_at",
+          "snapshot_id",
+          "duplicate",
+          "description_hash"
+        ],
+        "title": "IntakeData",
+        "type": "object"
+      },
+      "IntakeResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/IntakeData"
+          },
+          "meta": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Meta",
+            "type": "object"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "IntakeResponse",
         "type": "object"
       },
       "MigrationImportData": {
@@ -550,6 +653,72 @@
         "title": "PairStartResponse",
         "type": "object"
       },
+      "RiskFlagOut": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "evidence": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "severity": {
+            "title": "Severity",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "severity",
+          "message",
+          "evidence"
+        ],
+        "title": "RiskFlagOut",
+        "type": "object"
+      },
+      "ScoreComponentOut": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "max": {
+            "title": "Max",
+            "type": "integer"
+          },
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Reasons",
+            "type": "array"
+          },
+          "score": {
+            "title": "Score",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "code",
+          "score",
+          "max",
+          "reasons"
+        ],
+        "title": "ScoreComponentOut",
+        "type": "object"
+      },
       "SnapshotInfo": {
         "additionalProperties": false,
         "properties": {
@@ -576,6 +745,692 @@
           "snapshot_hash"
         ],
         "title": "SnapshotInfo",
+        "type": "object"
+      },
+      "TriageData": {
+        "properties": {
+          "caps_applied": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Caps Applied",
+            "type": "array"
+          },
+          "components": {
+            "items": {
+              "$ref": "#/components/schemas/ScoreComponentOut"
+            },
+            "title": "Components",
+            "type": "array"
+          },
+          "engine": {
+            "title": "Engine",
+            "type": "string"
+          },
+          "fit_reasons": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Fit Reasons",
+            "type": "array"
+          },
+          "hard_gates": {
+            "items": {
+              "$ref": "#/components/schemas/HardGateOut"
+            },
+            "title": "Hard Gates",
+            "type": "array"
+          },
+          "recommendation": {
+            "title": "Recommendation",
+            "type": "string"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "risk_flags": {
+            "items": {
+              "$ref": "#/components/schemas/RiskFlagOut"
+            },
+            "title": "Risk Flags",
+            "type": "array"
+          },
+          "score": {
+            "title": "Score",
+            "type": "integer"
+          },
+          "vacancy_id": {
+            "title": "Vacancy Id",
+            "type": "string"
+          },
+          "verdict": {
+            "title": "Verdict",
+            "type": "string"
+          }
+        },
+        "required": [
+          "vacancy_id",
+          "revision",
+          "verdict",
+          "recommendation",
+          "score",
+          "engine",
+          "hard_gates",
+          "components",
+          "risk_flags",
+          "fit_reasons",
+          "caps_applied"
+        ],
+        "title": "TriageData",
+        "type": "object"
+      },
+      "TriageRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "blocked_companies": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Blocked Companies",
+            "type": "array"
+          },
+          "experience_years": {
+            "anyOf": [
+              {
+                "maximum": 60.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Experience Years"
+          },
+          "location_eligible": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location Eligible"
+          },
+          "must_have_skills": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 40,
+            "title": "Must Have Skills",
+            "type": "array"
+          },
+          "nice_to_have_skills": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 40,
+            "title": "Nice To Have Skills",
+            "type": "array"
+          },
+          "office_required": {
+            "default": false,
+            "title": "Office Required",
+            "type": "boolean"
+          },
+          "preferred_cities": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Preferred Cities",
+            "type": "array"
+          },
+          "preferred_work_modes": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 4,
+            "title": "Preferred Work Modes",
+            "type": "array"
+          },
+          "remote_only": {
+            "default": false,
+            "title": "Remote Only",
+            "type": "boolean"
+          },
+          "role_family": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role Family"
+          },
+          "salary_expectation_min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Salary Expectation Min"
+          },
+          "seniority": {
+            "anyOf": [
+              {
+                "enum": [
+                  "junior",
+                  "middle",
+                  "senior",
+                  "lead",
+                  "principal"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seniority"
+          },
+          "target_titles": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Target Titles",
+            "type": "array"
+          }
+        },
+        "title": "TriageRequest",
+        "type": "object"
+      },
+      "TriageResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/TriageData"
+          },
+          "meta": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Meta",
+            "type": "object"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "TriageResponse",
+        "type": "object"
+      },
+      "VacancyDetailResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/VacancyItem"
+          },
+          "meta": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Meta",
+            "type": "object"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "VacancyDetailResponse",
+        "type": "object"
+      },
+      "VacancyIntakeV1": {
+        "additionalProperties": false,
+        "properties": {
+          "capture_source": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capture Source"
+          },
+          "captured_at": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Captured At"
+          },
+          "city": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City"
+          },
+          "company_id": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company Id"
+          },
+          "company_name": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company Name"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "maxLength": 16,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 12000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "experience": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Experience"
+          },
+          "parser_version": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "pattern": "^[0-9]+(?:[.-][0-9A-Za-z-]+)*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parser Version"
+          },
+          "salary_max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Salary Max"
+          },
+          "salary_min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Salary Min"
+          },
+          "schema_version": {
+            "const": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "skills": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Skills",
+            "type": "array"
+          },
+          "source": {
+            "maxLength": 32,
+            "pattern": "^[a-zA-Z][a-zA-Z0-9_-]{0,31}$",
+            "title": "Source",
+            "type": "string"
+          },
+          "source_vacancy_id": {
+            "default": "",
+            "maxLength": 128,
+            "title": "Source Vacancy Id",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "maxLength": 2048,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          },
+          "work_mode": {
+            "anyOf": [
+              {
+                "enum": [
+                  "remote",
+                  "hybrid",
+                  "office",
+                  "unknown"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Work Mode"
+          }
+        },
+        "required": [
+          "schema_version",
+          "source"
+        ],
+        "title": "VacancyIntakeV1",
+        "type": "object"
+      },
+      "VacancyItem": {
+        "additionalProperties": false,
+        "properties": {
+          "archived": {
+            "title": "Archived",
+            "type": "boolean"
+          },
+          "company_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company Id"
+          },
+          "company_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company Name"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "description_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description Hash"
+          },
+          "experience": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Experience"
+          },
+          "first_seen_at": {
+            "title": "First Seen At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "last_seen_at": {
+            "title": "Last Seen At",
+            "type": "string"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "salary_max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Salary Max"
+          },
+          "salary_min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Salary Min"
+          },
+          "skills": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Skills",
+            "type": "array"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "source_vacancy_id": {
+            "title": "Source Vacancy Id",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          },
+          "work_mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Work Mode"
+          }
+        },
+        "required": [
+          "id",
+          "source",
+          "source_vacancy_id",
+          "url",
+          "title",
+          "company_id",
+          "company_name",
+          "salary_min",
+          "salary_max",
+          "currency",
+          "work_mode",
+          "experience",
+          "description",
+          "skills",
+          "first_seen_at",
+          "last_seen_at",
+          "updated_at",
+          "archived",
+          "revision",
+          "description_hash"
+        ],
+        "title": "VacancyItem",
+        "type": "object"
+      },
+      "VacancyListMeta": {
+        "properties": {
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "request_id",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "VacancyListMeta",
+        "type": "object"
+      },
+      "VacancyListResponse": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/VacancyItem"
+            },
+            "title": "Data",
+            "type": "array"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/VacancyListMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "VacancyListResponse",
         "type": "object"
       },
       "ValidationError": {
@@ -955,6 +1810,221 @@
         "summary": "Start pairing challenge",
         "tags": [
           "pairing"
+        ]
+      }
+    },
+    "/api/v1/vacancies": {
+      "get": {
+        "description": "List vacancies, newest first, with pagination metadata.",
+        "operationId": "vacancy_list_api_v1_vacancies_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VacancyListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Vacancy List",
+        "tags": [
+          "vacancies"
+        ]
+      }
+    },
+    "/api/v1/vacancies/intake": {
+      "post": {
+        "description": "Idempotently capture a normalized vacancy into the companion.",
+        "operationId": "vacancy_intake_api_v1_vacancies_intake_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VacancyIntakeV1"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntakeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Vacancy Intake",
+        "tags": [
+          "vacancies"
+        ]
+      }
+    },
+    "/api/v1/vacancies/{vacancy_id}": {
+      "get": {
+        "description": "Return a single vacancy by internal id.",
+        "operationId": "vacancy_detail_api_v1_vacancies__vacancy_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "vacancy_id",
+            "required": true,
+            "schema": {
+              "title": "Vacancy Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VacancyDetailResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Vacancy Detail",
+        "tags": [
+          "vacancies"
+        ]
+      }
+    },
+    "/api/v1/vacancies/{vacancy_id}/triage": {
+      "post": {
+        "description": "Run deterministic no-LLM Stage A triage for a stored vacancy.",
+        "operationId": "vacancy_triage_api_v1_vacancies__vacancy_id__triage_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "vacancy_id",
+            "required": true,
+            "schema": {
+              "title": "Vacancy Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TriageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TriageResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Vacancy Triage",
+        "tags": [
+          "vacancies"
         ]
       }
     }

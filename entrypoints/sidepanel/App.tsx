@@ -14,6 +14,7 @@ import type { RiskFlag } from "@/models/risk";
 import type { ApplicationStatusSync } from "@/adapters/types";
 import type { RawHrTimelineDTO } from "@/models/hr-timeline";
 import { persistHrTimelineForJob } from "@/services/hr-timeline-sync";
+import { readCachedIntake } from "@/services/ops-intake";
 import { useState, useCallback, useEffect, type ReactNode } from "react";
 import {
   colors,
@@ -28,6 +29,7 @@ import {
   appSubtitle,
   smallButton,
   warningChip,
+  infoChip,
   scoreColor,
 } from "@/styles";
 
@@ -478,6 +480,65 @@ function TabContent({
 
 // ── Overview Tab ───────────────────────────────────────────────────────────
 
+/**
+ * Ops intake status chip — shows the last companion intake result for the
+ * current vacancy. Reads the local opsCache read-model, never the network.
+ */
+function OpsIntakeStatus({
+  sourceVacancyId,
+}: {
+  sourceVacancyId: string;
+}): ReactNode {
+  const [state, setState] = useState<
+    | "loading"
+    | "none"
+    | { result: string; revision: number; verdict?: string; score?: number }
+  >("loading");
+
+  useEffect(() => {
+    let cancelled = false;
+    void readCachedIntake(sourceVacancyId).then((cached) => {
+      if (cancelled) return;
+      if (!cached) {
+        setState("none");
+        return;
+      }
+      setState({
+        result: cached.result,
+        revision: cached.revision,
+        verdict: cached.triage?.verdict,
+        score: cached.triage?.score,
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [sourceVacancyId]);
+
+  if (state === "loading" || state === "none") return null;
+
+  const label = {
+    created: "Synced to Ops (created)",
+    updated: "Synced to Ops (updated)",
+    unchanged: "Already in Ops (unchanged)",
+  }[state.result] ?? "Synced to Ops";
+
+  return (
+    <div
+      role="status"
+      style={{
+        ...infoChip,
+        marginBottom: spacing.xxl,
+      }}
+    >
+      {label} · rev {state.revision}
+      {state.verdict
+        ? ` · triage ${state.verdict}${typeof state.score === "number" ? ` (${state.score})` : ""}`
+        : ""}
+    </div>
+  );
+}
+
 function OverviewTab({ ctx }: { ctx: VacancyContext }): ReactNode {
   if (!ctx.jobId) {
     return (
@@ -502,8 +563,13 @@ function OverviewTab({ ctx }: { ctx: VacancyContext }): ReactNode {
   const job = ctx.job;
   const badge = statusBadgeStyle(job.status);
 
+  const sourceVacancyId = job.sourceVacancyId || job.id.replace(/^hh_/, "");
+
   return (
     <div>
+      {/* Ops intake sync status (informational) */}
+      <OpsIntakeStatus sourceVacancyId={sourceVacancyId} />
+
       {/* Title and company */}
       <div style={{ marginBottom: spacing.xxl }}>
         <h2

@@ -19,3 +19,18 @@ export type {
   CompanionErrorResponse,
   CompanionStatus,
 } from './types';
+export type {
+  VacancyIntakeV1,
+  VacancyIntakeData,
+  VacancyIntakeResponse,
+  VacancyListItem,
+  VacancyListMeta,
+  VacancyListResponse,
+  VacancyDetailResponse,
+  VacancyTriageRequest,
+  VacancyTriageRiskFlag,
+  VacancyTriageHardGate,
+  VacancyTriageComponent,
+  VacancyTriageData,
+  VacancyTriageResponse,
+} from './vacancy-types';

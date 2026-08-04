@@ -118,6 +118,15 @@ class VacancyRepository:
         )
         return self._session.execute(stmt).scalar_one_or_none()
 
+    def get_snapshot_by_key(self, idempotency_key: str) -> VacancySnapshot | None:
+        """Return a prior snapshot applied with this idempotency key, if any.
+
+        Used to detect replays up-front so a retried request never mutates the
+        vacancy row after the original operation already committed.
+        """
+        stmt = select(VacancySnapshot).where(VacancySnapshot.idempotency_key == idempotency_key)
+        return self._session.execute(stmt).scalar_one_or_none()
+
     def add_snapshot(
         self,
         *,

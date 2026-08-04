@@ -115,9 +115,10 @@ export class OpsClient {
     path: string,
     body: unknown,
     signal?: AbortSignal,
+    options?: { idempotencyKey?: string },
   ): Promise<T> {
     this._requireClientToken();
-    return this._request<T>('POST', path, body, signal, true);
+    return this._request<T>('POST', path, body, signal, true, options);
   }
 
   private _requireClientToken(): void {
@@ -139,6 +140,7 @@ export class OpsClient {
     body?: unknown,
     signal?: AbortSignal,
     authenticated = false,
+    options?: { idempotencyKey?: string },
   ): Promise<T> {
     const requestId = generateRequestId();
     const url = `${this._baseUrl}${path}`;
@@ -151,6 +153,10 @@ export class OpsClient {
 
     if (authenticated && this._clientToken) {
       headers['X-VacancyPilot-Client'] = this._clientToken;
+    }
+
+    if (options?.idempotencyKey) {
+      headers['X-VacancyPilot-Idempotency-Key'] = options.idempotencyKey;
     }
 
     if (body !== undefined) {

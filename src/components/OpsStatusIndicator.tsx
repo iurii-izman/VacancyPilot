@@ -11,7 +11,6 @@
 import { useState, useEffect, useCallback, type ReactNode } from 'react';
 import { detectCompanionStatus } from '@/services/companion-service';
 import type { CompanionStatus } from '@/adapters/companion/types';
-
 // ── Status mapping ─────────────────────────────────────────────────────────
 
 function dotColor(status: CompanionStatus): string {
@@ -72,6 +71,23 @@ export function OpsStatusDot({ onOpenSettings }: OpsStatusDotProps): ReactNode {
       setVisible(true);
       const result = await detectCompanionStatus();
       setStatus(result.status);
+
+      // When the companion is (re)connected, flush any queued offline intake
+      // entries so captures made while offline are delivered idempotently.
+      if (result.status === 'connected') {
+        try {
+          const { flushOutboxOnReconnect } = await import(
+            '@/services/outbox-service'
+          );
+          const { vacancyIntakeTransport } = await import(
+            '@/services/ops-intake'
+          );
+          await flushOutboxOnReconnect(vacancyIntakeTransport);
+        } catch {
+          // Connection status is authoritative here. A failed outbox flush is
+          // retried on the next poll and must not hide a connected companion.
+        }
+      }
     } catch {
       setVisible(false);
     }

@@ -1,6 +1,6 @@
 # Application Ops — Implementation Status
 
-Status: AOPS-05 complete with focused validation; AOPS-06 next
+Status: AOPS-06 complete with focused validation; AOPS-07 next
 Date: 2026-08-04
 
 ## Baseline Snapshot
@@ -140,6 +140,31 @@ The companion tests emit one upstream Starlette TestClient deprecation
 warning. Repository-wide builds, browser QA, release-safety and security scans
 remain DEFERRED_TO_RELEASE_GATE and are not claimed as passed here.
 
+## AOPS-06 Validation (2026-08-04)
+
+AOPS-06 adds the versioned sanitized vacancy intake contract, authenticated
+list/detail/triage APIs, deterministic fallback identity, change-aware
+snapshots and explainable Stage A triage. The extension mirrors only explicit
+user saves through the offline outbox, retries with a stable idempotency key,
+caches intake/triage results and preserves standalone scoring. Review connected
+the previously unused result cache and triage path, retained source-ID-free
+captures for companion fallback, rejected idempotency-key payload conflicts,
+and prevented custom headers from overriding client authentication metadata.
+
+| Command | Exit | Result |
+| --- | --- | --- |
+| focused companion vacancy API suite | 0 | 33 tests PASS; one upstream TestClient warning |
+| focused extension intake/client/outbox/status suite | 0 | 5 files, 67 tests PASS |
+| `pnpm typecheck` | 0 | PASS |
+| focused ESLint and Ruff | 0 | PASS |
+| strict mypy on changed companion modules | 0 | PASS |
+| OpenAPI drift check | 0 | checked-in snapshot current |
+| workflow validator and `git diff --check` | 0 | PASS |
+
+Repository-wide builds, browser QA, release-safety and security scans remain
+DEFERRED_TO_RELEASE_GATE and are not claimed as passed here. No Application
+Engine V4 runtime file was changed and the absent `v4.0.0` tag was preserved.
+
 ## Existing Extension Capabilities (Preserved)
 
 These capabilities exist in the current extension and must remain intact
@@ -237,7 +262,7 @@ does not authorize product integration.
 | AOPS-03 | Localhost security, pairing and secrets | complete |
 | AOPS-04 | Extension Ops client and offline mode | complete |
 | AOPS-05 | Dexie migration and outbox | complete |
-| AOPS-06 | Vacancy intake, deduplication and local triage | not started |
+| AOPS-06 | Vacancy intake, deduplication and local triage | complete |
 | AOPS-07 | Engine package, deterministic index and health | not started |
 | AOPS-08 | Full V4 analysis, providers and literal validation | not started |
 | AOPS-09 | Letter lifecycle, manual bridge and generated/sent diff | not started |

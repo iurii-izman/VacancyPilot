@@ -7,6 +7,7 @@ import { usePageStatus, PageStatus } from "@/components/PageStatus";
 import { EmptyState } from "@/components/EmptyState";
 import { tracker } from "@/services/tracker";
 import { recomputeScoreForJob } from "@/services/score-recompute";
+import { mirrorSaveToOps } from "@/services/ops-intake";
 import { persistBadgeState } from "@/services/badge-state";
 import { jobRepo, profileRepo } from "@/db/repositories";
 import { loadSettings } from "@/db/settings-bridge";
@@ -315,6 +316,11 @@ function PopupContent(): ReactNode {
       }
 
       const job = await tracker.saveFromDTO(response.dto);
+
+      // Mirror the save to Ops intake (best-effort, offline-safe via outbox).
+      // Standalone save already succeeded above, so a companion failure here
+      // must never block the user.
+      void mirrorSaveToOps(response.dto).catch(() => {});
 
       // Compute score if a profile is available (uses shared recompute path).
       const jobWithScore =
