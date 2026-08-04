@@ -62,6 +62,31 @@ export function PrivacyDisclosureSection(): ReactNode {
             <strong>AI cache</strong> — cached AI responses (can be cleared)
           </li>
         </ul>
+
+        <h4
+          style={{
+            fontSize: fontSizes.body,
+            fontWeight: fontWeights.semibold,
+            margin: "10px 0 4px",
+            color: colors.navy,
+          }}
+        >
+          Local Ops Companion (optional)
+        </h4>
+        <ul style={listStyle}>
+          <li>
+            When you explicitly enable and pair Ops Mode, a sanitized backup
+            and operational records are sent only to the companion on your own
+            computer at <code>127.0.0.1:8765</code>.
+          </li>
+          <li>
+            Migration always provides a preview and requires confirmation;
+            offline writes remain in a visible local outbox until reconnect.
+          </li>
+          <li>
+            Pairing tokens are isolated from exports and migration payloads.
+          </li>
+        </ul>
       </div>
 
       {/* ── What is NOT stored ── */}
@@ -134,7 +159,7 @@ export function PrivacyDisclosureSection(): ReactNode {
         <h3 style={cardHeading}>No Other External Communication</h3>
         <ul style={listStyle}>
           <li>No analytics, crash reporting, or telemetry of any kind</li>
-          <li>No background network requests</li>
+          <li>No hidden background requests to external services</li>
           <li>No developer-operated backend or API</li>
           <li>No third-party advertising or tracking</li>
           <li>No CDN, external fonts, or remote scripts</li>

@@ -59,3 +59,24 @@ def get_db_session(request: Request) -> Generator[Session | None, None, None]:
 
 
 SessionDep = Annotated[Session | None, Depends(get_db_session)]
+
+
+def get_db_session_long(request: Request) -> Generator[Session | None, None, None]:
+    """Yield a session suitable for longer-running migration operations.
+
+    Differs from ``get_db_session`` only in that it does not auto-commit
+    on success — the caller manages the transaction boundary explicitly.
+    """
+    engine = _resolve_engine(request)
+    if engine is None:
+        yield None
+        return
+
+    from sqlalchemy.orm import sessionmaker as _sessionmaker
+
+    factory = _sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
+    session = factory()
+    try:
+        yield session
+    finally:
+        session.close()

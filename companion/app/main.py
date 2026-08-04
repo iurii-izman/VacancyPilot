@@ -19,6 +19,7 @@ from app.api.errors import (
     validation_exception_handler,
 )
 from app.api.health import router as health_router
+from app.api.migration import router as migration_router
 from app.api.pairing import router as pairing_router
 from app.config import settings
 from app.db import Base  # noqa: F401 — register models with metadata
@@ -89,6 +90,7 @@ def create_app(*, initialize_db: bool = True) -> FastAPI:
     api_prefix = settings.api_prefix
     app.include_router(health_router, prefix=api_prefix)
     app.include_router(pairing_router, prefix=api_prefix)
+    app.include_router(migration_router, prefix=api_prefix)
 
     # Error handlers
     app.add_exception_handler(RequestValidationError, validation_exception_handler)  # type: ignore[arg-type]

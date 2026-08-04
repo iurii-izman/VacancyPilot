@@ -103,6 +103,7 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException) 
         413: ('PAYLOAD_TOO_LARGE', 'The request payload is too large'),
         415: ('UNSUPPORTED_MEDIA_TYPE', 'The request media type is not supported'),
         429: ('RATE_LIMIT_EXCEEDED', 'Too many requests'),
+        503: ('SERVICE_UNAVAILABLE', 'The local service is unavailable'),
     }
     error_code, message = error_map.get(
         exc.status_code,

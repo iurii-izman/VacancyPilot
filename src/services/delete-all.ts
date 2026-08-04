@@ -38,7 +38,7 @@ export interface DeleteAiCacheAndEventLogResult {
  * Callers must present a confirmation flow before invoking.
  */
 export async function deleteAllData(): Promise<void> {
-  // 1. Clear all Dexie tables (TABLE_NAMES now reflects the current schema v5)
+  // 1. Clear all Dexie tables (TABLE_NAMES now reflects the current schema v6)
   await Promise.all(
     TABLE_NAMES.map((name) => db.table(name as TableName).clear()),
   );

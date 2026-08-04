@@ -311,6 +311,28 @@ describe('OpsClient', () => {
       'fixed loopback endpoint',
     );
   });
+
+  it('rejects authenticated requests before pairing', async () => {
+    await expect(client.authenticatedGet('/migration/status')).rejects.toMatchObject({
+      code: 'NOT_PAIRED',
+    });
+  });
+
+  it('attaches the client token only to authenticated requests', async () => {
+    client.setClientToken('paired-token');
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify({ data: {}, meta: {} }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+    await client.authenticatedPost('/migration/preview', {});
+    const [, init] = fetchSpy.mock.calls[0];
+    const headers = (init as RequestInit).headers as Record<string, string>;
+    expect(headers['X-VacancyPilot-Client']).toBe('paired-token');
+    expect(headers['Content-Type']).toBe('application/json');
+  });
 });
 
 describe('CompanionError', () => {

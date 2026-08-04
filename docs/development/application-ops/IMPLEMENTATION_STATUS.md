@@ -1,6 +1,6 @@
 # Application Ops — Implementation Status
 
-Status: AOPS-04 complete with focused validation; AOPS-05 next
+Status: AOPS-05 complete with focused validation; AOPS-06 next
 Date: 2026-08-04
 
 ## Baseline Snapshot
@@ -117,6 +117,29 @@ Repository-wide tests, builds, release-safety, browser QA and security scans
 remain DEFERRED_TO_RELEASE_GATE under the current validation policy. No result
 for those deferred gates is claimed here.
 
+## AOPS-05 Validation (2026-08-04)
+
+AOPS-05 adds the real Dexie v5→v6 upgrade, version-2 sanitized export backup,
+explicit migration preview/download/confirmation UI, authenticated typed
+migration endpoints, atomic idempotent SQLite import/checkpoint storage, and a
+versioned FIFO outbox/cache foundation. Review removed an invented outbox API,
+fixed missing client authentication, stable snapshot identity, visible error
+codes, conflict retention and silent non-vacancy data loss.
+
+| Command | Exit | Result |
+| --- | --- | --- |
+| focused extension Vitest set | 0 | 11 files, 169 tests PASS |
+| focused companion migration/OpenAPI set | 0 | 13 tests PASS; 41 deselected by scope |
+| `pnpm typecheck` | 0 | PASS |
+| focused ESLint and Ruff | 0 | PASS |
+| strict mypy on `companion/app/` | 0 | PASS |
+| OpenAPI drift check | 0 | checked-in snapshot current |
+| workflow validator and `git diff --check` | 0 | PASS |
+
+The companion tests emit one upstream Starlette TestClient deprecation
+warning. Repository-wide builds, browser QA, release-safety and security scans
+remain DEFERRED_TO_RELEASE_GATE and are not claimed as passed here.
+
 ## Existing Extension Capabilities (Preserved)
 
 These capabilities exist in the current extension and must remain intact
@@ -213,7 +236,7 @@ does not authorize product integration.
 | AOPS-02 | SQLite domain and migrations | complete |
 | AOPS-03 | Localhost security, pairing and secrets | complete |
 | AOPS-04 | Extension Ops client and offline mode | complete |
-| AOPS-05 | Dexie migration and outbox | not started |
+| AOPS-05 | Dexie migration and outbox | complete |
 | AOPS-06 | Vacancy intake, deduplication and local triage | not started |
 | AOPS-07 | Engine package, deterministic index and health | not started |
 | AOPS-08 | Full V4 analysis, providers and literal validation | not started |

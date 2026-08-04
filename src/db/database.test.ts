@@ -5,14 +5,15 @@ import {
   SCHEMA_V3,
   SCHEMA_V4,
   SCHEMA_V5,
+  SCHEMA_V6,
   TABLE_NAMES,
   SCHEMA_VERSION,
 } from "./schema";
 import { VacancyDatabase } from "./database";
 
 describe("schema constant", () => {
-  it("has exactly 12 tables (v5)", () => {
-    expect(TABLE_NAMES).toHaveLength(12);
+  it("has exactly 15 tables (v6)", () => {
+    expect(TABLE_NAMES).toHaveLength(15);
   });
 
   it("includes all required table names", () => {
@@ -29,6 +30,9 @@ describe("schema constant", () => {
       "labsActions",
       "hrTimeline",
       "visitMarks",
+      "syncOutbox",
+      "opsCache",
+      "opsMeta",
     ]);
   });
 
@@ -142,8 +146,8 @@ describe("schema constant", () => {
     expect(SCHEMA_V3.events).toBe(SCHEMA_V2.events);
   });
 
-  it("schema version is 5", () => {
-    expect(SCHEMA_VERSION).toBe(5);
+  it("schema version is 6", () => {
+    expect(SCHEMA_VERSION).toBe(6);
   });
   it("v4 adds hrTimeline table", () => {
     const spec = SCHEMA_V4.hrTimeline;
@@ -179,6 +183,18 @@ describe("schema constant", () => {
     expect(SCHEMA_V5.hrTimeline).toBe(SCHEMA_V4.hrTimeline);
     expect(SCHEMA_V5.visitMarks).toBeDefined();
   });
+
+  it("v6 adds syncOutbox, opsCache, and opsMeta tables", () => {
+    expect(SCHEMA_V6.syncOutbox).toContain("&id");
+    expect(SCHEMA_V6.opsCache).toContain("&key");
+    expect(SCHEMA_V6.opsMeta).toContain("&key");
+  });
+
+  it("v6 inherits all v5 tables", () => {
+    expect(SCHEMA_V6.jobs).toBe(SCHEMA_V5.jobs);
+    expect(SCHEMA_V6.hrTimeline).toBe(SCHEMA_V5.hrTimeline);
+    expect(SCHEMA_V6.visitMarks).toBe(SCHEMA_V5.visitMarks);
+  });
 });
 
 describe("VacancyDatabase", () => {
@@ -203,5 +219,8 @@ describe("VacancyDatabase", () => {
     expect(instance.hrTimeline).toBeDefined();
     expect(instance.visitMarks).toBeDefined();
     expect(instance.meta).toBeDefined();
+    expect(instance.syncOutbox).toBeDefined();
+    expect(instance.opsCache).toBeDefined();
+    expect(instance.opsMeta).toBeDefined();
   });
 });

@@ -207,22 +207,22 @@ describe("export safety — sensitive storage keys", () => {
 });
 
 describe("export safety — envelope structure", () => {
-  it("export envelope version is stable (version 1)", () => {
+  it("export envelope version is stable (version 2)", () => {
     // The export envelope version must not change without updating
-    // import compatibility. Version 1 is the current format.
+    // import compatibility. Version 2 adds the AOPS-05 stores.
     const envelope: ExportEnvelope = {
-      version: 1,
+      version: 2,
       exportedAt: new Date().toISOString(),
       data: {},
       settings: makeSettings() as unknown as ExportEnvelope["settings"],
     };
 
-    expect(envelope.version).toBe(1);
+    expect(envelope.version).toBe(2);
   });
 
   it("export envelope always has exportedAt timestamp", () => {
     const envelope: ExportEnvelope = {
-      version: 1,
+      version: 2,
       exportedAt: new Date().toISOString(),
       data: {},
       settings: makeSettings() as unknown as ExportEnvelope["settings"],
@@ -234,7 +234,7 @@ describe("export safety — envelope structure", () => {
 
   it("export envelope JSON is valid and parseable", () => {
     const envelope: ExportEnvelope = {
-      version: 1,
+      version: 2,
       exportedAt: new Date().toISOString(),
       data: {
         jobs: [
@@ -248,7 +248,7 @@ describe("export safety — envelope structure", () => {
     expect(() => JSON.parse(json)).not.toThrow();
 
     const parsed = JSON.parse(json) as ExportEnvelope;
-    expect(parsed.version).toBe(1);
+    expect(parsed.version).toBe(2);
     expect(parsed.data.jobs).toHaveLength(1);
   });
 });

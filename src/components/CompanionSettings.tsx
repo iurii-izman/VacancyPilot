@@ -22,6 +22,7 @@ import { loadSettings } from '@/db/settings-bridge';
 import type { CompanionStatus, CompanionVersionInfo } from '@/adapters/companion/types';
 import { EXPECTED_API_VERSION } from '@/adapters/companion/types';
 import { LoadingState } from './LoadingState';
+import { MigrationPanel } from './MigrationPanel';
 import { colors } from '@/styles/tokens';
 
 // ── Shared styles ──────────────────────────────────────────────────────────
@@ -468,24 +469,27 @@ export function CompanionSettings(): ReactNode {
 
           {/* Action buttons */}
           {status === 'connected' && (
-            <button
-              type="button"
-              onClick={() => void handleDisconnect()}
-              disabled={actionBusy}
-              style={{
-                padding: '6px 14px',
-                fontSize: 12,
-                cursor: actionBusy ? 'not-allowed' : 'pointer',
-                border: '1px solid #c44',
-                borderRadius: 4,
-                background: '#fff',
-                color: '#c44',
-                fontWeight: 600,
-                opacity: actionBusy ? 0.6 : 1,
-              }}
-            >
-              {actionBusy ? 'Disconnecting…' : 'Disconnect'}
-            </button>
+            <div>
+              <button
+                type="button"
+                onClick={() => void handleDisconnect()}
+                disabled={actionBusy}
+                style={{
+                  padding: '6px 14px',
+                  fontSize: 12,
+                  cursor: actionBusy ? 'not-allowed' : 'pointer',
+                  border: '1px solid #c44',
+                  borderRadius: 4,
+                  background: '#fff',
+                  color: '#c44',
+                  fontWeight: 600,
+                  opacity: actionBusy ? 0.6 : 1,
+                }}
+              >
+                {actionBusy ? 'Disconnecting…' : 'Disconnect'}
+              </button>
+              <MigrationPanel />
+            </div>
           )}
 
           {(status === 'unpaired' || status === 'error') && (

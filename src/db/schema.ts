@@ -1,13 +1,17 @@
 /**
- * Dexie schema v5 — single source of truth for IndexedDB stores and indexes.
+ * Dexie schema v6 — single source of truth for IndexedDB stores and indexes.
  *
- * Schema follows the master spec section 10.15.
+ * Schema follows the master spec section 10.15 and AOPS-05 (DATA_MODEL_V1.md
+ * § Dexie schema extension).
+ *
  * Changing this requires a new version() migration.
  *
  * v2 adds [source+sourceVacancyId] compound index on jobs for stable upsert.
  * v3 adds labsActions store for Labs control plane action log.
  * v4 adds hrTimeline store for HR communication timeline entries.
  * v5 adds visitMarks store for local vacancy visit tracking.
+ * v6 adds syncOutbox, opsCache, and opsMeta stores for AOPS-05 migration cache
+ *     and outbox.
  */
 
 export const SCHEMA_V1 = {
@@ -47,9 +51,18 @@ export const SCHEMA_V5 = {
     "&id, [source+sourceId], source, sourceType, sourceId, firstSeenAt, lastSeenAt, viewCount, updatedAt",
 } as const;
 
-/** Table names derived from the current schema version (v5). */
-export type TableName = keyof typeof SCHEMA_V5;
+/** v6 adds syncOutbox, opsCache, opsMeta stores for AOPS-05. */
+export const SCHEMA_V6 = {
+  ...SCHEMA_V5,
+  syncOutbox:
+    "&id, &sequence, entityType, operation, createdAt, retryCount, status, nextAttemptAt",
+  opsCache: "&key, entityType, entityId, updatedAt, expiresAt",
+  opsMeta: "&key",
+} as const;
 
-export const TABLE_NAMES = Object.keys(SCHEMA_V5) as TableName[];
+/** Table names derived from the current schema version (v6). */
+export type TableName = keyof typeof SCHEMA_V6;
 
-export const SCHEMA_VERSION = 5;
+export const TABLE_NAMES = Object.keys(SCHEMA_V6) as TableName[];
+
+export const SCHEMA_VERSION = 6;

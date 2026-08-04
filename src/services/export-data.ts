@@ -7,7 +7,7 @@ import type { AppSettings } from "@/models/settings";
 
 /** Versioned envelope for JSON export (spec section 21.2). */
 export interface ExportEnvelope {
-  version: 1;
+  version: 2;
   exportedAt: string;
   data: Record<string, unknown[]>;
   settings: AppSettings;
@@ -65,7 +65,7 @@ function csvRow(cells: unknown[]): string {
 export async function exportAllJson(): Promise<ExportEnvelope> {
   const data: Record<string, unknown[]> = {};
 
-  // Collect all Dexie table data (TABLE_NAMES reflects the current schema v4)
+  // Collect all Dexie table data (TABLE_NAMES reflects the current schema v6)
   for (const name of TABLE_NAMES) {
     const table = db.table(name as TableName);
     data[name] = await table.toArray();
@@ -76,7 +76,7 @@ export async function exportAllJson(): Promise<ExportEnvelope> {
   const settings = redactSettingsForExport(rawSettings);
 
   const envelope: ExportEnvelope = {
-    version: 1,
+    version: 2,
     exportedAt: new Date().toISOString(),
     data,
     settings,

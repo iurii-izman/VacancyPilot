@@ -10,7 +10,15 @@ import type { AIRequestCache } from "@/models/ai";
 import type { LabsActionLog } from "@/models/labs-action-log";
 import type { HrTimelineEntry } from "@/models/hr-timeline";
 import type { VisitMark } from "@/models/visit-mark";
-import { SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4, SCHEMA_V5 } from "./schema";
+import type { SyncOutboxEntry, OpsCacheEntry, OpsMeta } from "@/models/ops";
+import {
+  SCHEMA_V1,
+  SCHEMA_V2,
+  SCHEMA_V3,
+  SCHEMA_V4,
+  SCHEMA_V5,
+  SCHEMA_V6,
+} from "./schema";
 
 /**
  * Dexie database wrapper for VacancyPilot.
@@ -31,15 +39,19 @@ export class VacancyDatabase extends Dexie {
   labsActions!: EntityTable<LabsActionLog, "id">;
   hrTimeline!: EntityTable<HrTimelineEntry, "id">;
   visitMarks!: EntityTable<VisitMark, "id">;
+  syncOutbox!: EntityTable<SyncOutboxEntry, "id">;
+  opsCache!: EntityTable<OpsCacheEntry, "key">;
+  opsMeta!: EntityTable<OpsMeta, "key">;
   meta!: EntityTable<{ key: string; value: unknown }, "key">;
 
-  constructor() {
-    super("VacancyPilotDB");
+  constructor(name = "VacancyPilotDB") {
+    super(name);
     this.version(1).stores(SCHEMA_V1);
     this.version(2).stores(SCHEMA_V2);
     this.version(3).stores(SCHEMA_V3);
     this.version(4).stores(SCHEMA_V4);
     this.version(5).stores(SCHEMA_V5);
+    this.version(6).stores(SCHEMA_V6);
   }
 }
 

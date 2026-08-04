@@ -260,6 +260,14 @@ confirmation semantics.
 These support routes are required by AOPS-05 and do not change the authority
 model.
 
+Preview/import requests carry a schema-validated snapshot descriptor with a
+SHA-256 snapshot hash plus sanitized export table arrays. Preview compares
+vacancy natural keys without mutation and returns inserts, unchanged records,
+visible conflicts, and the count retained in the recovery backup. Import is
+blocked by conflicts, commits vacancy projections and the sanitized source
+table backup in one SQLite transaction, and replays the stored result for the
+same snapshot hash.
+
 ## Non-functional requirements
 
 - Strict CORS allowlist for the exact extension origin; no wildcard.

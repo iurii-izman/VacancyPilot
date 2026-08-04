@@ -279,14 +279,18 @@ The next Dexie version preserves all existing tables and adds exactly:
 | Field | Meaning |
 | --- | --- |
 | `id` | Stable UUID primary key |
+| `sequence` | Monotonic local FIFO sequence |
 | `entityType` | Versioned entity/command type |
 | `operation` | Target operation |
 | `payload` | Versioned sanitized command payload |
+| `payloadVersion` | Required payload schema discriminator |
 | `idempotencyKey` | Stable retry key |
 | `expectedRevision` | Nullable optimistic revision |
 | `createdAt` | UTC creation time |
 | `retryCount` | Bounded retry count |
+| `nextAttemptAt` | Earliest eligible retry time |
 | `lastError` | Sanitized error code/summary |
+| `status` | Pending, retrying, dead, or visible conflict state |
 
 Minimum Dexie index contract from the MVP:
 `&id, entityType, operation, createdAt, retryCount`.

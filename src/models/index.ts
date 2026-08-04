@@ -30,3 +30,14 @@ export type {
   HrTimelineEntry,
   RawHrTimelineDTO,
 } from "./hr-timeline";
+export type {
+  OpsMeta,
+  SyncOutboxEntry,
+  OpsCacheEntry,
+  OutboxOperation,
+  OutboxEntityType,
+  OutboxStatus,
+  OutboxTerminalStatus,
+  AuthorityMode,
+} from "./ops";
+export { OPS_META_KEYS } from "./ops";

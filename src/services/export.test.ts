@@ -193,6 +193,9 @@ vi.mock("@/db", () => {
     "labsActions",
     "hrTimeline",
     "visitMarks",
+    "syncOutbox",
+    "opsCache",
+    "opsMeta",
     "meta",
   ];
 
@@ -230,6 +233,15 @@ vi.mock("@/db", () => {
     },
     get visitMarks() {
       return makeTable("visitMarks");
+    },
+    get syncOutbox() {
+      return makeTable("syncOutbox");
+    },
+    get opsCache() {
+      return makeTable("opsCache");
+    },
+    get opsMeta() {
+      return makeTable("opsMeta");
     },
     get meta() {
       return makeTable("meta");
@@ -295,7 +307,7 @@ describe("exportAllJson", () => {
   it("returns a versioned envelope with exportedAt timestamp", async () => {
     const envelope = await exportAllJson();
 
-    expect(envelope.version).toBe(1);
+    expect(envelope.version).toBe(2);
     expect(envelope.exportedAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
   });
 
@@ -365,7 +377,7 @@ describe("exportAllJson", () => {
 
     expect(() => JSON.parse(json)).not.toThrow();
     const parsed = JSON.parse(json) as ExportEnvelope;
-    expect(parsed.version).toBe(1);
+    expect(parsed.version).toBe(2);
   });
 });
 
@@ -710,7 +722,7 @@ describe("getDataCounts", () => {
 
     expect(counts.jobs).toBe(0);
     expect(counts.companies).toBe(0);
-    expect(Object.keys(counts).length).toBe(12);
+    expect(Object.keys(counts).length).toBe(15);
   });
 
   it("returns correct counts", async () => {
@@ -798,7 +810,7 @@ describe("downloadJson", () => {
     // We can't fully test DOM anchor clicks in vitest without happy-dom setup,
     // but we verify the function doesn't throw on valid input.
     const envelope: ExportEnvelope = {
-      version: 1,
+      version: 2,
       exportedAt: "2025-06-19T00:00:00.000Z",
       data: {},
       settings: defaultSettings(),

@@ -1,6 +1,29 @@
 {
   "components": {
     "schemas": {
+      "ConflictDetail": {
+        "properties": {
+          "entity_id": {
+            "title": "Entity Id",
+            "type": "string"
+          },
+          "entity_type": {
+            "title": "Entity Type",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "entity_type",
+          "entity_id",
+          "reason"
+        ],
+        "title": "ConflictDetail",
+        "type": "object"
+      },
       "ErrorData": {
         "description": "Sanitized error payload used by every API error response.",
         "properties": {
@@ -120,6 +143,275 @@
           "meta"
         ],
         "title": "HealthResponse",
+        "type": "object"
+      },
+      "MigrationImportData": {
+        "properties": {
+          "breakdown": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Breakdown",
+            "type": "array"
+          },
+          "checkpoint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checkpoint"
+          },
+          "conflicts": {
+            "title": "Conflicts",
+            "type": "integer"
+          },
+          "inserts": {
+            "title": "Inserts",
+            "type": "integer"
+          },
+          "retained_in_backup": {
+            "title": "Retained In Backup",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "committed",
+              "rolled_back"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "unchanged": {
+            "title": "Unchanged",
+            "type": "integer"
+          },
+          "updates": {
+            "title": "Updates",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "status",
+          "inserts",
+          "updates",
+          "unchanged",
+          "conflicts",
+          "retained_in_backup",
+          "summary",
+          "breakdown"
+        ],
+        "title": "MigrationImportData",
+        "type": "object"
+      },
+      "MigrationImportResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/MigrationImportData"
+          },
+          "meta": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Meta",
+            "type": "object"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "MigrationImportResponse",
+        "type": "object"
+      },
+      "MigrationPreviewData": {
+        "properties": {
+          "conflict_details": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ConflictDetail"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conflict Details"
+          },
+          "conflicts": {
+            "title": "Conflicts",
+            "type": "integer"
+          },
+          "has_blocking_conflicts": {
+            "title": "Has Blocking Conflicts",
+            "type": "boolean"
+          },
+          "inserts": {
+            "title": "Inserts",
+            "type": "integer"
+          },
+          "retained_in_backup": {
+            "title": "Retained In Backup",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "unchanged": {
+            "title": "Unchanged",
+            "type": "integer"
+          },
+          "updates": {
+            "title": "Updates",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "inserts",
+          "updates",
+          "unchanged",
+          "conflicts",
+          "conflict_details",
+          "total",
+          "retained_in_backup",
+          "has_blocking_conflicts"
+        ],
+        "title": "MigrationPreviewData",
+        "type": "object"
+      },
+      "MigrationPreviewResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/MigrationPreviewData"
+          },
+          "meta": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Meta",
+            "type": "object"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "MigrationPreviewResponse",
+        "type": "object"
+      },
+      "MigrationRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "export_data": {
+            "additionalProperties": {
+              "items": {},
+              "type": "array"
+            },
+            "title": "Export Data",
+            "type": "object"
+          },
+          "export_version": {
+            "const": 2,
+            "title": "Export Version",
+            "type": "integer"
+          },
+          "snapshot": {
+            "$ref": "#/components/schemas/SnapshotInfo"
+          }
+        },
+        "required": [
+          "export_version",
+          "snapshot",
+          "export_data"
+        ],
+        "title": "MigrationRequest",
+        "type": "object"
+      },
+      "MigrationStatusData": {
+        "properties": {
+          "blocked_outbox": {
+            "title": "Blocked Outbox",
+            "type": "integer"
+          },
+          "imported": {
+            "title": "Imported",
+            "type": "boolean"
+          },
+          "last_import_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Import At"
+          },
+          "last_import_checkpoint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Import Checkpoint"
+          },
+          "mode": {
+            "enum": [
+              "standalone",
+              "ops"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "outbox_depth": {
+            "title": "Outbox Depth",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "mode",
+          "imported",
+          "last_import_at",
+          "last_import_checkpoint",
+          "outbox_depth",
+          "blocked_outbox"
+        ],
+        "title": "MigrationStatusData",
+        "type": "object"
+      },
+      "MigrationStatusResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/MigrationStatusData"
+          },
+          "meta": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Meta",
+            "type": "object"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "MigrationStatusResponse",
         "type": "object"
       },
       "PairConfirmData": {
@@ -258,6 +550,34 @@
         "title": "PairStartResponse",
         "type": "object"
       },
+      "SnapshotInfo": {
+        "additionalProperties": false,
+        "properties": {
+          "captured_at": {
+            "title": "Captured At",
+            "type": "string"
+          },
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Counts",
+            "type": "object"
+          },
+          "snapshot_hash": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Snapshot Hash",
+            "type": "string"
+          }
+        },
+        "required": [
+          "captured_at",
+          "counts",
+          "snapshot_hash"
+        ],
+        "title": "SnapshotInfo",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -353,6 +673,127 @@
         "summary": "Companion health check",
         "tags": [
           "health"
+        ]
+      }
+    },
+    "/api/v1/migration/import": {
+      "post": {
+        "description": "Import non-conflicting vacancies and persist the exact sanitized backup atomically.",
+        "operationId": "migration_import_api_v1_migration_import_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MigrationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MigrationImportResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Migration Import",
+        "tags": [
+          "migration"
+        ]
+      }
+    },
+    "/api/v1/migration/preview": {
+      "post": {
+        "description": "Return a content-aware preview without mutating SQLite.",
+        "operationId": "migration_preview_api_v1_migration_preview_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MigrationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MigrationPreviewResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Migration Preview",
+        "tags": [
+          "migration"
+        ]
+      }
+    },
+    "/api/v1/migration/status": {
+      "get": {
+        "description": "Return the latest committed migration checkpoint.",
+        "operationId": "migration_status_api_v1_migration_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MigrationStatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Migration Status",
+        "tags": [
+          "migration"
         ]
       }
     },

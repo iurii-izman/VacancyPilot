@@ -11,6 +11,8 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from pydantic import BaseModel, ValidationError
 
+from app.main import create_app
+
 # ── Health 200 contract ──────────────────────────────────────────────
 
 
@@ -302,14 +304,16 @@ class TestOpenAPISnapshot:
             'OpenAPI snapshot missing. Run the generation script to create it.'
         )
 
-    def test_openapi_snapshot_matches_current(self, client: TestClient) -> None:
+    def test_openapi_snapshot_matches_current(self) -> None:
         """The checked-in snapshot must match the currently generated schema."""
         root = Path(__file__).resolve().parents[2]  # VacancyPilot/
         snapshot = root / 'shared' / 'contracts' / 'openapi.json'
         if not snapshot.exists():
             pytest.skip('Snapshot file does not exist to compare against')
 
-        current_schema = client.get('/openapi.json').json()
+        # Compare against the production route set. The shared ``client``
+        # fixture intentionally adds a test-only auth probe to its schema.
+        current_schema = create_app(initialize_db=False).openapi()
         stored_schema = json.loads(snapshot.read_text(encoding='utf-8'))
 
         assert current_schema == stored_schema, (

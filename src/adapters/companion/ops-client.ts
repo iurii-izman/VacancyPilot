@@ -104,6 +104,32 @@ export class OpsClient {
     return this._request<T>('POST', path, body, signal, false);
   }
 
+  /** Perform an authenticated GET request. */
+  async authenticatedGet<T>(path: string, signal?: AbortSignal): Promise<T> {
+    this._requireClientToken();
+    return this._request<T>('GET', path, undefined, signal, true);
+  }
+
+  /** Perform an authenticated JSON POST request. */
+  async authenticatedPost<T>(
+    path: string,
+    body: unknown,
+    signal?: AbortSignal,
+  ): Promise<T> {
+    this._requireClientToken();
+    return this._request<T>('POST', path, body, signal, true);
+  }
+
+  private _requireClientToken(): void {
+    if (!this._clientToken) {
+      throw new CompanionError(
+        'NOT_PAIRED',
+        'Companion authentication requires a paired client token',
+        generateRequestId(),
+      );
+    }
+  }
+
   /**
    * Internal fetch wrapper with timeout, error parsing, and headers.
    */
