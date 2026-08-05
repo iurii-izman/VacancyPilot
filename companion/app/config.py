@@ -1,5 +1,6 @@
 """Application configuration with safe local-development defaults."""
 
+from pathlib import Path
 from typing import Literal
 
 from pydantic_settings import BaseSettings
@@ -25,6 +26,9 @@ class Settings(BaseSettings):
     # Database
     db_path: str = ''  # empty => default under companion/data/
 
+    # Engine
+    engine_package_root: str = ''  # empty => default companion/data/engine/
+
     # Observability
     log_level: str = 'info'
 
@@ -34,3 +38,12 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+def resolve_engine_package_root() -> Path:
+    """Return the absolute engine data root used by API and CLI alike."""
+    configured = settings.engine_package_root.strip()
+    if configured:
+        return Path(configured).expanduser().resolve(strict=False)
+    companion_root = Path(__file__).resolve().parents[1]
+    return companion_root / 'data' / 'engine'

@@ -1,7 +1,7 @@
 # Application Ops — Implementation Status
 
-Status: AOPS-06 complete with focused validation; AOPS-07 next
-Date: 2026-08-04
+Status: AOPS-07 complete; AOPS-08 next
+Date: 2026-08-05
 
 ## Baseline Snapshot
 
@@ -165,6 +165,59 @@ Repository-wide builds, browser QA, release-safety and security scans remain
 DEFERRED_TO_RELEASE_GATE and are not claimed as passed here. No Application
 Engine V4 runtime file was changed and the absent `v4.0.0` tag was preserved.
 
+## AOPS-07 Validation (2026-08-05)
+
+AOPS-07 adds the Application Engine V4 package loader, manifest/checksum
+validation, safe-path handling, YAML frontmatter parsing, unique ID and
+authority-graph validation, aggregate hash computation, immutable
+`LoadedEnginePackage`, deterministic `KnowledgeIndex`, atomic package
+installation (staging → rename), `vacancypilot-engine` CLI with `install`
+and `verify` subcommands, `GET /api/v1/engine/status` health endpoint with
+sanitized output, and synthetic offline fixtures. Review made checksum coverage
+strict, included Project Instructions in validation and the package input hash,
+rejected partial YAML fallback and version/status drift, made invalid installed
+packages visible in health, and added rollback of a previous valid package when
+activation fails.
+
+| Command | Exit | Result |
+| --- | --- | --- |
+| focused engine + health pytest set | 0 | 84 tests PASS; one upstream TestClient warning |
+| focused engine pytest file | 0 | 42 tests PASS, no skip |
+| focused Ruff format/check | 0 | PASS |
+| strict mypy on changed app modules | 0 | 8 source files PASS |
+| OpenAPI drift check | 0 | checked-in snapshot current |
+| workflow validator and `git diff --check` | 0 | PASS |
+
+New files:
+- `companion/app/engine/__init__.py` — package init
+- `companion/app/engine/models.py` — Pydantic models (Manifest, frontmatter schemas, LoadedEnginePackage, etc.)
+- `companion/app/engine/package.py` — main loader (~740 lines)
+- `companion/app/engine/index.py` — deterministic KnowledgeIndex + builder
+- `companion/app/engine/installer.py` — atomic install, verify, get_active_package
+- `companion/app/engine/cli.py` — vacancypilot-engine CLI (install + verify)
+- `companion/app/api/engine.py` — GET /api/v1/engine/status health endpoint
+- `companion/tests/test_engine.py` — 42 focused tests
+- `companion/tests/engine_fixtures/valid-minimal/` — synthetic test package (10 active files, manifest, checksums)
+
+Modified files:
+- `companion/app/config.py` — added `engine_package_root` setting
+- `companion/app/main.py` — registered engine health router
+- `companion/pyproject.toml` — added `pyyaml>=6.0.0` dependency and `vacancypilot-engine` console script
+- `.gitignore` — excluded `companion/data/engine/current/`, `.staging*/`, `.previous/`
+- `shared/contracts/openapi.json` — regenerated with engine status endpoint
+- `companion/uv.lock` — updated for pyyaml
+
+Privacy audit: synthetic test fixtures contain only fictional claim IDs
+(SYNTH-001 through SYNTH-003, CASE-SYNTH-001, PORT-SYNTH-001, etc.).
+No real candidate data, evidence bodies, or generated text is stored.
+Real engine payload directories are covered by `.gitignore`.
+
+No canonical Application Engine V4 payload, fact, rule, or version was changed,
+and the absent `v4.0.0` tag was preserved.
+
+Repository-wide builds, browser QA, release-safety and security scans remain
+DEFERRED_TO_RELEASE_GATE and are not claimed as passed here.
+
 ## Existing Extension Capabilities (Preserved)
 
 These capabilities exist in the current extension and must remain intact
@@ -263,7 +316,7 @@ does not authorize product integration.
 | AOPS-04 | Extension Ops client and offline mode | complete |
 | AOPS-05 | Dexie migration and outbox | complete |
 | AOPS-06 | Vacancy intake, deduplication and local triage | complete |
-| AOPS-07 | Engine package, deterministic index and health | not started |
+| AOPS-07 | Engine package, deterministic index and health | complete |
 | AOPS-08 | Full V4 analysis, providers and literal validation | not started |
 | AOPS-09 | Letter lifecycle, manual bridge and generated/sent diff | not started |
 | AOPS-10 | HH public API and search profiles | not started |

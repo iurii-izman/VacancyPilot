@@ -24,6 +24,162 @@
         "title": "ConflictDetail",
         "type": "object"
       },
+      "EngineHealthData": {
+        "description": "Sanitized engine health payload. No candidate text ever exposed.",
+        "properties": {
+          "active_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Count"
+          },
+          "aggregate_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aggregate Hash"
+          },
+          "case_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Case Count"
+          },
+          "claim_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Claim Count"
+          },
+          "configured": {
+            "title": "Configured",
+            "type": "boolean"
+          },
+          "engine_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Engine Version"
+          },
+          "installed": {
+            "title": "Installed",
+            "type": "boolean"
+          },
+          "last_successful_load_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Successful Load At"
+          },
+          "package_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Package Version"
+          },
+          "portfolio_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Portfolio Count"
+          },
+          "valid": {
+            "title": "Valid",
+            "type": "boolean"
+          },
+          "validation_error_codes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Validation Error Codes",
+            "type": "array"
+          },
+          "validation_filenames": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Validation Filenames",
+            "type": "array"
+          }
+        },
+        "required": [
+          "installed",
+          "configured",
+          "valid"
+        ],
+        "title": "EngineHealthData",
+        "type": "object"
+      },
+      "EngineHealthMeta": {
+        "properties": {
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "request_id"
+        ],
+        "title": "EngineHealthMeta",
+        "type": "object"
+      },
+      "EngineHealthResponse": {
+        "description": "Standard v1 health envelope for engine status.",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/EngineHealthData"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/EngineHealthMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "EngineHealthResponse",
+        "type": "object"
+      },
       "ErrorData": {
         "description": "Sanitized error payload used by every API error response.",
         "properties": {
@@ -1488,6 +1644,49 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/engine/status": {
+      "get": {
+        "description": "Returns sanitized engine health fields: installed/configured/valid, engine version, active file count, aggregate hash, claim/case/portfolio counts, validation error codes and safe filenames, and last successful load time. Candidate text is never returned through this endpoint.",
+        "operationId": "engine_status_api_v1_engine_status_get",
+        "parameters": [
+          {
+            "description": "Optional caller UUID; generated when absent or invalid.",
+            "in": "header",
+            "name": "X-VacancyPilot-Request-ID",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineHealthResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Sanitized unhandled server error"
+          }
+        },
+        "summary": "Application Engine V4 status",
+        "tags": [
+          "engine"
+        ]
+      }
+    },
     "/api/v1/health": {
       "get": {
         "description": "Returns the companion process version, API version, database status, and request metadata. Public endpoint — no client token required.",

@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "engine_version": "4.0.0",
+  "engine_label": "Test Engine v4.0.0",
+  "file_versions": [
+    {"filename": "00_source_manifest.md", "version": "4.0.0", "status": "active"},
+    {"filename": "01_candidate_claims.md", "version": "4.0.0", "status": "active"},
+    {"filename": "02_experience_case_bank.md", "version": "4.0.0", "status": "active"},
+    {"filename": "03_portfolio_cases.md", "version": "4.0.0", "status": "active"},
+    {"filename": "04_targeting_constraints.md", "version": "4.0.0", "status": "active"},
+    {"filename": "05_voice_and_gold_examples.md", "version": "4.0.0", "status": "active"},
+    {"filename": "07_project_master_instruction.md", "version": "4.0.0", "status": "active"},
+    {"filename": "08_candidate_updates.md", "version": "4.0.0", "status": "active"},
+    {"filename": "09_skill_calibration_matrix.md", "version": "4.0.0", "status": "active"},
+    {"filename": "11_letter_regression_suite.md", "version": "4.0.0", "status": "active"}
+  ],
+  "expected_checksums": {
+    "active/00_source_manifest.md": "93812b50fab99cbf51cf412dedfb882cdf58a5f4741e12004dc4242a9dfe589d",
+    "active/01_candidate_claims.md": "dd8801a3750c9d91289fc0a44f5bd3a75c740277567de9ca62ec5102852997c3",
+    "active/02_experience_case_bank.md": "067f7970e0a3e6f40a07c4101c0ffb245f12c30841a74823640a20b29b91b42f",
+    "active/03_portfolio_cases.md": "1c5d01f8846e82eb9ca5baa040af042f41bce50f800f21b1e488153aa72272be",
+    "active/04_targeting_constraints.md": "ad575c62e3b764765930f4fe1e06a20a8fc65b397f0b5779108e8162e90f2c87",
+    "active/05_voice_and_gold_examples.md": "7418e3b69672e9464bd9968f523d42d39074f1c1b3ce9affed6716177e4a4698",
+    "active/07_project_master_instruction.md": "04d8b8b279bb453945164cd858c790aa4b6c3d143e4f0a2010887f1f7c447643",
+    "active/08_candidate_updates.md": "26f89a431475ecf6f4bf0d986a6dfcc9a2f3b0a474340ac146def52a7863ee0b",
+    "active/09_skill_calibration_matrix.md": "f332f092b73b39c46587eec11e74d44563e054c3ad3340245a62d2a8b6519aed",
+    "active/11_letter_regression_suite.md": "493e781b9c06690040e40531eaa20fa4ae294bacd74b7e4d7e12fbf342e10b6e"
+  },
+  "notes": "Synthetic fixture for AOPS-07 testing."
+}
