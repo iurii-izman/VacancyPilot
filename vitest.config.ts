@@ -11,6 +11,7 @@ export default defineConfig({
   },
   test: {
     include: ["**/*.test.ts", "**/*.test.tsx"],
+    exclude: ["**/node_modules/**", ".claude/**"],
     coverage: {
       provider: "v8",
       reporter: ["lcov", "text"],
