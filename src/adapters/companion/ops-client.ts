@@ -27,6 +27,7 @@ import type {
   HHSearchProfileResponse,
   HHVacancySyncResponse,
 } from './types';
+import type { VacancyListFilters, VacancyListResponse } from './vacancy-types';
 import { isCompatibleApiVersion } from './types';
 
 // ── Constants ──────────────────────────────────────────────────────────────
@@ -300,6 +301,14 @@ export class OpsClient {
 
   async syncHHVacancies(body: unknown = {}, signal?: AbortSignal): Promise<HHVacancySyncResponse> {
     return this.authenticatedPost<HHVacancySyncResponse>('/hh/sync/vacancies', body, signal);
+  }
+
+  async listVacancies(filters: VacancyListFilters = {}, signal?: AbortSignal): Promise<VacancyListResponse> {
+    const query = new URLSearchParams({ limit: '50', offset: '0' });
+    for (const [key, value] of Object.entries(filters)) {
+      if (value !== undefined) query.set(key, String(value));
+    }
+    return this.authenticatedGet<VacancyListResponse>(`/vacancies?${query.toString()}`, signal);
   }
 }
 

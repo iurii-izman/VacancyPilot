@@ -267,6 +267,24 @@ class TestIntakeIdempotency:
 
 
 class TestVacancyList:
+    def test_list_supports_bounded_server_filters(
+        self, client_with_db: TestClient, auth_headers: dict[str, str]
+    ) -> None:
+        remote = _base_vacancy()
+        remote['source_vacancy_id'] = 'remote-1'
+        office = {**_base_vacancy(), 'source_vacancy_id': 'office-1', 'work_mode': 'office'}
+        _intake(client_with_db, remote, auth_headers)
+        _intake(client_with_db, office, auth_headers)
+
+        response = client_with_db.get(
+            '/api/v1/vacancies',
+            params={'source': 'hh', 'work_mode': 'remote', 'archived': 'false'},
+            headers=auth_headers,
+        )
+        assert response.status_code == 200
+        assert response.json()['meta']['total'] == 1
+        assert response.json()['data'][0]['source_vacancy_id'] == 'remote-1'
+
     def test_list_returns_all_and_is_sorted(
         self, client_with_db: TestClient, auth_headers: dict[str, str]
     ) -> None:

@@ -342,15 +342,31 @@ def vacancy_list(
     db: Session | None = Depends(get_db_session_long),  # noqa: B008
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
+    source: str | None = Query(default=None, max_length=32, pattern=SOURCE_PATTERN),
+    work_mode: Literal['remote', 'hybrid', 'office', 'unknown'] | None = None,
+    archived: bool | None = None,
+    updated_after: str | None = Query(default=None, max_length=64),
 ) -> VacancyListResponse:
-    """List vacancies, newest first, with pagination metadata."""
+    """List vacancies with bounded server-side filters and stable pagination."""
     del client_identity
     session = _require_db(db)
     try:
-        total = session.execute(select(func.count()).select_from(Vacancy)).scalar_one()
+        filters = []
+        if source is not None:
+            filters.append(Vacancy.source == source)
+        if work_mode is not None:
+            filters.append(Vacancy.work_mode == work_mode)
+        if archived is not None:
+            filters.append(Vacancy.archived == archived)
+        if updated_after is not None:
+            filters.append(Vacancy.updated_at > updated_after)
+        total = session.execute(
+            select(func.count()).select_from(Vacancy).where(*filters)
+        ).scalar_one()
         rows = (
             session.execute(
                 select(Vacancy)
+                .where(*filters)
                 .order_by(Vacancy.last_seen_at.desc(), Vacancy.id.desc())
                 .limit(limit)
                 .offset(offset)

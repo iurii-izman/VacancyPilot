@@ -360,7 +360,7 @@ does not authorize product integration.
 | AOPS-09 | Letter lifecycle, manual bridge and generated/sent diff | complete |
 | AOPS-10 | HH public API and search profiles | complete |
 | AOPS-11 | HH OAuth and read-only applicant sync | complete — PARTIAL_LIVE_CAPABILITIES |
-| AOPS-12 | Command Center, Inbox and Application Card | not started |
+| AOPS-12 | Command Center, Inbox and Application Card | complete — AOPS-13 next |
 | AOPS-13 | Pipeline, events and follow-ups | not started |
 | AOPS-14 | Interview Pack | not started |
 | AOPS-15 | Analytics and production pilot | not started |
