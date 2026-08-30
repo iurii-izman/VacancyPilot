@@ -6,10 +6,18 @@ Date: 2026-08-30
 
 `BLOCKED` — no live acceptance claim.
 
-The OAuth application configuration was available locally and explicit HH authorization was completed in the headed browser. HH redirected to the registered Postman callback with the expected state. The first stateful exchange completed and stored a refresh token in the OS keyring, but a subsequent real `/me` check after process restart returned the sanitized error `HH_OAUTH_TOKEN_REJECTED`. A second fresh authorization flow reached the callback, but the token exchange did not complete within the configured bounded request window and was terminated.
+The OAuth application configuration was available locally and explicit HH authorization was completed in the normal system browser. HH redirected to the VacancyPilot-owned loopback callback, the companion exchanged the code, and the token bundle was restored from the OS keyring in a new process. The still-valid access token was reused without an early refresh.
+
+Live read-only results:
+
+- `GET /me`: `AVAILABLE`
+- `GET /resumes/mine`: `403 FORBIDDEN`
+- `GET /negotiations`: `403 FORBIDDEN`
+
+The two 403 responses are recorded as unavailable HH capabilities. No HH write request was made.
 
 No token, authorization code, response body, or personal account data is stored in this report. No HH write request was made.
 
 ## Required external follow-up
 
-Verify the HH developer application client secret, redirect registration, and OAuth access/refresh-token policy. Then rerun a fresh authorization flow and confirm `/me`, `/resumes/mine`, and `/negotiations` all return successfully before considering AOPS-11 acceptance.
+Verify that the HH Developer Application and authorized account are granted applicant resume and negotiation read capabilities. Then rerun the three read-only calls and require all three to succeed before considering AOPS-11 acceptance.

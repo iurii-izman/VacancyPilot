@@ -1,12 +1,14 @@
-"""Local-only HH OAuth PKCE lifecycle with read-only applicant access."""
+"""Local-only HH OAuth PKCE lifecycle with documented refresh semantics."""
 
 from __future__ import annotations
 
 import base64
 import hashlib
+import json
 import secrets
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlencode
@@ -31,41 +33,49 @@ def pkce_challenge(verifier: str) -> str:
 
 
 class HHOAuthService:
-    """Owns OAuth state and access tokens inside the companion process only."""
+    """Own OAuth state and token bundle inside the companion process/keyring."""
 
     AUTHORIZE_URL = 'https://hh.ru/oauth/authorize'
     TOKEN_URL = 'https://api.hh.ru/token'
-    API_URL = 'https://api.hh.ru/'
     PENDING_TTL = 300
+    CLOCK: Callable[[], float] = time.time
 
     def __init__(
-        self, *, keyring: KeyringBackend | None = None, transport: httpx.BaseTransport | None = None
+        self,
+        *,
+        keyring: KeyringBackend | None = None,
+        transport: httpx.BaseTransport | None = None,
+        clock: Callable[[], float] | None = None,
     ) -> None:
         self._keyring = keyring or OSKeyring()
         self._transport = transport
+        self._clock = clock or self.CLOCK
         self._pending: dict[str, PendingOAuth] = {}
         self._access_token: str | None = None
         self._expires_at = 0.0
         self._lock = threading.Lock()
+        self._restore_bundle()
 
     def status(self) -> dict[str, Any]:
-        refresh = bool(self._keyring.get_secret(SecretSlot.HH_REFRESH_TOKEN))
+        bundle = self._read_bundle()
+        configured = bool(
+            settings.hh_client_id.strip()
+            and settings.hh_redirect_uri.strip()
+            and self._keyring.get_secret(SecretSlot.HH_CLIENT_SECRET)
+        )
         return {
-            'oauth_app_configured': bool(
-                settings.hh_client_id.strip()
-                and settings.hh_redirect_uri.strip()
-                and self._keyring.get_secret(SecretSlot.HH_CLIENT_SECRET)
-            ),
-            'refresh_token_configured': refresh,
-            'connected': bool(self._access_token or refresh),
+            'oauth_app_configured': configured,
+            'refresh_token_configured': bool(bundle and bundle.get('refresh_token')),
+            'connected': bool(bundle and bundle.get('access_token')),
             'token_in_memory': bool(self._access_token),
+            'access_token_valid': self._has_valid_access_token(),
         }
 
     def start(self) -> dict[str, Any]:
         self._require_app_config()
         state = secrets.token_urlsafe(32)
         verifier = secrets.token_urlsafe(64)
-        self._pending[state] = PendingOAuth(state, verifier, time.time() + self.PENDING_TTL)
+        self._pending[state] = PendingOAuth(state, verifier, self._clock() + self.PENDING_TTL)
         query = urlencode(
             {
                 'response_type': 'code',
@@ -84,7 +94,7 @@ class HHOAuthService:
 
     def callback(self, *, state: str, code: str) -> dict[str, Any]:
         pending = self._pending.pop(state, None)
-        if pending is None or pending.expires_at <= time.time():
+        if pending is None or pending.expires_at <= self._clock():
             raise HHApiError('HH_OAUTH_STATE_INVALID')
         if not code or len(code) > 4096:
             raise HHApiError('HH_OAUTH_CODE_INVALID')
@@ -99,20 +109,26 @@ class HHOAuthService:
                 'code_verifier': pending.verifier,
             }
         )
-        self._accept_tokens(payload)
+        self._adopt_tokens(payload, require_refresh=True)
         return {'connected': True, 'expires_in': payload.get('expires_in')}
 
     def disconnect(self) -> None:
-        self._access_token = None
-        self._expires_at = 0.0
-        self._keyring.delete_secret(SecretSlot.HH_REFRESH_TOKEN)
+        with self._lock:
+            self._access_token = None
+            self._expires_at = 0.0
+            self._pending.clear()
+            self._keyring.delete_secret(SecretSlot.HH_OAUTH_TOKEN_BUNDLE)
+            self._keyring.delete_secret(SecretSlot.HH_REFRESH_TOKEN)
 
     def access_token(self) -> str:
+        if self._has_valid_access_token():
+            return self._access_token or ''
         with self._lock:
-            if self._access_token and self._expires_at > time.time() + 30:
-                return self._access_token
-            refresh = self._keyring.get_secret(SecretSlot.HH_REFRESH_TOKEN)
-            if not refresh:
+            if self._has_valid_access_token():
+                return self._access_token or ''
+            bundle = self._read_bundle()
+            refresh = bundle.get('refresh_token') if bundle else None
+            if not isinstance(refresh, str) or not refresh:
                 raise HHConfigurationError(
                     'HH OAuth user authorization is not configured',
                     'HH_OAUTH_USER_AUTHORIZATION_REQUIRED',
@@ -126,7 +142,7 @@ class HHOAuthService:
                     'refresh_token': refresh,
                 }
             )
-            self._accept_tokens(payload)
+            self._adopt_tokens(payload, require_refresh=True)
             return self._access_token or ''
 
     def _client_secret(self) -> str:
@@ -140,7 +156,10 @@ class HHOAuthService:
 
     @staticmethod
     def _require_app_config() -> None:
-        if not settings.hh_client_id.strip() or not settings.hh_redirect_uri.strip():
+        if (
+            settings.hh_client_id.strip() == ''
+            or settings.hh_redirect_uri.strip() != 'http://127.0.0.1:8765/api/v1/hh/auth/callback'
+        ):
             raise HHConfigurationError(
                 'HH OAuth application credentials are not configured',
                 'HH_OAUTH_APP_CREDENTIALS_REQUIRED',
@@ -171,12 +190,53 @@ class HHOAuthService:
             raise HHApiError('HH_OAUTH_TOKEN_INVALID', response.status_code)
         return payload
 
-    def _accept_tokens(self, payload: dict[str, Any]) -> None:
-        self._access_token = str(payload['access_token'])
-        self._expires_at = time.time() + max(60, int(payload.get('expires_in', 3600)))
-        refresh = payload.get('refresh_token')
-        if isinstance(refresh, str) and refresh:
-            self._keyring.set_secret(SecretSlot.HH_REFRESH_TOKEN, refresh)
+    def _adopt_tokens(self, payload: dict[str, Any], *, require_refresh: bool) -> None:
+        access_token = payload.get('access_token')
+        refresh_token = payload.get('refresh_token')
+        if not isinstance(access_token, str) or not access_token:
+            raise HHApiError('HH_OAUTH_TOKEN_INVALID')
+        if require_refresh and (not isinstance(refresh_token, str) or not refresh_token):
+            raise HHApiError('HH_OAUTH_REFRESH_TOKEN_MISSING')
+        expires_in = payload.get('expires_in', 3600)
+        if not isinstance(expires_in, (int, float)) or expires_in <= 0:
+            raise HHApiError('HH_OAUTH_EXPIRY_INVALID')
+        expires_at = self._clock() + max(1, float(expires_in))
+        bundle = json.dumps(
+            {
+                'access_token': access_token,
+                'refresh_token': refresh_token,
+                'expires_at': expires_at,
+            },
+            separators=(',', ':'),
+        )
+        # One keyring write atomically replaces the credential bundle. The
+        # in-memory projection is updated only after the write succeeds.
+        self._keyring.set_secret(SecretSlot.HH_OAUTH_TOKEN_BUNDLE, bundle)
+        self._access_token = access_token
+        self._expires_at = expires_at
+
+    def _read_bundle(self) -> dict[str, Any] | None:
+        raw = self._keyring.get_secret(SecretSlot.HH_OAUTH_TOKEN_BUNDLE)
+        if not raw:
+            return None
+        try:
+            bundle = json.loads(raw)
+        except (TypeError, ValueError):
+            return None
+        return bundle if isinstance(bundle, dict) else None
+
+    def _restore_bundle(self) -> None:
+        bundle = self._read_bundle()
+        if not bundle:
+            return
+        access_token = bundle.get('access_token')
+        expires_at = bundle.get('expires_at')
+        if isinstance(access_token, str) and isinstance(expires_at, (int, float)):
+            self._access_token = access_token
+            self._expires_at = float(expires_at)
+
+    def _has_valid_access_token(self) -> bool:
+        return bool(self._access_token and self._expires_at > self._clock())
 
 
 _oauth_service = HHOAuthService()

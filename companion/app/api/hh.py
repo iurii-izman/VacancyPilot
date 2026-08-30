@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import json
+import webbrowser
 from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -95,12 +97,6 @@ def hh_status(request: Request, client_identity: ClientTokenDep) -> dict[str, An
     }
 
 
-class OAuthCallbackRequest(BaseModel):
-    model_config = ConfigDict(extra='forbid')
-    state: str = Field(min_length=16, max_length=256)
-    code: str = Field(min_length=1, max_length=4096)
-
-
 @router.post('/hh/auth/start', response_model=dict[str, Any])
 def oauth_start(request: Request, client_identity: ClientTokenDep) -> dict[str, Any]:
     del client_identity
@@ -108,22 +104,29 @@ def oauth_start(request: Request, client_identity: ClientTokenDep) -> dict[str, 
         data = get_oauth_service().start()
     except HHConfigurationError as exc:
         raise HTTPException(status_code=503, detail=exc.code) from exc
+    webbrowser.open(data['authorization_url'], new=2)
     return {'data': data, 'meta': _meta(request)}
 
 
-@router.post('/hh/auth/callback', response_model=dict[str, Any])
-@router.post('/hh/auth/exchange', response_model=dict[str, Any])
-def oauth_callback(
-    request: Request, body: OAuthCallbackRequest, client_identity: ClientTokenDep
-) -> dict[str, Any]:
-    del client_identity
+@router.get('/hh/auth/callback', response_class=HTMLResponse, include_in_schema=False)
+def oauth_callback_browser(
+    request: Request, state: str = '', code: str = '', error: str = ''
+) -> HTMLResponse:
+    """Handle HH's top-level browser redirect without client-token headers."""
+    del request
+    if error or not state or not code:
+        return HTMLResponse(
+            '<h1>VacancyPilot HH authorization failed</h1><p>You may close this window.</p>',
+            status_code=400,
+        )
     try:
-        data = get_oauth_service().callback(state=body.state, code=body.code)
-    except HHApiError as exc:
-        raise HTTPException(
-            status_code=400 if exc.code == 'HH_OAUTH_STATE_INVALID' else 502, detail=exc.code
-        ) from exc
-    return {'data': data, 'meta': _meta(request)}
+        get_oauth_service().callback(state=state, code=code)
+    except HHApiError:
+        return HTMLResponse(
+            '<h1>VacancyPilot HH authorization failed</h1><p>You may close this window.</p>',
+            status_code=400,
+        )
+    return HTMLResponse('<h1>VacancyPilot HH connected</h1><p>You may close this window.</p>')
 
 
 @router.get('/hh/capabilities', response_model=dict[str, Any])

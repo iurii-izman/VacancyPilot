@@ -10,6 +10,15 @@ from app.hh.models import HHPage
 from app.security.pairing import generate_client_token, hash_client_token
 
 
+def test_browser_oauth_callback_is_loopback_page_without_client_header(
+    client: TestClient,
+) -> None:
+    response = client.get('/api/v1/hh/auth/callback?error=access_denied')
+    assert response.status_code == 400
+    assert 'authorization failed' in response.text.lower()
+    assert response.headers['content-type'].startswith('text/html')
+
+
 def _auth(db: Session) -> dict[str, str]:
     token = generate_client_token()
     db.execute(

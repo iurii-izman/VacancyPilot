@@ -8,7 +8,7 @@ AOPS-10 was fully accepted and locally merged into `main` before this branch was
 
 - PKCE state/verifier generation with a five-minute, single-use pending session.
 - Authorization-code exchange and refresh-token rotation through the official HH token endpoint.
-- Access token memory-only handling; refresh token and client secret use OS keyring slots.
+- Access token, refresh token, and expiry metadata use one OS-keyring token bundle; valid access tokens are restored across companion restarts without early refresh.
 - Protected companion routes for OAuth start/callback/disconnect and read-only applicant projection.
 - Read-only client methods for `/resumes/mine` and `/negotiations`.
 - Safe status reporting without token values or raw upstream payloads.
@@ -21,6 +21,6 @@ Current local configuration is:
 - `VACANCYPILOT_HH_CLIENT_ID`: configured
 - `VACANCYPILOT_HH_REDIRECT_URI`: configured
 - OS-keyring `HH_CLIENT_SECRET`: configured
-- OS-keyring `HH_REFRESH_TOKEN`: present but rejected by HH during refresh
+- OS-keyring OAuth token bundle: present after explicit authorization
 
-Explicit browser authorization reached the registered callback, but live token/resource acceptance is blocked by `HH_OAUTH_TOKEN_REJECTED` on refresh and a subsequent exchange timeout. AOPS-11 remains unmerged.
+The registered redirect is the VacancyPilot loopback callback. Earlier Postman-based attempts are obsolete. AOPS-11 now uses a real GET callback and does not refresh while the access token is still valid. Live `/me` succeeded, while `/resumes/mine` and `/negotiations` returned 403 capability denials. AOPS-11 remains unmerged.

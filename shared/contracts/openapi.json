@@ -1520,29 +1520,6 @@
         "title": "MigrationStatusResponse",
         "type": "object"
       },
-      "OAuthCallbackRequest": {
-        "additionalProperties": false,
-        "properties": {
-          "code": {
-            "maxLength": 4096,
-            "minLength": 1,
-            "title": "Code",
-            "type": "string"
-          },
-          "state": {
-            "maxLength": 256,
-            "minLength": 16,
-            "title": "State",
-            "type": "string"
-          }
-        },
-        "required": [
-          "state",
-          "code"
-        ],
-        "title": "OAuthCallbackRequest",
-        "type": "object"
-      },
       "PairConfirmData": {
         "description": "The client token is returned exactly once on successful confirm.",
         "properties": {
@@ -3341,54 +3318,6 @@
         ]
       }
     },
-    "/api/v1/hh/auth/callback": {
-      "post": {
-        "operationId": "oauth_callback_api_v1_hh_auth_callback_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/OAuthCallbackRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Oauth Callback Api V1 Hh Auth Callback Post",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "APIKeyHeader": []
-          }
-        ],
-        "summary": "Oauth Callback",
-        "tags": [
-          "hh"
-        ]
-      }
-    },
     "/api/v1/hh/auth/disconnect": {
       "post": {
         "operationId": "oauth_disconnect_api_v1_hh_auth_disconnect_post",
@@ -3412,54 +3341,6 @@
           }
         ],
         "summary": "Oauth Disconnect",
-        "tags": [
-          "hh"
-        ]
-      }
-    },
-    "/api/v1/hh/auth/exchange": {
-      "post": {
-        "operationId": "oauth_callback_api_v1_hh_auth_exchange_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/OAuthCallbackRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Oauth Callback Api V1 Hh Auth Exchange Post",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "APIKeyHeader": []
-          }
-        ],
-        "summary": "Oauth Callback",
         "tags": [
           "hh"
         ]
