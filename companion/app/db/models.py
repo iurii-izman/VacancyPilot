@@ -7,7 +7,7 @@ tables).  Additional technical columns (``revision``, ``created_at``,
 
 from __future__ import annotations
 
-from sqlalchemy import CheckConstraint, ForeignKey, Index, UniqueConstraint
+from sqlalchemy import CheckConstraint, ForeignKey, Index, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin, new_uuid, utcnow
@@ -258,8 +258,8 @@ class LetterVersion(Base):
     )
     bridge_request_id: Mapped[str | None]
     vacancy_hash: Mapped[str | None]
-    validation_json: Mapped[str | None]
-    diff_json: Mapped[str | None]
+    validation_json: Mapped[str | None] = mapped_column(Text)
+    diff_json: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[str] = mapped_column(default=utcnow)
 
     __table_args__ = (
