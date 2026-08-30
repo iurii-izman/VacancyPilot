@@ -24,6 +24,7 @@ import { EXPECTED_API_VERSION } from '@/adapters/companion/types';
 import { LoadingState } from './LoadingState';
 import { MigrationPanel } from './MigrationPanel';
 import { colors } from '@/styles/tokens';
+import { HHIntegrationSection } from './HHIntegrationSection';
 
 // ── Shared styles ──────────────────────────────────────────────────────────
 
@@ -433,6 +434,8 @@ export function CompanionSettings(): ReactNode {
               )}
             </div>
           )}
+
+          {status === 'connected' && <HHIntegrationSection />}
 
           {/* Localhost permission warning */}
           {!localhostPermitted && (

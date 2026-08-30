@@ -100,6 +100,58 @@ export interface PairRevokeResponse {
   meta: Record<string, string>;
 }
 
+export interface HHStatusResponse {
+  data: {
+    application_token_configured: boolean;
+    public_api_available: boolean;
+    user_oauth_connected: boolean;
+    last_public_sync_at: string | null;
+    last_error_code: string | null;
+  };
+  meta: Record<string, string>;
+}
+
+export interface HHSearchProfile {
+  id: string;
+  name: string;
+  query: Record<string, unknown>;
+  enabled: boolean;
+  last_run_at: string | null;
+  revision: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HHSearchProfilesResponse {
+  data: HHSearchProfile[];
+  meta: Record<string, unknown>;
+}
+
+export interface HHSearchProfileResponse {
+  data: HHSearchProfile;
+  meta: Record<string, string>;
+}
+
+export interface HHVacancySyncResponse {
+  data: {
+    sync_run_id: string;
+    profiles_attempted: number;
+    pages_fetched: number;
+    items_seen: number;
+    vacancies_created: number;
+    vacancies_updated: number;
+    vacancies_unchanged: number;
+    snapshots_created: number;
+    triaged: number;
+    rate_limited: number;
+    errors: Array<{ profile_id: string; code: string }>;
+    started_at: string;
+    finished_at: string | null;
+    status: 'running' | 'success' | 'partial' | 'error';
+  };
+  meta: Record<string, string>;
+}
+
 // ── Companion status (client-side derived) ─────────────────────────────────
 
 /**
