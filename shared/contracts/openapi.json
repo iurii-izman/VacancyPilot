@@ -1,6 +1,199 @@
 {
   "components": {
     "schemas": {
+      "AnalyticsData": {
+        "properties": {
+          "applications_applied": {
+            "title": "Applications Applied",
+            "type": "integer"
+          },
+          "breakdowns": {
+            "additionalProperties": {
+              "items": {
+                "$ref": "#/components/schemas/Breakdown"
+              },
+              "type": "array"
+            },
+            "title": "Breakdowns",
+            "type": "object"
+          },
+          "cached_run_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cached Run Count"
+          },
+          "completed_items": {
+            "title": "Completed Items",
+            "type": "integer"
+          },
+          "estimated_cost_per_applied_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimated Cost Per Applied Usd"
+          },
+          "estimated_cost_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimated Cost Usd"
+          },
+          "interview_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interview Rate"
+          },
+          "interviews": {
+            "title": "Interviews",
+            "type": "integer"
+          },
+          "median_processing_minutes": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Median Processing Minutes"
+          },
+          "median_response_hours": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Median Response Hours"
+          },
+          "note": {
+            "default": "Observed in current sample; not evidence of causation.",
+            "title": "Note",
+            "type": "string"
+          },
+          "offers": {
+            "title": "Offers",
+            "type": "integer"
+          },
+          "pending": {
+            "title": "Pending",
+            "type": "integer"
+          },
+          "response_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Response Rate"
+          },
+          "response_time_sample": {
+            "title": "Response Time Sample",
+            "type": "integer"
+          },
+          "responses": {
+            "title": "Responses",
+            "type": "integer"
+          },
+          "session_elapsed_hours": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Elapsed Hours"
+          },
+          "sessions": {
+            "title": "Sessions",
+            "type": "integer"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "v4_input_tokens": {
+            "title": "V4 Input Tokens",
+            "type": "integer"
+          },
+          "v4_output_tokens": {
+            "title": "V4 Output Tokens",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "state",
+          "applications_applied",
+          "responses",
+          "response_rate",
+          "interviews",
+          "interview_rate",
+          "offers",
+          "pending",
+          "median_response_hours",
+          "response_time_sample",
+          "sessions",
+          "completed_items",
+          "session_elapsed_hours",
+          "median_processing_minutes",
+          "v4_input_tokens",
+          "v4_output_tokens",
+          "estimated_cost_usd",
+          "estimated_cost_per_applied_usd",
+          "cached_run_count",
+          "breakdowns"
+        ],
+        "title": "AnalyticsData",
+        "type": "object"
+      },
+      "AnalyticsResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AnalyticsData"
+          },
+          "meta": {
+            "additionalProperties": true,
+            "title": "Meta",
+            "type": "object"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "AnalyticsResponse",
+        "type": "object"
+      },
       "AnalyzeData": {
         "description": "Response data for a completed analysis.",
         "properties": {
@@ -422,6 +615,63 @@
           "meta"
         ],
         "title": "ApplicationResponse",
+        "type": "object"
+      },
+      "Breakdown": {
+        "properties": {
+          "applied": {
+            "title": "Applied",
+            "type": "integer"
+          },
+          "interview_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interview Rate"
+          },
+          "interviews": {
+            "title": "Interviews",
+            "type": "integer"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "response_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Response Rate"
+          },
+          "responses": {
+            "title": "Responses",
+            "type": "integer"
+          },
+          "sample_size": {
+            "title": "Sample Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "key",
+          "sample_size",
+          "applied",
+          "responses",
+          "response_rate",
+          "interviews",
+          "interview_rate"
+        ],
+        "title": "Breakdown",
         "type": "object"
       },
       "BridgeData": {
@@ -3788,6 +4038,146 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/analytics/application-summary": {
+      "get": {
+        "operationId": "application_summary_api_v1_analytics_application_summary_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "date_from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "date_to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date To"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 32,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Source"
+            }
+          },
+          {
+            "in": "query",
+            "name": "role_family",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Role Family"
+            }
+          },
+          {
+            "in": "query",
+            "name": "search_profile_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search Profile Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "score_band",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 32,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Score Band"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Application Summary",
+        "tags": [
+          "analytics"
+        ]
+      }
+    },
     "/api/v1/application-sessions": {
       "post": {
         "operationId": "create_session_api_v1_application_sessions_post",
