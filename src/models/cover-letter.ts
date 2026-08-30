@@ -15,7 +15,9 @@ export type CoverLetterMode =
  * - edited: user has modified the text after generation
  * - final: user has explicitly marked as ready to send
  */
-export type DraftProvenance = "ai_generated" | "edited" | "final";
+export type DraftProvenance = "ai_generated" | "edited" | "final" | "sent";
+
+export type LetterLifecycleState = "generated" | "edited" | "final" | "sent";
 
 export interface CoverLetterVersion {
   bodyText: string;
@@ -24,6 +26,8 @@ export interface CoverLetterVersion {
   aiProvider?: string;
   aiModel?: string;
   promptVersion?: string;
+  /** Immutable lifecycle label; absent on records created before AOPS-09. */
+  lifecycleState?: LetterLifecycleState;
 }
 
 export interface CoverLetter {
@@ -38,6 +42,9 @@ export interface CoverLetter {
 
   bodyText: string;
   isFinal: boolean;
+  /** Explicit user-confirmed sent snapshot. Copying never sets these fields. */
+  sentText?: string;
+  sentAt?: string;
 
   source: "template" | "ai" | "manual_edit";
   aiProvider?: string;

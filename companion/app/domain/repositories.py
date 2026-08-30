@@ -12,7 +12,7 @@ contract from DATA_MODEL_V1.md § Required invariants:
 
 from __future__ import annotations
 
-from sqlalchemy import select, update
+from sqlalchemy import select, text, update
 from sqlalchemy.orm import Session
 
 from app.db.base import utcnow
@@ -286,6 +286,11 @@ class CoverLetterRepository:
         provider: str | None = None,
         model: str | None = None,
         prompt_version: str | None = None,
+        engine_run_id: str | None = None,
+        bridge_request_id: str | None = None,
+        vacancy_hash: str | None = None,
+        validation_json: str | None = None,
+        diff_json: str | None = None,
         expected_revision: int,
     ) -> LetterVersion:
         """Append a new version.  Raises ``ValueError`` if the latest
@@ -317,9 +322,16 @@ class CoverLetterRepository:
                 CoverLetter.revision == expected_revision,
             )
             .values(
-                generated_text=body_text if version_type != 'sent' else letter.generated_text,
+                # The generated/imported snapshot is provenance, not a mutable
+                # "current draft" projection.  User edits and finals stay in
+                # append-only history and must never overwrite it.
+                generated_text=(
+                    body_text
+                    if version_type in ('generated', 'imported') and letter.generated_text is None
+                    else letter.generated_text
+                ),
                 sent_text=body_text if version_type == 'sent' else letter.sent_text,
-                is_final=version_type == 'sent' or letter.is_final,
+                is_final=version_type in ('final', 'sent') or letter.is_final,
                 revision=CoverLetter.revision + 1,
                 updated_at=now,
             )
@@ -338,6 +350,11 @@ class CoverLetterRepository:
             provider=provider,
             model=model,
             prompt_version=prompt_version,
+            engine_run_id=engine_run_id,
+            bridge_request_id=bridge_request_id,
+            vacancy_hash=vacancy_hash,
+            validation_json=validation_json,
+            diff_json=diff_json,
             created_at=now,
         )
         self._session.add(version)
@@ -347,3 +364,16 @@ class CoverLetterRepository:
 
     def get_by_id(self, letter_id: str) -> CoverLetter | None:
         return self._session.get(CoverLetter, letter_id)
+
+    def list_versions(self, cover_letter_id: str) -> list[LetterVersion]:
+        """Return immutable history in creation order."""
+        return list(
+            self._session.execute(
+                select(LetterVersion)
+                .where(LetterVersion.cover_letter_id == cover_letter_id)
+                # Timestamps are intentionally second-precision. SQLite rowid
+                # is the stable insertion order for versions created in the
+                # same second, preserving the append-only lifecycle.
+                .order_by(LetterVersion.created_at.asc(), text('rowid ASC'))
+            ).scalars()
+        )

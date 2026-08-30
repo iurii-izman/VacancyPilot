@@ -5,6 +5,7 @@ import type {
   CoverLetter,
   CoverLetterVersion,
   DraftProvenance,
+  LetterLifecycleState,
 } from "@/models";
 import { coverLetterRepo } from "@/db/repositories";
 import { validateCoverLetter } from "@/services/ai-validation";
@@ -87,6 +88,7 @@ export function buildLetterVersion(
     aiProvider?: string;
     aiModel?: string;
     promptVersion?: string;
+    lifecycleState?: LetterLifecycleState;
   },
 ): CoverLetterVersion {
   return {
@@ -96,6 +98,7 @@ export function buildLetterVersion(
     aiProvider: options?.aiProvider,
     aiModel: options?.aiModel,
     promptVersion: options?.promptVersion,
+    lifecycleState: options?.lifecycleState,
   };
 }
 
@@ -149,6 +152,13 @@ export function provenanceBadge(provenance: DraftProvenance): {
         color: "#2a8",
         bg: "#e8f5e9",
         icon: "✓",
+      };
+    case "sent":
+      return {
+        label: "Sent snapshot",
+        color: "#2563eb",
+        bg: "#eff6ff",
+        icon: "✉️",
       };
   }
 }
@@ -339,7 +349,7 @@ export function CoverLetterStudio({
 
   // ── Save ──
   const handleSave = useCallback(
-    async (isFinal: boolean) => {
+    async (isFinal: boolean, markSent = false) => {
       if (!jobId || !profileId) return;
 
       setSaveStatus("saving");
@@ -355,6 +365,15 @@ export function CoverLetterStudio({
           aiProvider: draftSource === "ai" ? draftAiProvider : undefined,
           aiModel: draftSource === "ai" ? draftAiModel : undefined,
           promptVersion: draftSource === "ai" ? draftPromptVersion : undefined,
+          lifecycleState: markSent
+            ? "sent"
+            : isFinal
+              ? "final"
+              : userEdited
+                ? "edited"
+                : draftSource === "ai"
+                  ? "generated"
+                  : "edited",
         });
 
         const base = existingLetter ?? {
@@ -367,6 +386,8 @@ export function CoverLetterStudio({
           aiProvider: undefined,
           aiModel: undefined,
           promptVersion: undefined,
+          sentText: undefined,
+          sentAt: undefined,
         };
 
         const letter: CoverLetter = {
@@ -375,11 +396,13 @@ export function CoverLetterStudio({
           constraints,
           bodyText,
           isFinal,
+          sentText: markSent ? bodyText : base.sentText,
+          sentAt: markSent ? now : base.sentAt,
           source: draftSource,
           aiProvider: draftSource === "ai" ? draftAiProvider : undefined,
           aiModel: draftSource === "ai" ? draftAiModel : undefined,
           promptVersion: draftSource === "ai" ? draftPromptVersion : undefined,
-          provenance: computeProvenance(draftSource, isFinal, userEdited),
+          provenance: markSent ? "sent" : computeProvenance(draftSource, isFinal, userEdited),
           versions: [...base.versions, version],
           updatedAt: now,
         };
@@ -456,6 +479,16 @@ export function CoverLetterStudio({
     handleCopy();
     setShowReviewGate(false);
   }, [hasBlockers, hasWarningsOrNotes, showReviewGate, handleCopy]);
+
+  const handleSaveSent = useCallback(() => {
+    if (hasBlockers) return;
+    if (hasWarningsOrNotes && !showReviewGate) {
+      setShowReviewGate(true);
+      return;
+    }
+    void handleSave(true, true);
+    setShowReviewGate(false);
+  }, [handleSave, hasBlockers, hasWarningsOrNotes, showReviewGate]);
 
   // ── No context → EmptyState ──
   if (!jobId || !profileId) {
@@ -896,6 +929,21 @@ export function CoverLetterStudio({
 
         <button
           type="button"
+          onClick={handleSaveSent}
+          disabled={saveStatus === "saving" || !bodyText.trim() || hasBlockers || !!existingLetter?.sentAt}
+          title="Явно сохранить текст, который был фактически отправлен. Копирование не меняет статус."
+          style={{
+            padding: "5px 12px", fontSize: 12,
+            cursor: saveStatus === "saving" || !bodyText.trim() || hasBlockers || !!existingLetter?.sentAt ? "not-allowed" : "pointer",
+            border: "1px solid #2563eb", borderRadius: 4, background: "#2563eb", color: "#fff", fontWeight: 600,
+            opacity: saveStatus === "saving" || !bodyText.trim() || hasBlockers || !!existingLetter?.sentAt ? 0.6 : 1,
+          }}
+        >
+          {existingLetter?.sentAt ? "Sent snapshot saved" : "Save as actually sent"}
+        </button>
+
+        <button
+          type="button"
           onClick={handleSaveFinalWithReview}
           disabled={saveStatus === "saving" || !bodyText.trim() || hasBlockers}
           title={
@@ -1062,6 +1110,13 @@ export function CoverLetterStudio({
           {existingLetter.source === "ai" &&
             !existingLetter.isFinal &&
             ` · Source: AI`}
+        </div>
+      )}
+
+      {existingLetter && existingLetter.versions.length > 0 && (
+        <div style={{ fontSize: 11, color: "#666" }}>
+          Versions: {existingLetter.versions.map((version) => version.lifecycleState ?? "edited").join(" → ")}
+          {existingLetter.sentAt && " · Sent is immutable"}
         </div>
       )}
     </div>
