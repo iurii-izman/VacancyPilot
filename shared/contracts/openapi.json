@@ -680,6 +680,203 @@
         "title": "GenerateRequest",
         "type": "object"
       },
+      "HHSearchProfileInput": {
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "default": true,
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "query": {
+            "$ref": "#/components/schemas/HHSearchQuery"
+          }
+        },
+        "required": [
+          "name",
+          "query"
+        ],
+        "title": "HHSearchProfileInput",
+        "type": "object"
+      },
+      "HHSearchProfilePatch": {
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "query": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HHSearchQuery"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "revision": {
+            "minimum": 1.0,
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revision"
+        ],
+        "title": "HHSearchProfilePatch",
+        "type": "object"
+      },
+      "HHSearchQuery": {
+        "additionalProperties": false,
+        "properties": {
+          "area": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Area",
+            "type": "array"
+          },
+          "employment": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 10,
+            "title": "Employment",
+            "type": "array"
+          },
+          "experience": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 10,
+            "title": "Experience",
+            "type": "array"
+          },
+          "only_with_salary": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Only With Salary"
+          },
+          "order_by": {
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Order By"
+          },
+          "period": {
+            "anyOf": [
+              {
+                "maximum": 30.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Period"
+          },
+          "professional_role": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 30,
+            "title": "Professional Role",
+            "type": "array"
+          },
+          "salary": {
+            "anyOf": [
+              {
+                "maximum": 100000000.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Salary"
+          },
+          "schedule": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 10,
+            "title": "Schedule",
+            "type": "array"
+          },
+          "schema_version": {
+            "default": 1,
+            "maximum": 1.0,
+            "minimum": 1.0,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "search_field": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 10,
+            "title": "Search Field",
+            "type": "array"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          }
+        },
+        "title": "HHSearchQuery",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -1559,6 +1756,51 @@
         "title": "PreviewResponse",
         "type": "object"
       },
+      "ProfileListResponse": {
+        "properties": {
+          "data": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Data",
+            "type": "array"
+          },
+          "meta": {
+            "additionalProperties": true,
+            "title": "Meta",
+            "type": "object"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "ProfileListResponse",
+        "type": "object"
+      },
+      "ProfileResponse": {
+        "properties": {
+          "data": {
+            "additionalProperties": true,
+            "title": "Data",
+            "type": "object"
+          },
+          "meta": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Meta",
+            "type": "object"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "ProfileResponse",
+        "type": "object"
+      },
       "RecruiterRisk": {
         "additionalProperties": false,
         "description": "Exactly two recruiter-side risks the candidate should prepare for.",
@@ -1684,6 +1926,28 @@
           "snapshot_hash"
         ],
         "title": "SnapshotInfo",
+        "type": "object"
+      },
+      "SyncResponse": {
+        "properties": {
+          "data": {
+            "additionalProperties": true,
+            "title": "Data",
+            "type": "object"
+          },
+          "meta": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Meta",
+            "type": "object"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "SyncResponse",
         "type": "object"
       },
       "TextRequest": {
@@ -2394,6 +2658,40 @@
         "title": "VacancyListResponse",
         "type": "object"
       },
+      "VacancySyncRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "profile_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 50,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profile Ids"
+          },
+          "triage": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Triage"
+          }
+        },
+        "title": "VacancySyncRequest",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -3017,6 +3315,207 @@
         "summary": "Companion health check",
         "tags": [
           "health"
+        ]
+      }
+    },
+    "/api/v1/hh/search-profiles": {
+      "get": {
+        "operationId": "list_profiles_api_v1_hh_search_profiles_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "List Profiles",
+        "tags": [
+          "hh"
+        ]
+      },
+      "post": {
+        "operationId": "create_profile_api_v1_hh_search_profiles_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HHSearchProfileInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Create Profile",
+        "tags": [
+          "hh"
+        ]
+      }
+    },
+    "/api/v1/hh/search-profiles/{profile_id}": {
+      "patch": {
+        "operationId": "update_profile_api_v1_hh_search_profiles__profile_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "title": "Profile Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HHSearchProfilePatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Update Profile",
+        "tags": [
+          "hh"
+        ]
+      }
+    },
+    "/api/v1/hh/sync/vacancies": {
+      "post": {
+        "operationId": "sync_vacancies_api_v1_hh_sync_vacancies_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VacancySyncRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Sync Vacancies",
+        "tags": [
+          "hh"
+        ]
+      }
+    },
+    "/api/v1/integrations/hh/status": {
+      "get": {
+        "operationId": "hh_status_api_v1_integrations_hh_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Hh Status Api V1 Integrations Hh Status Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Hh Status",
+        "tags": [
+          "hh"
         ]
       }
     },

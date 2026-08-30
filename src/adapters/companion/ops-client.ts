@@ -22,6 +22,10 @@ import type {
   PairRevokeResponse,
   CompanionErrorResponse,
   CompanionVersionInfo,
+  HHStatusResponse,
+  HHSearchProfilesResponse,
+  HHSearchProfileResponse,
+  HHVacancySyncResponse,
 } from './types';
 import { isCompatibleApiVersion } from './types';
 
@@ -276,6 +280,26 @@ export class OpsClient {
   /** Revoke the current client token. */
   async pairRevoke(signal?: AbortSignal): Promise<PairRevokeResponse> {
     return this._request<PairRevokeResponse>('POST', '/pair/revoke', {}, signal, true);
+  }
+
+  async hhStatus(signal?: AbortSignal): Promise<HHStatusResponse> {
+    return this.authenticatedGet<HHStatusResponse>('/integrations/hh/status', signal);
+  }
+
+  async listHHSearchProfiles(signal?: AbortSignal): Promise<HHSearchProfilesResponse> {
+    return this.authenticatedGet<HHSearchProfilesResponse>('/hh/search-profiles', signal);
+  }
+
+  async createHHSearchProfile(body: unknown, signal?: AbortSignal): Promise<HHSearchProfileResponse> {
+    return this.authenticatedPost<HHSearchProfileResponse>('/hh/search-profiles', body, signal);
+  }
+
+  async updateHHSearchProfile(id: string, body: unknown, signal?: AbortSignal): Promise<HHSearchProfileResponse> {
+    return this._request<HHSearchProfileResponse>('PATCH', `/hh/search-profiles/${encodeURIComponent(id)}`, body, signal, true);
+  }
+
+  async syncHHVacancies(body: unknown = {}, signal?: AbortSignal): Promise<HHVacancySyncResponse> {
+    return this.authenticatedPost<HHVacancySyncResponse>('/hh/sync/vacancies', body, signal);
   }
 }
 

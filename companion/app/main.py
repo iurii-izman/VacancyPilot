@@ -23,6 +23,7 @@ from app.api.errors import (
     validation_exception_handler,
 )
 from app.api.health import router as health_router
+from app.api.hh import router as hh_router
 from app.api.letters import router as letters_router
 from app.api.migration import router as migration_router
 from app.api.pairing import router as pairing_router
@@ -101,6 +102,7 @@ def create_app(*, initialize_db: bool = True) -> FastAPI:
     app.include_router(analysis_router, prefix=api_prefix)
     app.include_router(letters_router, prefix=api_prefix)
     app.include_router(engine_router, prefix=api_prefix)
+    app.include_router(hh_router, prefix=api_prefix)
 
     # Error handlers
     app.add_exception_handler(RequestValidationError, validation_exception_handler)  # type: ignore[arg-type]

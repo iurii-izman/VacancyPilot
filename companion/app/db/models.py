@@ -352,6 +352,7 @@ class HHSyncRun(Base):
     items_created: Mapped[int | None] = mapped_column(default=0)
     items_updated: Mapped[int | None] = mapped_column(default=0)
     error_summary: Mapped[str | None]
+    result_json: Mapped[str | None] = mapped_column(Text)
     started_at: Mapped[str] = mapped_column(default=utcnow)
     finished_at: Mapped[str | None]
 
