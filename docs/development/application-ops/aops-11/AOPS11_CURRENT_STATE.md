@@ -14,13 +14,13 @@ AOPS-10 was fully accepted and locally merged into `main` before this branch was
 - Safe status reporting without token values or raw upstream payloads.
 - Interactive local client-secret setup command that never accepts the secret as a CLI argument.
 
-## Blocking readiness
+## Live blocking state
 
-Current local readiness is:
+Current local configuration is:
 
-- `VACANCYPILOT_HH_CLIENT_ID`: absent
-- `VACANCYPILOT_HH_REDIRECT_URI`: absent
-- OS-keyring `HH_CLIENT_SECRET`: absent
-- OS-keyring `HH_REFRESH_TOKEN`: absent
+- `VACANCYPILOT_HH_CLIENT_ID`: configured
+- `VACANCYPILOT_HH_REDIRECT_URI`: configured
+- OS-keyring `HH_CLIENT_SECRET`: configured
+- OS-keyring `HH_REFRESH_TOKEN`: present but rejected by HH during refresh
 
-Therefore live OAuth authorization and the AOPS-11 acceptance smoke are intentionally not claimed.
+Explicit browser authorization reached the registered callback, but live token/resource acceptance is blocked by `HH_OAUTH_TOKEN_REJECTED` on refresh and a subsequent exchange timeout. AOPS-11 remains unmerged.

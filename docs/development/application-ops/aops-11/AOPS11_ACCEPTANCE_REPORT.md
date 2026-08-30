@@ -2,15 +2,15 @@
 
 ## Verdict
 
-`AWAITING_HH_OAUTH_APP_CREDENTIALS`
+`AOPS10_PASS_AOPS11_BLOCKED`
 
 ## Acceptance state
 
-The AOPS-11 code boundary is implemented and locally validated, but full acceptance cannot be claimed because the local HH OAuth application registration is incomplete:
+The AOPS-11 code boundary is implemented and locally validated, but full acceptance cannot be claimed because the real HH token/resource flow did not complete:
 
-- `VACANCYPILOT_HH_CLIENT_ID` is absent.
-- `VACANCYPILOT_HH_REDIRECT_URI` is absent.
-- OS-keyring `HH_CLIENT_SECRET` is absent.
+- An explicit browser authorization reached the registered callback.
+- The first exchange completed, but a real refresh returned `HH_OAUTH_TOKEN_REJECTED`.
+- A second fresh exchange exceeded the bounded live request window.
 
 No secret was requested or printed in chat. AOPS-11 was not merged; AOPS-10 remains accepted and merged locally.
 
@@ -28,8 +28,8 @@ No secret was requested or printed in chat. AOPS-11 was not merged; AOPS-10 rema
 
 ## Not run / not claimable
 
-Live OAuth authorization, current-user capability discovery, live resume/negotiation sync, extension OAuth UX, and post-merge AOPS-11 gates are not run because the official HH OAuth app credentials and registered redirect URI are not available. No fake live PASS is recorded.
+Current-user capability discovery, live resume/negotiation sync, extension OAuth UX, and post-merge AOPS-11 gates are not accepted because the real token flow failed. No fake live PASS is recorded.
 
 ## Secure next action
 
-Set `VACANCYPILOT_HH_CLIENT_ID` and `VACANCYPILOT_HH_REDIRECT_URI` locally to the exact values from the HH developer application, then run `uv run --project companion python -m app.hh.credentials set-client-secret` in a private terminal; the prompt is hidden and the secret is written directly to the OS keyring.
+Verify the HH developer application secret, redirect registration, and token policy, then run a fresh authorization flow and confirm real `/me`, `/resumes/mine`, and `/negotiations` responses before retrying acceptance.
