@@ -116,9 +116,9 @@ class Application(Base, TimestampMixin):
 
     __table_args__ = (
         CheckConstraint(
-            "status IN ('new', 'viewed', 'saved', 'rejected_by_me', 'letter_ready', "
-            "'applied', 'hr_replied', 'interview', 'test_task', "
-            "'rejected_by_company', 'offer', 'blacklist')",
+            "status IN ('new', 'viewed', 'saved', 'analyzed', 'letter_ready', 'ready_to_send', "
+            "'applied', 'hr_replied', 'interview', 'test_task', 'offer', "
+            "'rejected_by_me', 'rejected_by_company', 'blacklist', 'archived')",
             name='ck_application_status',
         ),
     )
@@ -139,6 +139,7 @@ class ApplicationEvent(Base):
     event_type: Mapped[str]
     source: Mapped[str]
     payload_json: Mapped[str | None]
+    idempotency_key: Mapped[str | None] = mapped_column(unique=True)
     occurred_at: Mapped[str] = mapped_column(default=utcnow)
     created_at: Mapped[str] = mapped_column(default=utcnow)
 
@@ -288,10 +289,12 @@ class FollowUp(Base, TimestampMixin):
     draft_text: Mapped[str | None]
     sent_at: Mapped[str | None]
     revision: Mapped[int] = mapped_column(default=1)
+    idempotency_key: Mapped[str | None] = mapped_column(unique=True)
 
     __table_args__ = (
         CheckConstraint(
-            "status IN ('pending', 'sent', 'skipped')",
+            "status IN ('pending', 'sent', 'skipped', 'scheduled', 'completed', 'snoozed', "
+            "'cancelled')",
             name='ck_followup_status',
         ),
     )

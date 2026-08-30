@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { db } from "@/db";
 import { jobRepo } from "@/db/repositories";
 import { detectCompanionStatus, getOpsClient } from "@/services/companion-service";
 import type { Job } from "@/models/job";
+import type { FollowUpItem } from "@/adapters/companion/application-types";
 function formatShortDate(iso: string): string {
   const date = new Date(iso);
   return Number.isNaN(date.getTime()) ? iso : date.toLocaleDateString();
@@ -74,7 +76,23 @@ function ActionCard({ label, value, description, onClick }: {
 export function CommandCenter({ onNavigate }: { onNavigate?: (section: "inbox" | "vacancies") => void }): ReactNode {
   const { jobs, loading, error } = useJobs();
   const [companion, setCompanion] = useState("Checking…");
+  const [followupCount, setFollowupCount] = useState<number | null>(null);
   useEffect(() => { void detectCompanionStatus().then((result) => setCompanion(result.status)).catch(() => setCompanion("unavailable")); }, []);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const localApps = await db.applications.toArray();
+        const localDue = localApps.filter((item) => item.followUpAt && new Date(item.followUpAt) <= new Date()).length;
+        const connection = await detectCompanionStatus();
+        if (connection.status === "connected") {
+          const remote = await getOpsClient().listFollowUps();
+          if (!cancelled) setFollowupCount(remote.data.filter((item) => ["due", "overdue"].includes(item.derived_state)).length);
+        } else if (!cancelled) setFollowupCount(localDue);
+      } catch { if (!cancelled) setFollowupCount(null); }
+    })();
+    return () => { cancelled = true; };
+  }, []);
   if (loading) return <p role="status">Loading Command Center…</p>;
   if (error) return <div role="alert" style={cardStyle}>Command Center unavailable: {error}</div>;
   const newJobs = jobs.filter((job) => job.status === "new" || job.status === "viewed");
@@ -89,6 +107,7 @@ export function CommandCenter({ onNavigate }: { onNavigate?: (section: "inbox" |
       <ActionCard label="Ready to send" value={String(ready.length)} description="Review manually" onClick={() => onNavigate?.("inbox")} />
       <ActionCard label="Applied" value={String(applied.length)} description="Tracked explicitly" onClick={() => onNavigate?.("vacancies")} />
       <ActionCard label="HH updates" value={String(updated.length)} description="Known local signals" onClick={() => onNavigate?.("inbox")} />
+      <ActionCard label="Follow-ups due" value={followupCount === null ? "—" : String(followupCount)} description={followupCount === null ? "Unavailable" : "Open the Inbox"} onClick={() => onNavigate?.("inbox")} />
     </div>
     <div style={{ ...cardStyle, background: "#f7f9fb" }}>
       <h3 style={{ margin: "0 0 8px", fontSize: 14 }}>System status</h3>
@@ -102,10 +121,18 @@ export function Inbox({ onSelect }: { onSelect?: (job: Job) => void }): ReactNod
   const { jobs, loading, error } = useJobs();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("all");
+  const [workMode, setWorkMode] = useState("all");
+  const [scoreBand, setScoreBand] = useState("all");
+  const [decision, setDecision] = useState("all");
+  const [analysisStatus, setAnalysisStatus] = useState("all");
+  const [updatedAfter, setUpdatedAfter] = useState("");
   const filtered = useMemo(() => jobs.filter((job) => {
     const matchesQuery = !query || `${job.title} ${job.companyName}`.toLowerCase().includes(query.toLowerCase());
-    return matchesQuery && (status === "all" || job.status === status);
-  }), [jobs, query, status]);
+    const score = job.ruleScore?.total;
+    const matchesScore = scoreBand === "all" || (scoreBand === "high" && score !== undefined && score >= 70) || (scoreBand === "mid" && score !== undefined && score >= 50 && score < 70) || (scoreBand === "low" && score !== undefined && score < 50);
+    const matchesAnalysis = analysisStatus === "all" || (analysisStatus === "available" && Boolean(job.aiAnalysis)) || (analysisStatus === "not_run" && !job.aiAnalysis);
+    return matchesQuery && (status === "all" || job.status === status) && (workMode === "all" || job.workMode === workMode) && matchesScore && (decision === "all" || job.ruleScore?.recommendation === decision || job.aiAnalysis?.recommendation === decision) && matchesAnalysis && (!updatedAfter || job.updatedAt >= new Date(updatedAfter).toISOString());
+  }), [jobs, query, status, workMode, scoreBand, decision, analysisStatus, updatedAfter]);
   if (loading) return <p role="status">Loading Inbox…</p>;
   if (error) return <div role="alert" style={cardStyle}>Inbox unavailable: {error}</div>;
   return <section aria-labelledby="inbox-title">
@@ -114,6 +141,11 @@ export function Inbox({ onSelect }: { onSelect?: (job: Job) => void }): ReactNod
     <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
       <label style={{ flex: "1 1 220px", fontSize: 12 }}>Search title or company<input aria-label="Search vacancies" value={query} onChange={(event) => setQuery(event.target.value)} style={{ display: "block", width: "100%", padding: 7, marginTop: 3 }} /></label>
       <label style={{ fontSize: 12 }}>Status<select aria-label="Filter by status" value={status} onChange={(event) => setStatus(event.target.value)} style={{ display: "block", padding: 7, marginTop: 3 }}><option value="all">All</option>{["new", "viewed", "saved", "letter_ready", "applied", "hr_replied", "interview", "test_task", "offer", "rejected_by_me", "rejected_by_company"].map((item) => <option key={item} value={item}>{statusLabel(item as Job["status"])}</option>)}</select></label>
+      <label style={{ fontSize: 12 }}>Work mode<select aria-label="Filter by work mode" value={workMode} onChange={(event) => setWorkMode(event.target.value)} style={{ display: "block", padding: 7, marginTop: 3 }}><option value="all">All</option><option value="remote">Remote</option><option value="hybrid">Hybrid</option><option value="office">Office</option></select></label>
+      <label style={{ fontSize: 12 }}>Score<select aria-label="Filter by score band" value={scoreBand} onChange={(event) => setScoreBand(event.target.value)} style={{ display: "block", padding: 7, marginTop: 3 }}><option value="all">All</option><option value="high">70+</option><option value="mid">50–69</option><option value="low">&lt;50</option></select></label>
+      <label style={{ fontSize: 12 }}>Decision<select aria-label="Filter by decision" value={decision} onChange={(event) => setDecision(event.target.value)} style={{ display: "block", padding: 7, marginTop: 3 }}><option value="all">All</option><option value="apply">Apply</option><option value="consider">Consider</option><option value="skip">Skip</option></select></label>
+      <label style={{ fontSize: 12 }}>Analysis<select aria-label="Filter by analysis status" value={analysisStatus} onChange={(event) => setAnalysisStatus(event.target.value)} style={{ display: "block", padding: 7, marginTop: 3 }}><option value="all">All</option><option value="available">Available</option><option value="not_run">Not run</option></select></label>
+      <label style={{ fontSize: 12 }}>Updated after<input aria-label="Filter by updated date" type="date" value={updatedAfter} onChange={(event) => setUpdatedAfter(event.target.value)} style={{ display: "block", padding: 7, marginTop: 3 }} /></label>
     </div>
     {filtered.length === 0 ? <div style={cardStyle}>No vacancies match these filters. No automatic analysis was requested.</div> : <div style={{ display: "grid", gap: 8 }}>
       {filtered.map((job) => <article key={job.id} style={cardStyle}>
@@ -143,11 +175,49 @@ export function ApplicationCard({ job, onBack }: { job: Job; onBack?: () => void
       {tab === "Score" && <><h3>Score</h3><p>Stage A score: <strong>{job.ruleScore?.total ?? "not available"}</strong>. Decision: {job.ruleScore?.recommendation ?? "not available"}.</p>{job.ruleScore?.capsApplied?.map((cap) => <p key={cap.reason}>Cap: {cap.reason} (max {cap.maxScore})</p>)}</>}
       {tab === "Letter" && <><h3>Letter</h3><p>Use the existing Cover Letter Studio lifecycle. Copying is not sending; a final letter is not an application sent.</p><p>Letter reference: {job.coverLetterId ?? "not created"}.</p></>}
       {tab === "Timeline" && <><h3>Timeline</h3><p>Existing local status history only. Canonical append-only application events are introduced in AOPS-13.</p>{job.statusHistory.map((event, index) => <p key={`${event.at}-${index}`}>{formatShortDate(event.at)} · {event.from ?? "—"} → {event.to} · {event.source}</p>)}</>}
-      {tab === "Follow-up" && <><h3>Follow-up</h3><p>Not-yet-active in AOPS-12. No synthetic follow-up count is shown.</p></>}
+      {tab === "Follow-up" && <FollowUpPanel job={job} />}
       {tab === "Interview" && <><h3>Interview</h3><p>Not-yet-active in AOPS-12. Interview Pack is deferred.</p></>}
       {tab === "Debug" && <><h3>Safe debug metadata</h3><p>ID: {job.id}</p><p>Vacancy hash: {job.descriptionHash}</p><p>Analysis: {job.aiAnalysis ? `${job.aiAnalysis.provider}/${job.aiAnalysis.model}` : "not run"}</p><p>No credentials, raw provider payloads or private evidence bodies are displayed.</p></>}
     </div>
   </section>;
+}
+
+function FollowUpPanel({ job }: { job: Job }): ReactNode {
+  const [followUpAt, setFollowUpAt] = useState<string | null>(null);
+  const [status, setStatus] = useState("Loading…");
+  const [activeFollowUp, setActiveFollowUp] = useState<FollowUpItem | null>(null);
+  const [applicationId, setApplicationId] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void db.applications.where("jobId").equals(job.id).first().then(async (application) => {
+      if (application?.followUpAt) {
+        if (!cancelled) { setApplicationId(application.id); setFollowUpAt(application.followUpAt); setStatus(new Date(application.followUpAt) <= new Date() ? "overdue" : "scheduled"); }
+        return;
+      }
+      try {
+        const connection = await detectCompanionStatus();
+        if (connection.status === "connected" && application) {
+          const response = await getOpsClient().listFollowUps(application.id);
+          const active = response.data.find((item) => !["completed", "cancelled", "sent", "skipped"].includes(item.status));
+          if (!cancelled) { setApplicationId(application.id); setActiveFollowUp(active ?? null); setFollowUpAt(active?.due_at ?? null); setStatus(active?.derived_state ?? "none"); }
+        } else if (!cancelled) setStatus("none");
+      } catch { if (!cancelled) setStatus("unavailable"); }
+    }).catch(() => { if (!cancelled) setStatus("unavailable"); });
+    return () => { cancelled = true; };
+  }, [job.id]);
+  const update = async (nextStatus: "completed" | "snoozed" | "cancelled" | "sent") => {
+    if (activeFollowUp) {
+      try {
+        const response = await getOpsClient().updateFollowUp(activeFollowUp.id, { expected_revision: activeFollowUp.revision, status: nextStatus === "sent" ? undefined : nextStatus, sent_confirmation: nextStatus === "sent", due_at: nextStatus === "snoozed" ? new Date(Date.now() + 86400000).toISOString() : undefined });
+        setActiveFollowUp(nextStatus === "completed" || nextStatus === "cancelled" || nextStatus === "sent" ? null : response.data);
+        setStatus(nextStatus);
+      } catch { setStatus("unavailable"); }
+    } else if (applicationId && followUpAt) {
+      await db.applications.update(applicationId, { followUpAt: undefined });
+      setFollowUpAt(null); setStatus(nextStatus);
+    }
+  };
+  return <><h3>Follow-up</h3><p>Status: <strong>{status}</strong>{followUpAt ? ` · due ${formatShortDate(followUpAt)}` : ""}.</p><p>Follow-ups are local and human-controlled. Draft generation never sends a message; explicit sent confirmation is required.</p>{activeFollowUp?.draft_text && <p style={{ whiteSpace: "pre-wrap", background: "#f7f9fb", padding: 8 }}>{activeFollowUp.draft_text}</p>}{(activeFollowUp || (applicationId && followUpAt)) && <div style={{ display: "flex", gap: 8 }}><button type="button" onClick={() => void update("completed")}>Complete</button><button type="button" onClick={() => void update("snoozed")}>Snooze 1 day</button><button type="button" onClick={() => void update("cancelled")}>Cancel</button>{activeFollowUp?.draft_text && <button type="button" onClick={() => void update("sent")}>Confirm sent</button>}</div>}{status === "none" && <p>No active follow-up is recorded.</p>}</>;
 }
 
 export function ApplicationWorkspace(): ReactNode {

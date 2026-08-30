@@ -28,6 +28,12 @@ import type {
   HHVacancySyncResponse,
 } from './types';
 import type { VacancyListFilters, VacancyListResponse } from './vacancy-types';
+import type {
+  ApplicationListResponse,
+  ApplicationResponse,
+  FollowUpListResponse,
+  FollowUpResponse,
+} from './application-types';
 import { isCompatibleApiVersion } from './types';
 
 // ── Constants ──────────────────────────────────────────────────────────────
@@ -309,6 +315,28 @@ export class OpsClient {
       if (value !== undefined) query.set(key, String(value));
     }
     return this.authenticatedGet<VacancyListResponse>(`/vacancies?${query.toString()}`, signal);
+  }
+
+  async listApplications(status?: string, signal?: AbortSignal): Promise<ApplicationListResponse> {
+    const query = status ? `?status=${encodeURIComponent(status)}` : '';
+    return this.authenticatedGet<ApplicationListResponse>(`/applications${query}`, signal);
+  }
+
+  async createApplication(body: { vacancy_id: string; status?: string }, signal?: AbortSignal): Promise<ApplicationResponse> {
+    return this.authenticatedPost<ApplicationResponse>('/applications', body, signal, { idempotencyKey: `application:${body.vacancy_id}` });
+  }
+
+  async updateApplication(id: string, body: unknown, signal?: AbortSignal): Promise<ApplicationResponse> {
+    return this._request<ApplicationResponse>('PATCH', `/applications/${encodeURIComponent(id)}`, body, signal, true);
+  }
+
+  async listFollowUps(applicationId?: string, signal?: AbortSignal): Promise<FollowUpListResponse> {
+    const query = applicationId ? `?application_id=${encodeURIComponent(applicationId)}` : '';
+    return this.authenticatedGet<FollowUpListResponse>(`/followups${query}`, signal);
+  }
+
+  async updateFollowUp(id: string, body: unknown, signal?: AbortSignal): Promise<FollowUpResponse> {
+    return this._request<FollowUpResponse>('PATCH', `/followups/${encodeURIComponent(id)}`, body, signal, true);
   }
 }
 

@@ -1,6 +1,6 @@
 # Application Ops — Implementation Status
 
-Status: AOPS-11 complete with partial live capabilities; AOPS-12 not started
+Status: AOPS-13 complete; AOPS-14 next
 Date: 2026-08-30
 
 ## Baseline Snapshot
@@ -361,7 +361,7 @@ does not authorize product integration.
 | AOPS-10 | HH public API and search profiles | complete |
 | AOPS-11 | HH OAuth and read-only applicant sync | complete — PARTIAL_LIVE_CAPABILITIES |
 | AOPS-12 | Command Center, Inbox and Application Card | complete — AOPS-13 next |
-| AOPS-13 | Pipeline, events and follow-ups | not started |
+| AOPS-13 | Pipeline, events and follow-ups | complete — AOPS-14 next |
 | AOPS-14 | Interview Pack | not started |
 | AOPS-15 | Analytics and production pilot | not started |
 | AOPS-16 | Backup, restore, privacy and debug bundle | not started |
