@@ -31,3 +31,14 @@ Synthetic companion tests exercise bridge construction, malformed import rejecti
 | Private tracked data / whitespace | PASS | No private workspace path is tracked; `git diff --check` passed. |
 
 Verdict: `AOPS09_PASS` subject only to the required local no-ff merge and its post-merge critical gates.
+
+## Post-merge acceptance
+
+`feat/aops-09-letter-lifecycle` was merged locally into `main` with no fast-forward.
+The first post-merge Alembic check caught a `TEXT`/implicit-`String` metadata
+drift for the two JSON payload fields. It was corrected in the minimal
+follow-up commit `772f662`; format, Ruff, strict mypy, lifecycle tests and
+the migration upgrade/idempotence/downgrade-roundtrip suite then passed again.
+The full extension suite (78 / 2,808), build, release-safety suite (10 /
+1,364), private V4 15-regression and 6-smoke gates had already passed on the
+identical merged implementation. No push was performed.
