@@ -26,6 +26,9 @@ EXPECTED_TABLES = frozenset(
         'hh_sync_runs',
         'search_profiles',
         'settings',
+        'application_sessions',
+        'application_session_items',
+        'vacancy_search_profile_hits',
     }
 )
 

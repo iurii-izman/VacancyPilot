@@ -14,7 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.base import new_uuid
-from app.db.models import HHAccount, HHSyncRun, SearchProfile
+from app.db.models import HHAccount, HHSyncRun, SearchProfile, VacancySearchProfileHit
 from app.db.session import get_db_session_long
 from app.domain.triage import TriageConfig, TriageVacancy, triage_vacancy
 from app.domain.vacancy_intake import VacancyIntakeService
@@ -380,6 +380,26 @@ def sync_vacancies(
                         normalized,
                         f'hh:{profile.id}:{normalized.source_vacancy_id}:{normalized.content_hash}',
                     )
+                    # Preserve multi-profile discovery provenance without
+                    # duplicating the canonical vacancy row.
+                    hit = session.execute(
+                        select(VacancySearchProfileHit).where(
+                            VacancySearchProfileHit.vacancy_id == intake.vacancy_id,
+                            VacancySearchProfileHit.search_profile_id == profile.id,
+                        )
+                    ).scalar_one_or_none()
+                    if hit is None:
+                        session.add(
+                            VacancySearchProfileHit(
+                                vacancy_id=intake.vacancy_id,
+                                search_profile_id=profile.id,
+                                last_sync_run_id=result['sync_run_id'],
+                            )
+                        )
+                    else:
+                        hit.last_seen_at = _now()
+                        hit.hit_count += 1
+                        hit.last_sync_run_id = result['sync_run_id']
                     result_key = f'vacancies_{intake.result}'
                     result[result_key] += 1
                     if intake.snapshot_id and intake.result in ('created', 'updated'):

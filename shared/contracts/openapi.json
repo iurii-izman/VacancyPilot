@@ -2373,24 +2373,74 @@
         "title": "PayloadPreview",
         "type": "object"
       },
-      "PreviewResponse": {
+      "PreviewData": {
         "properties": {
-          "data": {
-            "$ref": "#/components/schemas/PayloadPreview"
+          "already_stage_a": {
+            "title": "Already Stage A",
+            "type": "integer"
           },
-          "meta": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "title": "Meta",
-            "type": "object"
+          "archived_or_ineligible": {
+            "title": "Archived Or Ineligible",
+            "type": "integer"
+          },
+          "cached_v4": {
+            "title": "Cached V4",
+            "type": "integer"
+          },
+          "cost_estimate_available": {
+            "default": false,
+            "title": "Cost Estimate Available",
+            "type": "boolean"
+          },
+          "expected_provider_calls": {
+            "title": "Expected Provider Calls",
+            "type": "integer"
+          },
+          "likely_letter_work": {
+            "title": "Likely Letter Work",
+            "type": "integer"
+          },
+          "message": {
+            "default": "Cost estimate unavailable; provider call count shown.",
+            "title": "Message",
+            "type": "string"
+          },
+          "need_full_v4": {
+            "title": "Need Full V4",
+            "type": "integer"
+          },
+          "selected": {
+            "title": "Selected",
+            "type": "integer"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id"
+          },
+          "valid_letters": {
+            "title": "Valid Letters",
+            "type": "integer"
           }
         },
         "required": [
-          "data",
-          "meta"
+          "session_id",
+          "selected",
+          "already_stage_a",
+          "cached_v4",
+          "need_full_v4",
+          "valid_letters",
+          "likely_letter_work",
+          "archived_or_ineligible",
+          "expected_provider_calls"
         ],
-        "title": "PreviewResponse",
+        "title": "PreviewData",
         "type": "object"
       },
       "ProfileListResponse": {
@@ -2535,6 +2585,186 @@
           "reasons"
         ],
         "title": "ScoreComponentOut",
+        "type": "object"
+      },
+      "SessionCreateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "vacancy_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Vacancy Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "vacancy_ids"
+        ],
+        "title": "SessionCreateRequest",
+        "type": "object"
+      },
+      "SessionData": {
+        "properties": {
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SessionItemData"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "started_at": {
+            "title": "Started At",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "started_at",
+          "completed_at",
+          "items"
+        ],
+        "title": "SessionData",
+        "type": "object"
+      },
+      "SessionExecuteRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "confirmation": {
+            "default": false,
+            "title": "Confirmation",
+            "type": "boolean"
+          },
+          "max_items": {
+            "default": 20,
+            "maximum": 20.0,
+            "minimum": 1.0,
+            "title": "Max Items",
+            "type": "integer"
+          }
+        },
+        "title": "SessionExecuteRequest",
+        "type": "object"
+      },
+      "SessionItemData": {
+        "properties": {
+          "analysis_run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Analysis Run Id"
+          },
+          "application_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Application Id"
+          },
+          "company_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company Name"
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Message"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "position": {
+            "title": "Position",
+            "type": "integer"
+          },
+          "queue_state": {
+            "title": "Queue State",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "vacancy_id": {
+            "title": "Vacancy Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "vacancy_id",
+          "title",
+          "company_name",
+          "queue_state",
+          "position",
+          "analysis_run_id",
+          "application_id",
+          "error_message"
+        ],
+        "title": "SessionItemData",
+        "type": "object"
+      },
+      "SessionResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/SessionData"
+          },
+          "meta": {
+            "additionalProperties": true,
+            "title": "Meta",
+            "type": "object"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "SessionResponse",
         "type": "object"
       },
       "SnapshotInfo": {
@@ -3504,6 +3734,44 @@
         ],
         "title": "ValidationError",
         "type": "object"
+      },
+      "app__analysis__models__PreviewResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/PayloadPreview"
+          },
+          "meta": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Meta",
+            "type": "object"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "PreviewResponse",
+        "type": "object"
+      },
+      "app__api__r5_application_factory__PreviewResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/PreviewData"
+          },
+          "meta": {
+            "additionalProperties": true,
+            "title": "Meta",
+            "type": "object"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "PreviewResponse",
+        "type": "object"
       }
     },
     "securitySchemes": {
@@ -3520,6 +3788,202 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/application-sessions": {
+      "post": {
+        "operationId": "create_session_api_v1_application_sessions_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SessionCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Create Session",
+        "tags": [
+          "application-factory"
+        ]
+      }
+    },
+    "/api/v1/application-sessions/preview": {
+      "post": {
+        "operationId": "preview_session_api_v1_application_sessions_preview_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SessionCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/app__api__r5_application_factory__PreviewResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Preview Session",
+        "tags": [
+          "application-factory"
+        ]
+      }
+    },
+    "/api/v1/application-sessions/{session_id}": {
+      "get": {
+        "operationId": "get_session_api_v1_application_sessions__session_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Get Session",
+        "tags": [
+          "application-factory"
+        ]
+      }
+    },
+    "/api/v1/application-sessions/{session_id}/execute": {
+      "post": {
+        "operationId": "execute_session_api_v1_application_sessions__session_id__execute_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SessionExecuteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Execute Session",
+        "tags": [
+          "application-factory"
+        ]
+      }
+    },
     "/api/v1/applications": {
       "get": {
         "operationId": "list_applications_api_v1_applications_get",
@@ -5571,7 +6035,7 @@
                       "$ref": "#/components/schemas/AnalyzeResponse"
                     },
                     {
-                      "$ref": "#/components/schemas/PreviewResponse"
+                      "$ref": "#/components/schemas/app__analysis__models__PreviewResponse"
                     }
                   ],
                   "title": "Response Vacancy Analyze Api V1 Vacancies  Vacancy Id  Analyze Post"
