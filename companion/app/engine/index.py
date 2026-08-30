@@ -153,7 +153,6 @@ def _populate_index(index: KnowledgeIndex, file_texts: dict[str, str]) -> Knowle
     # ── Parse frontmatter for structured ID extraction ───────────────────
 
     from app.engine.package import (
-        _parse_all_frontmatter_blocks,
         _parse_fenced_yaml_blocks,
         _parse_frontmatter_yaml,
     )
@@ -187,9 +186,12 @@ def _populate_index(index: KnowledgeIndex, file_texts: dict[str, str]) -> Knowle
                     continue
                 entry = dict(block)
                 entry['evidence_level'] = level
-                wording = block.get('strongest_safe_wording_ru') or block.get(
-                    'strongest_safe_wording_en'
-                ) or block.get('allowed_wording') or ''
+                wording = (
+                    block.get('strongest_safe_wording_ru')
+                    or block.get('strongest_safe_wording_en')
+                    or block.get('allowed_wording')
+                    or ''
+                )
                 entry['allowed_wording'] = str(wording)
                 index.claims[cid] = entry
                 index.claim_evidence_levels[cid] = level
@@ -242,7 +244,9 @@ def _populate_index(index: KnowledgeIndex, file_texts: dict[str, str]) -> Knowle
                 entry = dict(block)
                 shareability = str(block.get('shareability') or '')
                 entry['boundary'] = (
-                    'no public link' if 'internal_only' in shareability or 'no_link' in shareability else ''
+                    'no public link'
+                    if 'internal_only' in shareability or 'no_link' in shareability
+                    else ''
                 )
                 index.portfolio_cases[pid] = entry
             index.portfolio_count = len(index.portfolio_cases)

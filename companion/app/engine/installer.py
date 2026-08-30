@@ -17,8 +17,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from app.engine.models import EngineValidationError
-from app.engine.package import LoadedEnginePackage, load_engine_package
+from app.engine.models import EngineValidationError, LoadedEnginePackage
+from app.engine.package import load_engine_package
 
 
 class InstallResult(BaseModel):

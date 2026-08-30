@@ -68,21 +68,21 @@ class OSKeyring(KeyringBackend):
     _SERVICE_NAME = 'vacancypilot-companion'
 
     def get_secret(self, secret_name: str) -> str | None:
-        import keyring  # type: ignore[import-untyped]
+        import keyring
 
-        return keyring.get_password(self._SERVICE_NAME, secret_name)  # type: ignore[no-any-return]
+        return keyring.get_password(self._SERVICE_NAME, secret_name)
 
     def set_secret(self, secret_name: str, secret_value: str) -> None:
-        import keyring  # type: ignore[import-untyped]
+        import keyring
 
         keyring.set_password(self._SERVICE_NAME, secret_name, secret_value)
 
     def delete_secret(self, secret_name: str) -> None:
         import contextlib
 
-        import keyring  # type: ignore[import-untyped]
+        import keyring
 
-        with contextlib.suppress(keyring.errors.PasswordDeleteError):  # type: ignore[union-attr]
+        with contextlib.suppress(keyring.errors.PasswordDeleteError):
             keyring.delete_password(self._SERVICE_NAME, secret_name)
 
 

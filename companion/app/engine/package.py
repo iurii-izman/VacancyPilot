@@ -194,11 +194,8 @@ def _validate_frontmatter(
     fenced_blocks = _parse_fenced_yaml_blocks(text)
     # Document-level frontmatter is mandatory only for the source manifest and
     # entry-bearing files; plain guidance files (07/08/11) may lack it.
-    _REQUIRES_DOCUMENT_BLOCK = (
-        {'00_source_manifest.md'}
-        | set(_ENTRY_SCHEMAS)
-    )
-    if not matches and filename in _REQUIRES_DOCUMENT_BLOCK:
+    requires_document_block = {'00_source_manifest.md'} | set(_ENTRY_SCHEMAS)
+    if not matches and filename in requires_document_block:
         return (
             None,
             None,

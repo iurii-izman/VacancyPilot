@@ -47,7 +47,7 @@ def _verify_cmd(args: argparse.Namespace) -> int:
 
     result = verify_package(path)
     _print_result(result)
-    return 0 if result.valid else 1
+    return int(result.valid)
 
 
 def _print_result(result: InstallResult) -> None:
@@ -114,7 +114,8 @@ def main() -> int:
         parser.print_help()
         return 1
 
-    return args.func(args)
+    result_code: int = int(args.func(args))
+    return result_code
 
 
 if __name__ == '__main__':
