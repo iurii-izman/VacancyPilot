@@ -17,9 +17,10 @@ from app.db.session import get_db_session_long
 from app.domain.triage import TriageConfig, TriageVacancy, triage_vacancy
 from app.domain.vacancy_intake import VacancyIntakeService
 from app.hh.client import HHApiClient
-from app.hh.errors import HHApiError
+from app.hh.errors import HHApiError, HHConfigurationError
 from app.hh.models import HHSearchProfileInput, HHSearchProfilePatch
 from app.hh.normalize import normalize_vacancy
+from app.hh.oauth import get_oauth_service
 from app.security.auth import ClientTokenDep
 from app.security.keyring import OSKeyring, SecretSlot
 
@@ -79,15 +80,114 @@ class SyncResponse(BaseModel):
 def hh_status(request: Request, client_identity: ClientTokenDep) -> dict[str, Any]:
     del client_identity
     configured = bool(OSKeyring().get_secret(SecretSlot.HH_APPLICATION_TOKEN))
+    oauth = get_oauth_service().status()
     return {
         'data': {
             'application_token_configured': configured,
             'public_api_available': configured,
-            'user_oauth_connected': False,
+            'user_oauth_connected': oauth['connected'],
+            'oauth_app_configured': oauth['oauth_app_configured'],
+            'refresh_token_configured': oauth['refresh_token_configured'],
             'last_public_sync_at': None,
             'last_error_code': None,
         },
         'meta': _meta(request),
+    }
+
+
+class OAuthCallbackRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    state: str = Field(min_length=16, max_length=256)
+    code: str = Field(min_length=1, max_length=4096)
+
+
+@router.post('/hh/auth/start', response_model=dict[str, Any])
+def oauth_start(request: Request, client_identity: ClientTokenDep) -> dict[str, Any]:
+    del client_identity
+    try:
+        data = get_oauth_service().start()
+    except HHConfigurationError as exc:
+        raise HTTPException(status_code=503, detail=exc.code) from exc
+    return {'data': data, 'meta': _meta(request)}
+
+
+@router.post('/hh/auth/callback', response_model=dict[str, Any])
+@router.post('/hh/auth/exchange', response_model=dict[str, Any])
+def oauth_callback(
+    request: Request, body: OAuthCallbackRequest, client_identity: ClientTokenDep
+) -> dict[str, Any]:
+    del client_identity
+    try:
+        data = get_oauth_service().callback(state=body.state, code=body.code)
+    except HHApiError as exc:
+        raise HTTPException(
+            status_code=400 if exc.code == 'HH_OAUTH_STATE_INVALID' else 502, detail=exc.code
+        ) from exc
+    return {'data': data, 'meta': _meta(request)}
+
+
+@router.get('/hh/capabilities', response_model=dict[str, Any])
+def hh_capabilities(request: Request, client_identity: ClientTokenDep) -> dict[str, Any]:
+    del client_identity
+    oauth = get_oauth_service()
+    status: dict[str, Any] = oauth.status()
+    connected = bool(status['connected'])
+    capability = 'AVAILABLE' if connected else 'ERROR'
+    return {
+        'data': {
+            'account': capability,
+            'resumes': capability,
+            'negotiations': capability,
+            'messages_read': 'AVAILABLE' if connected else 'NOT_IMPLEMENTED',
+            'write_actions': 'FORBIDDEN_BY_PRODUCT',
+        },
+        'meta': _meta(request),
+    }
+
+
+@router.post('/hh/auth/disconnect', response_model=dict[str, Any])
+def oauth_disconnect(request: Request, client_identity: ClientTokenDep) -> dict[str, Any]:
+    del client_identity
+    get_oauth_service().disconnect()
+    return {'data': {'connected': False}, 'meta': _meta(request)}
+
+
+@router.post('/hh/sync/applicant', response_model=dict[str, Any])
+@router.post('/hh/sync/resumes', response_model=dict[str, Any])
+@router.post('/hh/sync/negotiations', response_model=dict[str, Any])
+def sync_applicant(request: Request, client_identity: ClientTokenDep) -> dict[str, Any]:
+    """Read-only applicant projection; no HH mutation and no raw payload storage."""
+    del client_identity
+    client = HHApiClient(oauth=get_oauth_service())
+    try:
+        resumes = client.applicant_resumes()
+        negotiations = client.negotiations()
+    except HHApiError as exc:
+        raise HTTPException(status_code=503, detail=exc.code) from exc
+    resume_items = resumes.get('items', []) if isinstance(resumes, dict) else resumes
+    negotiation_items = (
+        negotiations.get('items', []) if isinstance(negotiations, dict) else negotiations
+    )
+    return {
+        'data': {
+            'resumes': [
+                _safe_applicant_item(item) for item in resume_items if isinstance(item, dict)
+            ],
+            'negotiations': [
+                _safe_applicant_item(item) for item in negotiation_items if isinstance(item, dict)
+            ],
+        },
+        'meta': _meta(request),
+    }
+
+
+def _safe_applicant_item(item: dict[str, Any]) -> dict[str, Any]:
+    """Keep only identifiers and harmless display/status fields at the API edge."""
+    allowed = ('id', 'title', 'name', 'state', 'status', 'created_at', 'updated_at', 'vacancy_id')
+    return {
+        key: item[key]
+        for key in allowed
+        if key in item and isinstance(item[key], (str, int, float, bool, type(None)))
     }
 
 

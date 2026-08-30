@@ -24,6 +24,7 @@ class SecretSlot:
     """
 
     HH_APPLICATION_TOKEN: str = 'vacancypilot_hh_application_token'
+    HH_CLIENT_SECRET: str = 'vacancypilot_hh_client_secret'
     HH_REFRESH_TOKEN: str = 'vacancypilot_hh_refresh_token'
     AI_KEY: str = 'vacancypilot_ai_key'
     PAIRING_MATERIAL: str = 'vacancypilot_pairing_material'

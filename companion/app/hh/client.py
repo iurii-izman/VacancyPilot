@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import random
+import re
 import time
 from typing import Any
 from urllib.parse import urljoin
@@ -13,6 +14,7 @@ import httpx
 
 from app.hh.errors import HHApiError, HHConfigurationError
 from app.hh.models import HHPage
+from app.hh.oauth import HHOAuthService
 from app.security.keyring import OSKeyring, SecretSlot
 
 logger = logging.getLogger(__name__)
@@ -41,10 +43,15 @@ class HHApiClient:
     )
 
     def __init__(
-        self, *, keyring: Any | None = None, transport: httpx.BaseTransport | None = None
+        self,
+        *,
+        keyring: Any | None = None,
+        transport: httpx.BaseTransport | None = None,
+        oauth: HHOAuthService | None = None,
     ) -> None:
         self._keyring = keyring or OSKeyring()
         self._transport = transport
+        self._oauth = oauth
 
     @staticmethod
     def user_agent() -> str:
@@ -107,12 +114,64 @@ class HHApiClient:
             return payload
         raise HHApiError('HH_RETRY_EXHAUSTED')
 
+    def _oauth_request(
+        self, path: str, *, params: dict[str, Any] | None = None
+    ) -> dict[str, Any] | list[Any]:
+        if self._oauth is None:
+            raise HHConfigurationError('HH OAuth user authorization is not configured')
+        headers = {
+            'Authorization': f'Bearer {self._oauth.access_token()}',
+            'User-Agent': self.user_agent(),
+            'HH-User-Agent': self.user_agent(),
+            'Accept': 'application/json',
+        }
+        try:
+            with httpx.Client(
+                timeout=self.TIMEOUT, transport=self._transport, follow_redirects=False
+            ) as client:
+                response = client.get(
+                    urljoin(self.BASE_URL, path.lstrip('/')), params=params, headers=headers
+                )
+        except httpx.RequestError as exc:
+            raise HHApiError('HH_NETWORK_ERROR') from exc
+        if response.status_code >= 400:
+            raise HHApiError(_status_code(response.status_code), response.status_code)
+        try:
+            payload = response.json()
+        except ValueError as exc:
+            raise HHApiError('HH_INVALID_JSON', response.status_code) from exc
+        if not isinstance(payload, (dict, list)):
+            raise HHApiError('HH_INVALID_JSON', response.status_code)
+        return payload
+
+    def applicant_resumes(self) -> dict[str, Any] | list[Any]:
+        return self._oauth_request('/resumes/mine')
+
+    def current_user(self) -> dict[str, Any] | list[Any]:
+        return self._oauth_request('/me')
+
+    def negotiations(self, *, status: str | None = None) -> dict[str, Any] | list[Any]:
+        return self._oauth_request('/negotiations', params={'status': status} if status else None)
+
+    def negotiation(self, negotiation_id: str) -> dict[str, Any] | list[Any]:
+        _validate_resource_id(negotiation_id)
+        return self._oauth_request(f'/negotiations/{negotiation_id}')
+
+    def negotiation_messages(self, negotiation_id: str) -> dict[str, Any] | list[Any]:
+        _validate_resource_id(negotiation_id)
+        return self._oauth_request(f'/negotiations/{negotiation_id}/messages')
+
 
 def _retry_after(value: str | None) -> float:
     try:
         return min(max(float(value or 0), 0.0), 2.0)
     except ValueError:
         return 0.2 + random.random() * 0.1
+
+
+def _validate_resource_id(value: str) -> None:
+    if not re.fullmatch(r'[A-Za-z0-9_-]{1,128}', value):
+        raise HHApiError('HH_RESOURCE_ID_INVALID')
 
 
 def _status_code(status: int) -> str:
