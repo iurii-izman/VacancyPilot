@@ -126,6 +126,10 @@ export function Inbox({ onSelect }: { onSelect?: (job: Job) => void }): ReactNod
   const [decision, setDecision] = useState("all");
   const [analysisStatus, setAnalysisStatus] = useState("all");
   const [updatedAfter, setUpdatedAfter] = useState("");
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [preview, setPreview] = useState<{ selected: number; expected_provider_calls: number; cached_v4: number; archived_or_ineligible: number } | null>(null);
+  const [sessionMessage, setSessionMessage] = useState<string | null>(null);
+  const [sessionItems, setSessionItems] = useState<Array<{ title: string; company_name: string | null; queue_state: string }>>([]);
   const filtered = useMemo(() => jobs.filter((job) => {
     const matchesQuery = !query || `${job.title} ${job.companyName}`.toLowerCase().includes(query.toLowerCase());
     const score = job.ruleScore?.total;
@@ -135,9 +139,39 @@ export function Inbox({ onSelect }: { onSelect?: (job: Job) => void }): ReactNod
   }), [jobs, query, status, workMode, scoreBand, decision, analysisStatus, updatedAfter]);
   if (loading) return <p role="status">Loading Inbox…</p>;
   if (error) return <div role="alert" style={cardStyle}>Inbox unavailable: {error}</div>;
+  const toggleSelection = (id: string) => setSelectedIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
+  const prepareSelected = async () => {
+    if (selectedIds.length === 0) return;
+    try {
+      const connection = await detectCompanionStatus();
+      if (connection.status !== "connected") { setSessionMessage("Application sessions require the connected local companion."); return; }
+      const result = await getOpsClient().previewApplicationSession(selectedIds);
+      setPreview(result.data);
+      setSessionMessage("Preview ready. No provider call was made.");
+    } catch (err) { setSessionMessage(err instanceof Error ? err.message : "Unable to create preview"); }
+  };
+  const confirmPrepare = async () => {
+    if (!preview || selectedIds.length === 0) return;
+    try {
+      const session = await getOpsClient().createApplicationSession(selectedIds);
+      const processed = await getOpsClient().executeApplicationSession(session.data.id);
+      setSessionItems(processed.data.items);
+      setSessionMessage("Confirmed session processed. Open an item to review and apply manually.");
+      setPreview(null); setSelectedIds([]);
+    } catch (err) { setSessionMessage(err instanceof Error ? err.message : "Session execution failed"); }
+  };
   return <section aria-labelledby="inbox-title">
     <h2 id="inbox-title" style={{ marginTop: 0 }}>Inbox</h2>
-    <p style={{ color: "#536273", fontSize: 13 }}>Review imported vacancies. Full V4 analysis remains an explicit single-item action.</p>
+    <p style={{ color: "#536273", fontSize: 13 }}>Review imported vacancies. Full V4 analysis remains an explicit single-item action or a bounded confirmed session.</p>
+    <div style={{ ...cardStyle, background: "#f7f9fb", marginBottom: 12 }}>
+      <strong>{selectedIds.length} selected</strong>{" "}
+      <button type="button" onClick={() => setSelectedIds([])} disabled={selectedIds.length === 0}>Clear selection</button>{" "}
+      <button type="button" onClick={() => void prepareSelected()} disabled={selectedIds.length === 0}>Prepare selected</button>
+      {preview && <div role="status" style={{ marginTop: 8 }}>Preview: {preview.selected} selected · {preview.cached_v4} cached V4 · {preview.expected_provider_calls} possible provider calls · {preview.archived_or_ineligible} archived/ineligible. Cost estimate unavailable.</div>}
+      {preview && <button type="button" onClick={() => void confirmPrepare()} style={{ marginTop: 8 }}>Confirm and process selected</button>}
+      {sessionMessage && <div role="status" style={{ marginTop: 8 }}>{sessionMessage}</div>}
+      {sessionItems.length > 0 && <ol aria-label="Application session queue" style={{ margin: "10px 0 0", paddingLeft: 22 }}>{sessionItems.map((item) => <li key={`${item.title}-${item.company_name ?? ""}`}>{item.title} — {item.queue_state}</li>)}</ol>}
+    </div>
     <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
       <label style={{ flex: "1 1 220px", fontSize: 12 }}>Search title or company<input aria-label="Search vacancies" value={query} onChange={(event) => setQuery(event.target.value)} style={{ display: "block", width: "100%", padding: 7, marginTop: 3 }} /></label>
       <label style={{ fontSize: 12 }}>Status<select aria-label="Filter by status" value={status} onChange={(event) => setStatus(event.target.value)} style={{ display: "block", padding: 7, marginTop: 3 }}><option value="all">All</option>{["new", "viewed", "saved", "letter_ready", "applied", "hr_replied", "interview", "test_task", "offer", "rejected_by_me", "rejected_by_company"].map((item) => <option key={item} value={item}>{statusLabel(item as Job["status"])}</option>)}</select></label>
@@ -150,7 +184,7 @@ export function Inbox({ onSelect }: { onSelect?: (job: Job) => void }): ReactNod
     {filtered.length === 0 ? <div style={cardStyle}>No vacancies match these filters. No automatic analysis was requested.</div> : <div style={{ display: "grid", gap: 8 }}>
       {filtered.map((job) => <article key={job.id} style={cardStyle}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
-          <div><h3 style={{ margin: 0, fontSize: 14 }}>{job.title || "Untitled vacancy"}</h3><div style={{ fontSize: 12, color: "#687789" }}>{job.companyName || "Unknown company"} · {job.source.toUpperCase()}</div></div>
+          <div><label><input type="checkbox" aria-label={`Select ${job.title || "vacancy"}`} checked={selectedIds.includes(job.id)} onChange={() => toggleSelection(job.id)} /> Select</label><h3 style={{ margin: 0, fontSize: 14 }}>{job.title || "Untitled vacancy"}</h3><div style={{ fontSize: 12, color: "#687789" }}>{job.companyName || "Unknown company"} · {job.source.toUpperCase()}</div></div>
           <span style={{ color: scoreColor(job.ruleScore?.total), fontWeight: 700 }}>{job.ruleScore?.total ?? "—"}</span>
         </div>
         <div style={{ fontSize: 12, marginTop: 8 }}>Status: <strong>{statusLabel(job.status)}</strong> · updated {formatShortDate(job.updatedAt)} · {job.workMode}</div>

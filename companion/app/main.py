@@ -28,6 +28,7 @@ from app.api.hh import router as hh_router
 from app.api.letters import router as letters_router
 from app.api.migration import router as migration_router
 from app.api.pairing import router as pairing_router
+from app.api.r5_application_factory import router as r5_application_factory_router
 from app.api.vacancies import router as vacancies_router
 from app.config import settings
 from app.db import Base  # noqa: F401 — register models with metadata
@@ -101,6 +102,7 @@ def create_app(*, initialize_db: bool = True) -> FastAPI:
     app.include_router(migration_router, prefix=api_prefix)
     app.include_router(vacancies_router, prefix=api_prefix)
     app.include_router(application_ops_router, prefix=api_prefix)
+    app.include_router(r5_application_factory_router, prefix=api_prefix)
     app.include_router(analysis_router, prefix=api_prefix)
     app.include_router(letters_router, prefix=api_prefix)
     app.include_router(engine_router, prefix=api_prefix)

@@ -32,6 +32,7 @@ class Vacancy(Base):
     experience: Mapped[str | None]
     description: Mapped[str | None]
     description_hash: Mapped[str | None]
+    role_family: Mapped[str | None]
     skills_json: Mapped[str | None]
     first_seen_at: Mapped[str] = mapped_column(default=utcnow)
     last_seen_at: Mapped[str] = mapped_column(default=utcnow)
@@ -52,6 +53,9 @@ class Vacancy(Base):
         back_populates='vacancy', passive_deletes=True
     )
     engine_runs: Mapped[list[EngineRun]] = relationship(
+        back_populates='vacancy', passive_deletes=True
+    )
+    search_profile_hits: Mapped[list[VacancySearchProfileHit]] = relationship(
         back_populates='vacancy', passive_deletes=True
     )
 
@@ -380,6 +384,97 @@ class SearchProfile(Base, TimestampMixin):
     schedule: Mapped[str | None]
     last_run_at: Mapped[str | None]
     revision: Mapped[int] = mapped_column(default=1)
+    vacancy_hits: Mapped[list[VacancySearchProfileHit]] = relationship(
+        back_populates='search_profile', passive_deletes=True
+    )
+
+
+class VacancySearchProfileHit(Base):
+    """Normalized, append-only discovery provenance; not a vacancy duplicate."""
+
+    __tablename__ = 'vacancy_search_profile_hits'
+
+    id: Mapped[str] = mapped_column(primary_key=True, default=new_uuid)
+    vacancy_id: Mapped[str] = mapped_column(
+        ForeignKey('vacancies.id', ondelete='CASCADE'), nullable=False
+    )
+    search_profile_id: Mapped[str] = mapped_column(
+        ForeignKey('search_profiles.id', ondelete='CASCADE'), nullable=False
+    )
+    first_seen_at: Mapped[str] = mapped_column(default=utcnow)
+    last_seen_at: Mapped[str] = mapped_column(default=utcnow)
+    hit_count: Mapped[int] = mapped_column(default=1)
+    last_sync_run_id: Mapped[str | None] = mapped_column(
+        ForeignKey('hh_sync_runs.id', ondelete='SET NULL')
+    )
+
+    vacancy: Mapped[Vacancy] = relationship(back_populates='search_profile_hits')
+    search_profile: Mapped[SearchProfile] = relationship(back_populates='vacancy_hits')
+
+    __table_args__ = (
+        UniqueConstraint('vacancy_id', 'search_profile_id', name='uq_vacancy_search_profile_hit'),
+        Index('ix_vacancy_search_profile_hits_profile', 'search_profile_id'),
+    )
+
+
+class ApplicationSession(Base, TimestampMixin):
+    """Resumable human-controlled preparation queue; never an application status."""
+
+    __tablename__ = 'application_sessions'
+
+    id: Mapped[str] = mapped_column(primary_key=True, default=new_uuid)
+    status: Mapped[str] = mapped_column(default='active')
+    started_at: Mapped[str] = mapped_column(default=utcnow)
+    completed_at: Mapped[str | None]
+    revision: Mapped[int] = mapped_column(default=1)
+    items: Mapped[list[ApplicationSessionItem]] = relationship(
+        back_populates='session', passive_deletes=True, order_by='ApplicationSessionItem.position'
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('active', 'completed', 'cancelled')", name='ck_application_session_status'
+        ),
+    )
+
+
+class ApplicationSessionItem(Base):
+    __tablename__ = 'application_session_items'
+
+    id: Mapped[str] = mapped_column(primary_key=True, default=new_uuid)
+    session_id: Mapped[str] = mapped_column(
+        ForeignKey('application_sessions.id', ondelete='CASCADE'), nullable=False
+    )
+    vacancy_id: Mapped[str] = mapped_column(
+        ForeignKey('vacancies.id', ondelete='RESTRICT'), nullable=False
+    )
+    application_id: Mapped[str | None] = mapped_column(
+        ForeignKey('applications.id', ondelete='SET NULL')
+    )
+    queue_state: Mapped[str] = mapped_column(default='SELECTED')
+    position: Mapped[int]
+    selected_at: Mapped[str] = mapped_column(default=utcnow)
+    analysis_run_id: Mapped[str | None] = mapped_column(
+        ForeignKey('engine_runs.id', ondelete='SET NULL')
+    )
+    started_at: Mapped[str | None]
+    completed_at: Mapped[str | None]
+    skip_reason: Mapped[str | None]
+    error_message: Mapped[str | None]
+    revision: Mapped[int] = mapped_column(default=1)
+
+    session: Mapped[ApplicationSession] = relationship(back_populates='items')
+    vacancy: Mapped[Vacancy] = relationship()
+
+    __table_args__ = (
+        UniqueConstraint('session_id', 'vacancy_id', name='uq_application_session_vacancy'),
+        CheckConstraint(
+            "queue_state IN ('SELECTED', 'NEEDS_ANALYSIS', 'ANALYZING', 'ANALYZED', 'SKIPPED', "
+            "'NEEDS_REVIEW', 'READY_FOR_MANUAL_APPLY', 'APPLIED_CONFIRMED', 'FAILED', 'DEFERRED')",
+            name='ck_application_session_item_state',
+        ),
+        Index('ix_application_session_items_session_position', 'session_id', 'position'),
+    )
 
 
 # ── settings ───────────────────────────────────────────────────────────

@@ -33,6 +33,9 @@ import type {
   ApplicationResponse,
   FollowUpListResponse,
   FollowUpResponse,
+  ApplicationSessionPreviewResponse,
+  ApplicationSessionResponse,
+  AnalyticsResponse,
 } from './application-types';
 import { isCompatibleApiVersion } from './types';
 
@@ -337,6 +340,26 @@ export class OpsClient {
 
   async updateFollowUp(id: string, body: unknown, signal?: AbortSignal): Promise<FollowUpResponse> {
     return this._request<FollowUpResponse>('PATCH', `/followups/${encodeURIComponent(id)}`, body, signal, true);
+  }
+
+  async previewApplicationSession(vacancyIds: string[], signal?: AbortSignal): Promise<ApplicationSessionPreviewResponse> {
+    return this.authenticatedPost<ApplicationSessionPreviewResponse>('/application-sessions/preview', { vacancy_ids: vacancyIds }, signal);
+  }
+
+  async createApplicationSession(vacancyIds: string[], signal?: AbortSignal): Promise<ApplicationSessionResponse> {
+    return this.authenticatedPost<ApplicationSessionResponse>('/application-sessions', { vacancy_ids: vacancyIds }, signal);
+  }
+
+  async executeApplicationSession(id: string, signal?: AbortSignal): Promise<ApplicationSessionResponse> {
+    return this.authenticatedPost<ApplicationSessionResponse>(`/application-sessions/${encodeURIComponent(id)}/execute`, { confirmation: true }, signal);
+  }
+
+  async getApplicationSession(id: string, signal?: AbortSignal): Promise<ApplicationSessionResponse> {
+    return this.authenticatedGet<ApplicationSessionResponse>(`/application-sessions/${encodeURIComponent(id)}` , signal);
+  }
+
+  async getAnalyticsSummary(signal?: AbortSignal): Promise<AnalyticsResponse> {
+    return this.authenticatedGet<AnalyticsResponse>('/analytics/application-summary', signal);
   }
 }
 
