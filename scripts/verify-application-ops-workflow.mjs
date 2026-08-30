@@ -59,7 +59,7 @@ requireMatch(status, /\| AOPS-04 \|[^\n]*\| complete \|/, statusPath);
 requireMatch(status, /\| AOPS-05 \|[^\n]*\| complete \|/, statusPath);
 requireMatch(status, /\| AOPS-06 \|[^\n]*\| complete \|/, statusPath);
 requireMatch(status, /\| AOPS-07 \|[^\n]*\| complete \|/, statusPath);
-requireMatch(status, /\| AOPS-08 \|[^\n]*\| not started \|/, statusPath);
+requireMatch(status, /\| AOPS-08 \|[^\n]*\| complete \|/, statusPath);
 
 // Keep the path construction exercised so a moved pack fails loudly.
 readFileSync(resolve(packRoot, "README.md"), "utf8");
