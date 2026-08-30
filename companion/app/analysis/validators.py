@@ -417,6 +417,8 @@ def _vvacancy_anchors(ctx: ValidatorContext) -> list[str]:
 
 
 def _vmicro_proof(ctx: ValidatorContext) -> list[str]:
+    if not bool(ctx.get('require_quantitative_micro_proof', True)):
+        return []
     return _check_micro_proof(str(ctx.get('letter', '')))
 
 
@@ -466,6 +468,7 @@ def validate_letter(
     language: str = 'ru',
     title: str = '',
     english_required: bool = False,
+    require_quantitative_micro_proof: bool = True,
 ) -> list[str]:
     """Run all 11 literal letter validators. Returns a flat list of error strings.
 
@@ -477,6 +480,7 @@ def validate_letter(
         'language': language,
         'title': title,
         'english_required': english_required,
+        'require_quantitative_micro_proof': require_quantitative_micro_proof,
     }
     errors: list[str] = []
     for name, fn in _LETTER_VALIDATORS:
@@ -506,9 +510,7 @@ def validate_structured_result(
     errors: list[str] = []
     errors.extend(_check_recruiter_risks(result))
     errors.extend(_check_score_parity(result))
-    evidence_dicts = [
-        e.model_dump() if hasattr(e, 'model_dump') else e for e in result.evidence_map
-    ]
+    evidence_dicts: list[dict[str, Any]] = [entry.model_dump() for entry in result.evidence_map]
     errors.extend(_check_unsupported_claims(evidence_dicts, index))
     errors.extend(_check_evidence_whitelist(evidence_dicts))
     errors.extend(_check_portfolio_boundary(evidence_dicts, index))
@@ -522,10 +524,56 @@ def validate_structured_result(
             language='en' if english_required else 'ru',
             title=result.vacancy_identity.role,
             english_required=english_required,
+            require_quantitative_micro_proof=False,
+        )
+    )
+    errors.extend(
+        _check_evidence_backed_micro_proof(
+            result.cover_letter,
+            evidence_dicts,
+            index,
+            english_required=english_required,
         )
     )
 
     return errors
+
+
+def _check_evidence_backed_micro_proof(
+    letter: str,
+    evidence_map: list[dict[str, Any]],
+    index: KnowledgeIndex | None,
+    *,
+    english_required: bool,
+) -> list[str]:
+    """Require a numeric proof or an exact micro-proof from a cited case.
+
+    Not every authoritative case has a numeric outcome.  Requiring a made-up
+    number would violate the evidence boundary, so a selected and cited case's
+    canonical micro-proof is accepted as the deterministic alternative.
+    """
+    if not _check_micro_proof(letter):
+        return []
+    if index is None:
+        return ['MICRO_PROOF: no quantifiable or evidence-backed proof point found in letter']
+
+    field = 'micro_proof_en' if english_required else 'micro_proof_ru'
+    folded_letter = ' '.join(letter.casefold().split())
+    for entry in evidence_map:
+        case_id = entry.get('case_id')
+        if not isinstance(case_id, str):
+            continue
+        case = index.commercial_cases.get(case_id)
+        if not case:
+            continue
+        proof = case.get(field)
+        if (
+            isinstance(proof, str)
+            and proof.strip()
+            and ' '.join(proof.casefold().split()) in folded_letter
+        ):
+            return []
+    return ['MICRO_PROOF: no quantifiable or evidence-backed proof point found in letter']
 
 
 def format_validation_errors_for_repair(errors: list[str]) -> str:

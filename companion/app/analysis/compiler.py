@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from typing import Any
 
 from app.analysis.models import (
     CompiledPrompt,
@@ -17,7 +18,7 @@ from app.analysis.models import (
 from app.engine.index import KnowledgeIndex
 from app.engine.models import LoadedEnginePackage
 
-PROMPT_VERSION = 'v4.0.0-ao8-2'
+PROMPT_VERSION = 'v4.0.0-ao8-4'
 
 OUTPUT_JSON_SCHEMA = {
     'type': 'object',
@@ -439,6 +440,18 @@ def _build_claims_section(
             if category:
                 line += f' ({category})'
             lines.append(line)
+            lines.extend(
+                _selected_evidence_lines(
+                    claim,
+                    (
+                        'title',
+                        'allowed_wording',
+                        'strongest_safe_wording_ru',
+                        'strongest_safe_wording_en',
+                        'limitations',
+                    ),
+                )
+            )
             count += 1
         else:
             lines.append(f'- `{cid}` [not in index]')
@@ -465,11 +478,54 @@ def _build_cases_section(
             if category:
                 line += f' ({category})'
             lines.append(line)
+            lines.extend(
+                _selected_evidence_lines(
+                    case,
+                    (
+                        'title',
+                        'candidate_role',
+                        'micro_proof_ru',
+                        'micro_proof_en',
+                        'confirmed_outcome',
+                        'solution_components',
+                        'do_not_claim',
+                        'limitations',
+                    ),
+                )
+            )
             count += 1
         else:
             lines.append(f'- `{cid}` [not in index]')
     reasons.append(f'Selected {count} commercial cases')
     return ('\n'.join(lines), reasons)
+
+
+def _selected_evidence_lines(entry: dict[str, Any], fields: tuple[str, ...]) -> list[str]:
+    """Render only explicit, selected evidence fields for the provider payload.
+
+    The compiler must provide usable wording and case proof, not merely opaque
+    IDs.  This helper deliberately never traverses unselected index entries and
+    bounds each rendered value to keep the provider payload deterministic.
+    """
+    lines: list[str] = []
+    for field in fields:
+        value = entry.get(field)
+        rendered = _render_evidence_value(value)
+        if rendered:
+            lines.append(f'  {field}: {rendered}')
+    return lines
+
+
+def _render_evidence_value(value: Any) -> str:
+    """Render a scalar/list evidence field without serialising arbitrary data."""
+    if isinstance(value, str):
+        return value.strip()[:800]
+    if isinstance(value, list):
+        items = [str(item).strip() for item in value if isinstance(item, (str, int, float))]
+        return '; '.join(item for item in items if item)[:800]
+    if isinstance(value, (int, float)):
+        return str(value)
+    return ''
 
 
 def _build_portfolio_section(
@@ -630,6 +686,11 @@ def _build_system_prompt_ru() -> str:
         'для компании, закрытие с благодарностью и подписью. Для decision '
         '`apply`/`consider` — 150–220 слов; для `skip` — 90–130. Используй '
         'минимум два термина из названия вакансии и только разрешённые факты.\n'
+        '9. Если выбранный кейс содержит `micro_proof_ru`, вставь его дословно '
+        'один раз в абзац об опыте. Закрой письмо отдельными последними строками '
+        '«С уважением,» и только именем кандидата.\n'
+        '10. Если используешь selected case в письме, добавь его `case_id` в '
+        '`evidence_map`, чтобы proof можно было детерминированно проверить.\n'
     )
 
 
@@ -651,6 +712,11 @@ def _build_system_prompt_en() -> str:
         'proof, value for the company, and a thankful closing with signature. '
         'For `apply`/`consider`, use 150–220 words; for `skip`, use 90–130. '
         'Include at least two terms from the vacancy title and use only allowed facts.\n'
+        '9. When a selected case supplies `micro_proof_en`, include that exact '
+        'wording once in the experience paragraph. End the letter with separate '
+        'final lines: `Best regards,` followed only by the candidate name.\n'
+        '10. When a selected case is used in the letter, include its `case_id` '
+        'in `evidence_map` so the proof can be deterministically verified.\n'
     )
 
 

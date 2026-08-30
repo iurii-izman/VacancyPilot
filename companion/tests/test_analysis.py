@@ -175,6 +175,55 @@ class TestAnalysisEndToEnd:
         response = asyncio.run(provider.analyze_vacancy(request))
         assert response.error == 'SIMULATED_ERROR'
 
+    def test_schema_invalid_json_object_gets_one_repair_attempt(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Pydantic-invalid JSON must not bypass the controlled repair path."""
+        from app.analysis.models import AnalysisRunResult, CompiledPrompt
+        from app.analysis.service import AnalysisService
+
+        provider = FakeProvider()
+        service = AnalysisService(session=None)  # type: ignore[arg-type]
+        invalid = AnalysisRunResult(
+            run_id='run-1',
+            vacancy_id='vacancy-1',
+            status='invalid',
+            repair_status='invalid',
+            engine_version='4.0.0',
+            engine_hash='0' * 64,
+            provider='fake',
+            model='fake-model',
+            prompt_version='test',
+            input_hash='0' * 64,
+            raw_output=json.dumps({'central_requirements': [{}]}),
+            validation_errors=['SCHEMA_VALIDATION[central_requirements]: invalid length'],
+        )
+        compiled = CompiledPrompt(
+            system_prompt='system',
+            user_prompt='user',
+            output_schema={},
+            prompt_version='test',
+            input_hash='0' * 64,
+            token_estimate=1,
+            engine_version='4.0.0',
+            engine_hash='0' * 64,
+            provider='fake',
+            model='fake-model',
+        )
+        expected = invalid.model_copy(update={'status': 'success', 'repair_status': 'repaired'})
+        monkeypatch.setattr(service, '_process_provider_response', lambda **_: expected)
+
+        result = service._attempt_schema_repair(
+            run_result=invalid,
+            compiled=compiled,
+            provider=provider,
+            index=None,
+            language='en',
+        )
+
+        assert provider.repair_count == 1
+        assert result.repair_status == 'repaired'
+
 
 class TestLiteralValidators:
     """All 11 deterministic literal letter validators."""
@@ -254,6 +303,24 @@ class TestLiteralValidators:
 
         errors = _check_micro_proof('I am a good developer.')
         assert any('MICRO_PROOF' in e for e in errors)
+
+    def test_cited_case_micro_proof_is_accepted_without_a_number(self) -> None:
+        from types import SimpleNamespace
+
+        from app.analysis.validators import _check_evidence_backed_micro_proof
+
+        index = SimpleNamespace(
+            commercial_cases={
+                'SYNTH-CASE': {'micro_proof_en': 'Delivered a verified synthetic integration.'}
+            }
+        )
+        errors = _check_evidence_backed_micro_proof(
+            'Delivered a verified synthetic integration.',
+            [{'case_id': 'SYNTH-CASE'}],
+            index,
+            english_required=True,
+        )
+        assert errors == []
 
     def test_placeholders_forbidden(self) -> None:
         from app.analysis.validators import _check_no_placeholders
@@ -409,12 +476,50 @@ class TestRecruiterRisks:
 class TestPromptCompiler:
     """Prompt compiler determinism and hash consistency."""
 
+    def test_selected_evidence_payload_contains_allowed_wording_and_case_proof(self) -> None:
+        from types import SimpleNamespace
+
+        from app.analysis.compiler import _build_cases_section, _build_claims_section
+        from app.analysis.models import PromptCompilerInput
+
+        index = SimpleNamespace(
+            claims={
+                'SYNTH-CLAIM': {
+                    'evidence_level': 'E4',
+                    'category': 'backend',
+                    'allowed_wording': 'Built verified synthetic backend services.',
+                    'limitations': 'Synthetic limitation.',
+                }
+            },
+            commercial_cases={
+                'SYNTH-CASE': {
+                    'category': 'integration',
+                    'micro_proof_en': 'Reduced synthetic latency by 25%.',
+                    'do_not_claim': ['Synthetic revenue impact.'],
+                }
+            },
+        )
+        input_data = PromptCompilerInput(
+            title='Synthetic Backend Engineer',
+            selected_claim_ids=['SYNTH-CLAIM'],
+            selected_case_ids=['SYNTH-CASE'],
+        )
+
+        claims, _ = _build_claims_section(input_data, index)
+        cases, _ = _build_cases_section(input_data, index)
+
+        assert 'Built verified synthetic backend services.' in claims
+        assert 'Reduced synthetic latency by 25%.' in cases
+        assert 'Synthetic revenue impact.' in cases
+
     def test_system_prompt_requires_a_valid_cover_letter(self) -> None:
         from app.analysis.compiler import _build_system_prompt_en
 
         prompt = _build_system_prompt_en()
         assert '`cover_letter` is mandatory' in prompt
         assert '150–220 words' in prompt
+        assert '`micro_proof_en`' in prompt
+        assert '`Best regards,`' in prompt
 
     def test_input_hash_deterministic(self) -> None:
         from app.analysis.compiler import compile_prompt

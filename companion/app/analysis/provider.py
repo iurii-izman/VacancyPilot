@@ -127,6 +127,7 @@ class OpenAIProvider(LLMProvider):
                         'model': model,
                         'messages': messages,
                         'temperature': 0.4,
+                        'response_format': {'type': 'json_object'},
                         **token_param,
                     },
                 )

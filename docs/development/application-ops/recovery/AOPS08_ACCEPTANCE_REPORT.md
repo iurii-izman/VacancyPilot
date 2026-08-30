@@ -4,13 +4,13 @@ Date: 2026-08-30
 
 # Verdict
 
-**READY_FOR_LIVE_PROVIDER_ACCEPTANCE**
+**PASS**
 
-All offline acceptance gates PASS. The only unexecuted gate is the live
-provider smoke: no OpenAI BYOK key is present in the OS keyring on this
-machine (`key_present: False`), and a live PASS must not be simulated. The
-offline runtime is accepted; a live smoke with a user-provided key is the
-remaining step before full PASS.
+R2 completed live-provider acceptance using the configured OS-keyring BYOK
+slot and the active real V4 package. The canonical provider, structured
+parsing, deterministic validation, evidence usage persistence, and run
+read-back passed. The detailed sanitized record is
+`R2_LIVE_PROVIDER_ACCEPTANCE.md`.
 
 # Baseline
 
@@ -67,6 +67,18 @@ See `R1_AOPS08_CODE_REVIEW.md`: 2×P0, 3×P1 (all fixed), 3×P2 (documented),
 | `pnpm verify:aops-workflow` | 0 | — | PASS |
 | `git diff --check` | 0 | — | PASS |
 
+# R2 live acceptance and final gates
+
+| Gate | Exit | Actual evidence | Result |
+|---|---|---|---|
+| Real OpenAI BYOK smoke | 0 | `SYNTH-R2-LIVE-011`; `gpt-4o`; V4 `4.0.0`; run `710ee415-e1e-4a69-b52a-7e65b6fe54cf`; 2 persisted evidence usages; 0 validation errors | PASS |
+| `pnpm verify:companion` | 0 | 322 companion tests; Ruff; strict mypy on 43 source files; OpenAPI current | PASS |
+| `pnpm typecheck` / `pnpm lint` | 0 | — | PASS |
+| `pnpm test` | 0 | 78 files / 2,808 tests | PASS |
+| `pnpm build` | 0 | Chrome MV3 production build | PASS |
+| `pnpm test:release` | 0 | 10 files / 1,364 tests | PASS |
+| `git diff --check` | 0 | — | PASS |
+
 # Private V4 acceptance (sanitized summary)
 
 | Gate | Result | Evidence |
@@ -91,7 +103,6 @@ bodies were copied into VacancyPilot Git.
 
 # Remaining risks
 
-- Live provider smoke not executed (no BYOK key in keyring).
 - Repair-status provenance (repaired vs originally-valid) is lossy (P2).
 - Portfolio boundary enforcement is advisory (P2).
 - `asyncio.run()` inside sync route (P2) — acceptable under threadpool.

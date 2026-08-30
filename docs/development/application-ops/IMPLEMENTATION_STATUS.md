@@ -1,6 +1,6 @@
 # Application Ops — Implementation Status
 
-Status: AOPS-08 offline acceptance complete (READY_FOR_LIVE_PROVIDER_ACCEPTANCE); live provider smoke pending; AOPS-09 NOT started
+Status: AOPS-08 complete; AOPS-09 next
 Date: 2026-08-30
 
 ## Baseline Snapshot
@@ -356,7 +356,7 @@ does not authorize product integration.
 | AOPS-05 | Dexie migration and outbox | complete |
 | AOPS-06 | Vacancy intake, deduplication and local triage | complete |
 | AOPS-07 | Engine package, deterministic index and health | complete |
-| AOPS-08 | Full V4 analysis, providers and literal validation | not started |
+| AOPS-08 | Full V4 analysis, providers and literal validation | complete |
 | AOPS-09 | Letter lifecycle, manual bridge and generated/sent diff | not started |
 | AOPS-10 | HH public API and search profiles | not started |
 | AOPS-11 | HH OAuth and read-only applicant sync | not started |

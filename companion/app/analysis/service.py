@@ -114,14 +114,23 @@ class AnalysisService:
             language=options.language,
         )
 
-        if run_result.status == 'invalid' and run_result.structured_result is not None:
-            run_result = self._attempt_repair(
-                run_result=run_result,
-                compiled=compiled,
-                provider=provider,
-                index=index,
-                language=options.language,
-            )
+        if run_result.status == 'invalid':
+            if run_result.structured_result is not None:
+                run_result = self._attempt_repair(
+                    run_result=run_result,
+                    compiled=compiled,
+                    provider=provider,
+                    index=index,
+                    language=options.language,
+                )
+            else:
+                run_result = self._attempt_schema_repair(
+                    run_result=run_result,
+                    compiled=compiled,
+                    provider=provider,
+                    index=index,
+                    language=options.language,
+                )
 
         return run_result
 
@@ -307,6 +316,56 @@ class AnalysisService:
         if response.error:
             return run_result  # Repair failed — keep original invalid result
 
+        return self._process_provider_response(
+            vacancy_id=run_result.vacancy_id,
+            compiled=compiled,
+            response=response,
+            index=index,
+            language=language,
+            is_repair=True,
+        )
+
+    def _attempt_schema_repair(
+        self,
+        *,
+        run_result: AnalysisRunResult,
+        compiled: CompiledPrompt,
+        provider: LLMProvider,
+        index: KnowledgeIndex | None,
+        language: str,
+    ) -> AnalysisRunResult:
+        """Repair a JSON object that failed Pydantic/schema validation once.
+
+        Schema-invalid output used to bypass the controlled repair path because
+        it could not be materialized as ``V4StructuredResult``.  A JSON object
+        is still a safe repair input: the provider receives its own output and
+        sanitized validator errors, while deterministic validation remains the
+        only source of acceptance.
+        """
+        if not run_result.raw_output:
+            return run_result
+        try:
+            original = json.loads(run_result.raw_output)
+        except json.JSONDecodeError:
+            return run_result
+        if not isinstance(original, dict):
+            return run_result
+
+        request = AnalysisRequest(
+            system_prompt=compiled.system_prompt,
+            user_prompt=compiled.user_prompt,
+            output_schema=compiled.output_schema,
+            model=compiled.model,
+            provider=compiled.provider,
+        )
+        try:
+            response = asyncio.run(
+                provider.repair_output(request, run_result.validation_errors, original)
+            )
+        except Exception:
+            return run_result
+        if response.error:
+            return run_result
         return self._process_provider_response(
             vacancy_id=run_result.vacancy_id,
             compiled=compiled,
