@@ -1,6 +1,6 @@
 # Application Ops — Implementation Status
 
-Status: AOPS-13 complete; AOPS-14 next
+Status: R4 complete; next product milestone pending prioritization
 Date: 2026-08-30
 
 ## Baseline Snapshot
@@ -360,13 +360,18 @@ does not authorize product integration.
 | AOPS-09 | Letter lifecycle, manual bridge and generated/sent diff | complete |
 | AOPS-10 | HH public API and search profiles | complete |
 | AOPS-11 | HH OAuth and read-only applicant sync | complete — PARTIAL_LIVE_CAPABILITIES |
-| AOPS-12 | Command Center, Inbox and Application Card | complete — AOPS-13 next |
-| AOPS-13 | Pipeline, events and follow-ups | complete — AOPS-14 next |
+| AOPS-12 | Command Center, Inbox and Application Card | complete |
+| AOPS-13 | Pipeline, events and follow-ups | complete |
 | AOPS-14 | Interview Pack | not started |
 | AOPS-15 | Analytics and production pilot | not started |
 | AOPS-16 | Backup, restore, privacy and debug bundle | not started |
 | AOPS-17 | E2E, browser QA and release 0.2.0 | not started |
 | AOPS-18 | Conditional P1 enhancements | not started |
+
+## R4 Closure Status
+
+R4 is complete on `main`. AOPS-12 and AOPS-13 are accepted; AOPS-14 remains
+not started. The next product milestone is pending prioritization.
 
 ## Acceptance Traceability: §25 MVP Criteria → AOPS Epic
 

@@ -12,11 +12,11 @@ Date: 2026-08-30
 | Initial `origin/main` SHA | `139f57fa2e84ef093e1ddf30546671fc041d3ee7` |
 | Working tree | clean at start |
 | Expected R3 closure present | yes; `docs: close R3 HH data plane acceptance` |
-| Push | not performed |
+| Push | pending final closure gates |
 
-The implementation branch is `feat/aops-12-command-workspace`. The authoritative
-R3 baseline is synchronized; no repo-local copy of the pasted R3 prompt or
-private candidate package was found.
+The accepted AOPS-12 and AOPS-13 implementations are merged on `main`. The
+authoritative R3 baseline is `139f57fa2e84ef093e1ddf30546671fc041d3ee7`; no
+repo-local copy of the pasted R3 prompt or private candidate package was found.
 
 ## Tooling
 
