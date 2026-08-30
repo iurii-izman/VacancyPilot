@@ -13,6 +13,7 @@ import { PermissionsSection } from "@/components/PermissionsSection";
 import { PrivacyDisclosureSection } from "@/components/PrivacyDisclosureSection";
 import { CompanionSettings } from "@/components/CompanionSettings";
 import { CommandCenter, Inbox, ApplicationWorkspace } from "@/components/ApplicationOpsWorkspace";
+import { PerformanceSection } from "@/components/PerformanceSection";
 import { useState, useCallback, useEffect, type ReactNode } from "react";
 import {
   colors,
@@ -428,7 +429,7 @@ function SectionContent({ section }: { section: SectionId }): ReactNode {
     case "vacancies":
       return <KanbanBoard />;
     case "summary":
-      return <CommandCenter />;
+      return <PerformanceSection />;
     case "applications":
       return <ApplicationWorkspace />;
     case "companies":

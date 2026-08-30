@@ -3,6 +3,14 @@
 Status: R4 complete; next product milestone pending prioritization
 Date: 2026-08-30
 
+## R5 Local Closure (2026-08-31)
+
+R5 is implemented locally as a bounded Application Factory and lightweight
+conversion read model. R5-A and R5-B were developed on separate feature
+branches and accepted with local no-ff merges. The implementation preserves
+the existing V4, cover-letter and AOPS-13 transition boundaries. AOPS-14 is
+still not started; canonical AOPS-15 is not complete.
+
 ## Baseline Snapshot
 
 ```text
