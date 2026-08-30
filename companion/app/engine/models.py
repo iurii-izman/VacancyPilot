@@ -103,6 +103,29 @@ class SourceManifestFrontmatter(BaseModel):
     description: str | None = Field(default=None, max_length=512)
 
 
+class DocumentFrontmatter(BaseModel):
+    """Authoritative V4 document-level frontmatter block.
+
+    Every canonical source file starts with a document block declaring its
+    machine identity (``document_id``), content version and lifecycle status.
+    Provenance keys (``authoritative_for``, ``source_registry``, ``supersedes``,
+    ...) are accepted but not validated — they carry no loader semantics.
+    """
+
+    model_config = ConfigDict(extra='ignore')
+
+    document_id: str = Field(min_length=1, max_length=128)
+    content_version: str = Field(min_length=1, max_length=32)
+    status: str = Field(min_length=1, max_length=32)
+
+    @field_validator('status')
+    @classmethod
+    def _status_known(cls, v: str) -> str:
+        if v.upper() not in ('ACTIVE', 'DRAFT', 'ARCHIVED', 'DEPLOYMENT'):
+            raise ValueError(f'unknown document status: {v}')
+        return v
+
+
 class CandidateClaimFrontmatter(BaseModel):
     """01_candidate_claims.md — each claim entry."""
 

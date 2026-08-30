@@ -14,6 +14,7 @@ export default tseslint.config(
       "node_modules/",
       "companion/.venv/",
       "companion/__pycache__/",
+      ".claude/**",
       "shared/contracts/*.json",
     ],
   },

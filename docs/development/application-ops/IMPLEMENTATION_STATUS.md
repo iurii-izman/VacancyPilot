@@ -1,7 +1,7 @@
 # Application Ops — Implementation Status
 
-Status: AOPS-07 complete; AOPS-08 next
-Date: 2026-08-05
+Status: AOPS-08 complete; AOPS-09 next
+Date: 2026-08-30
 
 ## Baseline Snapshot
 
@@ -165,6 +165,45 @@ Repository-wide builds, browser QA, release-safety and security scans remain
 DEFERRED_TO_RELEASE_GATE and are not claimed as passed here. No Application
 Engine V4 runtime file was changed and the absent `v4.0.0` tag was preserved.
 
+## AOPS-08 Validation (2026-08-30)
+
+AOPS-08 implements the Full V4 Analysis and Literal Validation pipeline:
+evidence-aware prompt compiler, OpenAI BYOK provider (OS-keyring API key),
+deterministic literal validators (11 letter checks + structural checks), one
+bounded repair retry, input-hash cache scoped by engine version/hash /
+prompt version / provider / model, `POST /api/v1/vacancies/{id}/analyze`
+(with payload preview) and `GET /api/v1/engine/runs/{run_id}`, transactional
+`EngineRun` + `EvidenceUsage` persistence with `engine_hash` run identity,
+and hard blocking of Full V4 Analysis on a missing/invalid engine package
+(Stage A deterministic triage stays available).
+
+The AOPS-07 loader was extended (additive, fixture-compatible) to load the
+authoritative private V4 package format: document-level frontmatter, fenced
+per-entry YAML blocks, per-file content versions, `SCORING_CAPS_V4` caps and
+`automatic_hard_fails` gates in the KnowledgeIndex, and a canonical
+strength→evidence-level mapping with portfolio/certificate/transferable
+invariants.
+
+| Command | Exit | Result |
+| --- | --- | --- |
+| `ruff check` / `ruff format --check` (companion) | 0 | PASS |
+| strict mypy (`mypy app/`) | 0 | 43 files, no issues |
+| full companion pytest | 0 | 316 passed (incl. 39 AOPS-08 focused) |
+| OpenAPI drift check | 0 | checked-in snapshot current |
+| `pnpm typecheck` / `lint` / `test` / `build` / `test:release` / `verify:aops-workflow` | 0 | 2808 vitest + 1364 release tests PASS |
+| `git diff --check` | 0 | PASS |
+| private V4 regressions (private validator) | 0 | 15/15 PASS, 0 errors, 0 warnings |
+| private V4 smoke (private validator) | 0 | 6/6 PASS |
+
+Acceptance verdict: **READY_FOR_LIVE_PROVIDER_ACCEPTANCE** — all offline
+acceptance gates PASS; the live provider smoke was not executed because no
+OpenAI BYOK key is present in the OS keyring (a live PASS is never
+simulated). Full evidence: `docs/development/application-ops/recovery/AOPS08_ACCEPTANCE_REPORT.md`.
+
+Known non-blocking limitations: repair-status provenance (repaired vs
+originally-valid) is lossy; portfolio boundary enforcement is advisory;
+`asyncio.run()` inside the sync analyze route.
+
 ## AOPS-07 Validation (2026-08-05)
 
 AOPS-07 adds the Application Engine V4 package loader, manifest/checksum
@@ -317,7 +356,7 @@ does not authorize product integration.
 | AOPS-05 | Dexie migration and outbox | complete |
 | AOPS-06 | Vacancy intake, deduplication and local triage | complete |
 | AOPS-07 | Engine package, deterministic index and health | complete |
-| AOPS-08 | Full V4 analysis, providers and literal validation | not started |
+| AOPS-08 | Full V4 analysis, providers and literal validation | complete |
 | AOPS-09 | Letter lifecycle, manual bridge and generated/sent diff | not started |
 | AOPS-10 | HH public API and search profiles | not started |
 | AOPS-11 | HH OAuth and read-only applicant sync | not started |

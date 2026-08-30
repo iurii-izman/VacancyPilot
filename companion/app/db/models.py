@@ -158,6 +158,7 @@ class EngineRun(Base):
         ForeignKey('vacancies.id', ondelete='RESTRICT'), nullable=False
     )
     engine_version: Mapped[str]
+    engine_hash: Mapped[str] = mapped_column(default='')
     provider: Mapped[str]
     model: Mapped[str | None]
     prompt_version: Mapped[str]

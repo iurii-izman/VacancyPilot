@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 from app.api.errors import ErrorResponse
 from app.config import resolve_engine_package_root, settings
 from app.engine.installer import get_active_package
-from app.engine.package import LoadedEnginePackage
+from app.engine.models import LoadedEnginePackage
 
 router = APIRouter(tags=['engine'])
 

@@ -28,6 +28,7 @@ from app.engine.models import (
     PROJECT_INSTRUCTIONS_MAX_BYTES,
     CandidateClaimFrontmatter,
     CaseEntryFrontmatter,
+    DocumentFrontmatter,
     EngineValidationError,
     FileStatus,
     LoadedEnginePackage,
@@ -120,6 +121,49 @@ def _parse_all_frontmatter_blocks(text: str) -> list[dict[str, Any]]:
     return blocks
 
 
+# ── Fenced YAML entry blocks (authoritative V4 package format) ──────────
+
+# The real V4 sources carry per-entry metadata in fenced ```yaml blocks in
+# the document body (one block per claim/case/portfolio/rule), in addition to
+# the document-level ``---`` frontmatter block.
+_FENCED_YAML_RE = re.compile(r'^```yaml\s*\n(.*?)\n```\s*$', re.DOTALL | re.MULTILINE)
+
+
+def _parse_fenced_yaml_blocks(text: str) -> list[dict[str, Any]]:
+    """Extract and parse ALL fenced ```yaml blocks from markdown text."""
+    blocks: list[dict[str, Any]] = []
+    for match in _FENCED_YAML_RE.finditer(text):
+        raw = match.group(1)
+        try:
+            parsed = _parse_raw_yaml(raw)
+        except Exception:
+            continue
+        if isinstance(parsed, dict):
+            blocks.append(parsed)
+    return blocks
+
+
+# Legacy (synthetic fixture) collection keys per canonical file.
+_LEGACY_COLLECTION_KEYS: dict[str, tuple[str, ...]] = {
+    '01_candidate_claims.md': ('claims', 'candidate_claims'),
+    '02_experience_case_bank.md': ('cases', 'commercial_cases'),
+    '03_portfolio_cases.md': ('cases', 'portfolio_cases'),
+    '04_targeting_constraints.md': ('rules', 'constraints'),
+    '05_voice_and_gold_examples.md': ('entries', 'voice_entries'),
+    '09_skill_calibration_matrix.md': ('skills', 'calibrations'),
+}
+
+# Required machine ID per canonical file for fenced entry blocks.
+_FENCED_ID_FIELD: dict[str, str] = {
+    '01_candidate_claims.md': 'claim_id',
+    '02_experience_case_bank.md': 'case_id',
+    '03_portfolio_cases.md': 'portfolio_id',
+    '04_targeting_constraints.md': 'target_id',
+    '05_voice_and_gold_examples.md': 'gold_id',
+    '08_candidate_updates.md': 'update_id',
+}
+
+
 _ENTRY_SCHEMAS: dict[str, tuple[tuple[str, ...], type]] = {
     '01_candidate_claims.md': (('claims', 'candidate_claims'), CandidateClaimFrontmatter),
     '02_experience_case_bank.md': (('cases', 'commercial_cases'), CaseEntryFrontmatter),
@@ -131,14 +175,27 @@ _ENTRY_SCHEMAS: dict[str, tuple[tuple[str, ...], type]] = {
 
 
 def _validate_frontmatter(
-    filename: str, text: str
+    filename: str,
+    text: str,
+    *,
+    engine_version_anchor: str | None = None,
 ) -> tuple[str | None, SourceManifestFrontmatter | None, list[EngineValidationError]]:
-    """Strictly validate every structured frontmatter block in a canonical file."""
-    if filename not in _ENTRY_SCHEMAS and filename != '00_source_manifest.md':
-        return None, None, []
+    """Strictly validate every structured frontmatter block in a canonical file.
 
-    matches = list(_FRONTMATTER_RE.finditer(text))
-    if not matches:
+    Supports two package formats:
+    - legacy/synthetic: entry collections inside ``---`` frontmatter blocks;
+    - authoritative V4: document-level ``---`` block (``document_id`` /
+      ``content_version`` / ``status``) plus per-entry fenced ```yaml blocks.
+    """
+    # Only a ``---`` block at the very start of the document is frontmatter.
+    # Body horizontal rules must not be mistaken for frontmatter delimiters.
+    leading_match = _FRONTMATTER_RE.match(text)
+    matches = [leading_match] if leading_match else []
+    fenced_blocks = _parse_fenced_yaml_blocks(text)
+    # Document-level frontmatter is mandatory only for the source manifest and
+    # entry-bearing files; plain guidance files (07/08/11) may lack it.
+    requires_document_block = {'00_source_manifest.md'} | set(_ENTRY_SCHEMAS)
+    if not matches and filename in requires_document_block:
         return (
             None,
             None,
@@ -154,6 +211,8 @@ def _validate_frontmatter(
     source_manifest: SourceManifestFrontmatter | None = None
     errors: list[EngineValidationError] = []
     parsed_type: str | None = None
+
+    # ── Document-level ``---`` blocks ────────────────────────────────────
     for match in matches:
         try:
             block = _parse_raw_yaml(match.group(1))
@@ -163,28 +222,47 @@ def _validate_frontmatter(
             if filename == '00_source_manifest.md':
                 if source_manifest is not None:
                     raise ValueError('source manifest must contain exactly one frontmatter block')
-                source_manifest = SourceManifestFrontmatter(**block)
-                parsed_type = SourceManifestFrontmatter.__name__
+                try:
+                    source_manifest = SourceManifestFrontmatter(**block)
+                    parsed_type = SourceManifestFrontmatter.__name__
+                    continue
+                except ValidationError:
+                    # Authoritative V4 source manifest uses the document schema;
+                    # the engine version anchor is the package manifest itself.
+                    source_manifest = SourceManifestFrontmatter(
+                        engine_id=str(block.get('document_id', 'engine')),
+                        engine_version=engine_version_anchor
+                        or str(block.get('content_version', '0.0.0')),
+                        status=str(block.get('status', 'active')).lower(),  # type: ignore[arg-type]
+                    )
+                    parsed_type = SourceManifestFrontmatter.__name__
+                    continue
+
+            legacy_keys = _LEGACY_COLLECTION_KEYS.get(filename, ())
+            if any(key in block for key in legacy_keys):
+                # Legacy synthetic format: validate entries against the schema.
+                keys = legacy_keys
+                schema = _ENTRY_SCHEMAS[filename][1]
+                entries: Any = None
+                for key in keys:
+                    if key in block:
+                        entries = block[key]
+                        break
+                if entries is None:
+                    schema(**block)
+                else:
+                    if not isinstance(entries, list) or not entries:
+                        raise ValueError('frontmatter entry collection must be a non-empty list')
+                    for entry in entries:
+                        if not isinstance(entry, dict):
+                            raise ValueError('frontmatter entries must be mappings')
+                        schema(**entry)
+                parsed_type = schema.__name__
                 continue
 
-            keys, schema = _ENTRY_SCHEMAS[filename]
-            entries: Any = None
-            for key in keys:
-                if key in block:
-                    entries = block[key]
-                    break
-
-            if entries is None:
-                # Also support one-entry-per-frontmatter source packages.
-                schema(**block)
-            else:
-                if not isinstance(entries, list) or not entries:
-                    raise ValueError('frontmatter entry collection must be a non-empty list')
-                for entry in entries:
-                    if not isinstance(entry, dict):
-                        raise ValueError('frontmatter entries must be mappings')
-                    schema(**entry)
-            parsed_type = schema.__name__
+            # Authoritative V4 document-level block.
+            DocumentFrontmatter(**block)
+            parsed_type = parsed_type or DocumentFrontmatter.__name__
         except (ValidationError, ValueError, yaml.YAMLError):
             errors.append(
                 EngineValidationError(
@@ -193,6 +271,32 @@ def _validate_frontmatter(
                     filename=filename,
                 )
             )
+
+    # ── Fenced per-entry blocks (authoritative V4 format) ────────────────
+    id_field = _FENCED_ID_FIELD.get(filename)
+    if id_field:
+        for block in fenced_blocks:
+            entry_id = block.get(id_field)
+            if entry_id is None:
+                # Policy/config map block (evidence legend, score_caps,
+                # decision_bands, ...) — valid, but not an entry.
+                continue
+            if not isinstance(entry_id, str) or not entry_id.strip():
+                errors.append(
+                    EngineValidationError(
+                        code='INVALID_FRONTMATTER',
+                        message=f'Fenced entry block has an invalid {id_field}',
+                        filename=filename,
+                    )
+                )
+            elif len(entry_id) > 64:
+                errors.append(
+                    EngineValidationError(
+                        code='INVALID_FRONTMATTER',
+                        message=f'{id_field} exceeds 64 characters',
+                        filename=filename,
+                    )
+                )
 
     return parsed_type, source_manifest, errors
 
@@ -248,6 +352,22 @@ def _extract_ids_from_text(filename: str, text: str) -> dict[str, list[str]]:
                 result.setdefault('skill_ids', []).extend(
                     s['skill_id'] for s in skills if isinstance(s, dict) and 'skill_id' in s
                 )
+
+    # Authoritative V4 format: per-entry fenced ```yaml blocks.
+    fenced_id_field = _FENCED_ID_FIELD.get(filename)
+    if fenced_id_field:
+        key = {
+            'claim_id': 'claim_ids',
+            'case_id': 'case_ids',
+            'portfolio_id': 'portfolio_ids',
+            'target_id': 'rule_ids',
+            'gold_id': 'entry_ids',
+            'update_id': 'update_ids',
+        }[fenced_id_field]
+        for block in _parse_fenced_yaml_blocks(text):
+            value = block.get(fenced_id_field)
+            if isinstance(value, str) and value.strip():
+                result.setdefault(key, []).append(value)
 
     return result
 
@@ -500,14 +620,9 @@ def load_engine_package(package_root: str | Path) -> LoadedEnginePackage:
                     filename=entry.filename,
                 )
             )
-        if entry.version != manifest.engine_version:
-            errors.append(
-                EngineValidationError(
-                    code='FILE_VERSION_MISMATCH',
-                    message='File version does not match the deployed engine version',
-                    filename=entry.filename,
-                )
-            )
+        # Per-file content versions may differ from the engine version:
+        # authoritative V4 packages carry e.g. claims 3.7.0 inside engine
+        # 4.0.0. Version presence is enforced by FileVersionEntry.min_length.
 
     expected_manifest_paths = {f'active/{name}' for name in CANONICAL_ACTIVE_FILENAMES}
     if set(manifest.expected_checksums) != expected_manifest_paths:
@@ -717,7 +832,9 @@ def load_engine_package(package_root: str | Path) -> LoadedEnginePackage:
 
         # Frontmatter parsing
         fm_version = _get_version_for_file(canonical, manifest)
-        fm_type, parsed_source, frontmatter_errors = _validate_frontmatter(canonical, text)
+        fm_type, parsed_source, frontmatter_errors = _validate_frontmatter(
+            canonical, text, engine_version_anchor=manifest.engine_version
+        )
         errors.extend(frontmatter_errors)
         if parsed_source is not None:
             source_frontmatter = parsed_source

@@ -255,7 +255,10 @@ def test_malformed_frontmatter_is_rejected(tmp_path: Path) -> None:
     _assert_invalid(load_engine_package(tmp_path), 'INVALID_FRONTMATTER')
 
 
-def test_deployed_file_version_must_match_engine(tmp_path: Path) -> None:
+def test_deployed_file_version_must_be_present(tmp_path: Path) -> None:
+    """Per-file content versions may differ from the engine version (real V4
+    packages carry e.g. claims 3.7.0 inside engine 4.0.0), but a version is
+    still mandatory."""
     _copy_fixture(VALID_MINIMAL, tmp_path)
     import json
 
@@ -263,7 +266,11 @@ def test_deployed_file_version_must_match_engine(tmp_path: Path) -> None:
     manifest = json.loads(manifest_path.read_text('utf-8'))
     manifest['file_versions'][0]['version'] = '3.9.0'
     manifest_path.write_text(json.dumps(manifest), encoding='utf-8')
-    _assert_invalid(load_engine_package(tmp_path), 'FILE_VERSION_MISMATCH')
+    pkg = load_engine_package(tmp_path)
+    assert pkg.valid, 'per-file content version different from engine version is valid'
+    manifest['file_versions'][0]['version'] = ''
+    manifest_path.write_text(json.dumps(manifest), encoding='utf-8')
+    _assert_invalid(load_engine_package(tmp_path), 'INVALID_MANIFEST')
 
 
 # ── Invalid: authority overlap ───────────────────────────────────────────

@@ -13,12 +13,15 @@ from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.analysis.service import EnginePackageUnavailableError
+from app.api.analysis import router as analysis_router
+from app.api.engine import router as engine_router
 from app.api.errors import (
+    engine_package_unavailable_handler,
     http_exception_handler,
     unhandled_exception_handler,
     validation_exception_handler,
 )
-from app.api.engine import router as engine_router
 from app.api.health import router as health_router
 from app.api.migration import router as migration_router
 from app.api.pairing import router as pairing_router
@@ -94,11 +97,13 @@ def create_app(*, initialize_db: bool = True) -> FastAPI:
     app.include_router(pairing_router, prefix=api_prefix)
     app.include_router(migration_router, prefix=api_prefix)
     app.include_router(vacancies_router, prefix=api_prefix)
+    app.include_router(analysis_router, prefix=api_prefix)
     app.include_router(engine_router, prefix=api_prefix)
 
     # Error handlers
     app.add_exception_handler(RequestValidationError, validation_exception_handler)  # type: ignore[arg-type]
     app.add_exception_handler(StarletteHTTPException, http_exception_handler)  # type: ignore[arg-type]
+    app.add_exception_handler(EnginePackageUnavailableError, engine_package_unavailable_handler)
     app.add_exception_handler(Exception, unhandled_exception_handler)
 
     return app

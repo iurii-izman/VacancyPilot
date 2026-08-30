@@ -54,7 +54,7 @@ def build_cors_middleware(allowed_origins: list[str] | None = None) -> type[CORS
             kwargs.setdefault('max_age', 600)
             super().__init__(app, **kwargs)
 
-    return StrictCORSMiddleware  # type: ignore[return-value]
+    return StrictCORSMiddleware
 
 
 # ── Extension origin configuration ───────────────────────────────────────
