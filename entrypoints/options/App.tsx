@@ -12,6 +12,7 @@ import { OnboardingSection } from "@/components/OnboardingSection";
 import { PermissionsSection } from "@/components/PermissionsSection";
 import { PrivacyDisclosureSection } from "@/components/PrivacyDisclosureSection";
 import { CompanionSettings } from "@/components/CompanionSettings";
+import { CommandCenter, Inbox, ApplicationWorkspace } from "@/components/ApplicationOpsWorkspace";
 import { useState, useCallback, useEffect, type ReactNode } from "react";
 import {
   colors,
@@ -50,6 +51,8 @@ import type { JobStatus } from "@/models/job";
 import type { LabsActionLog } from "@/models/labs-action-log";
 
 type SectionId =
+  | "command"
+  | "inbox"
   | "vacancies"
   | "summary"
   | "applications"
@@ -83,6 +86,8 @@ const SECTION_GROUPS: SectionGroup[] = [
   {
     label: "Work",
     sections: [
+      { id: "command", label: "Command Center", icon: "🎯" },
+      { id: "inbox", label: "Inbox", icon: "📥" },
       { id: "vacancies", label: "Vacancies", icon: "📋" },
       { id: "summary", label: "Summary", icon: "📊" },
       { id: "applications", label: "Applications", icon: "📨" },
@@ -144,10 +149,19 @@ function DashboardContent(): ReactNode {
       window.history.replaceState(null, "", window.location.pathname);
       return "onboarding";
     }
-    return "vacancies";
+    return "command";
   });
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const windowWidth = useWindowWidth();
+
+  useEffect(() => {
+    const navigate = (event: Event) => {
+      const target = (event as CustomEvent<SectionId>).detail;
+      if (target === "inbox" || target === "vacancies") setActiveSection(target);
+    };
+    window.addEventListener("vacancypilot:navigate", navigate);
+    return () => window.removeEventListener("vacancypilot:navigate", navigate);
+  }, []);
 
   const handleSectionClick = useCallback(
     (section: SectionId) => {
@@ -407,18 +421,16 @@ export function formatShortDate(iso: string): string {
 
 function SectionContent({ section }: { section: SectionId }): ReactNode {
   switch (section) {
+    case "command":
+      return <CommandCenter onNavigate={(target) => window.dispatchEvent(new CustomEvent("vacancypilot:navigate", { detail: target }))} />;
+    case "inbox":
+      return <Inbox />;
     case "vacancies":
       return <KanbanBoard />;
     case "summary":
-      return <SummarySection />;
+      return <CommandCenter />;
     case "applications":
-      return (
-        <EmptyState
-          icon="📨"
-          message="No applications yet"
-          description="Applications appear when you track your job search progress."
-        />
-      );
+      return <ApplicationWorkspace />;
     case "companies":
       return (
         <EmptyState
@@ -1161,6 +1173,9 @@ const dangerPrimaryButtonStyle = {
 
 // ── Summary Section ──
 
+// Kept for backwards-compatible source-level deep links; the visible Summary
+// entry now intentionally renders the consolidated Command Center.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function SummarySection(): ReactNode {
   const [summary, setSummary] = useState<DailySummaryType | null>(null);
   const [reminders, setReminders] = useState<ReminderItem[]>([]);

@@ -80,6 +80,13 @@ export interface VacancyListMeta {
   offset: number;
 }
 
+export interface VacancyListFilters {
+  source?: string;
+  work_mode?: "remote" | "hybrid" | "office" | "unknown";
+  archived?: boolean;
+  updated_after?: string;
+}
+
 export interface VacancyListResponse {
   data: VacancyListItem[];
   meta: VacancyListMeta;
