@@ -3,23 +3,26 @@
 from __future__ import annotations
 
 import json
+import webbrowser
 from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.base import new_uuid
-from app.db.models import HHSyncRun, SearchProfile
+from app.db.models import HHAccount, HHSyncRun, SearchProfile
 from app.db.session import get_db_session_long
 from app.domain.triage import TriageConfig, TriageVacancy, triage_vacancy
 from app.domain.vacancy_intake import VacancyIntakeService
 from app.hh.client import HHApiClient
-from app.hh.errors import HHApiError
+from app.hh.errors import HHApiError, HHConfigurationError
 from app.hh.models import HHSearchProfileInput, HHSearchProfilePatch
 from app.hh.normalize import normalize_vacancy
+from app.hh.oauth import get_oauth_service
 from app.security.auth import ClientTokenDep
 from app.security.keyring import OSKeyring, SecretSlot
 
@@ -79,16 +82,160 @@ class SyncResponse(BaseModel):
 def hh_status(request: Request, client_identity: ClientTokenDep) -> dict[str, Any]:
     del client_identity
     configured = bool(OSKeyring().get_secret(SecretSlot.HH_APPLICATION_TOKEN))
+    oauth = get_oauth_service().status()
     return {
         'data': {
             'application_token_configured': configured,
             'public_api_available': configured,
-            'user_oauth_connected': False,
+            'user_oauth_connected': oauth['connected'],
+            'oauth_app_configured': oauth['oauth_app_configured'],
+            'refresh_token_configured': oauth['refresh_token_configured'],
             'last_public_sync_at': None,
             'last_error_code': None,
         },
         'meta': _meta(request),
     }
+
+
+@router.post('/hh/auth/start', response_model=dict[str, Any])
+def oauth_start(request: Request, client_identity: ClientTokenDep) -> dict[str, Any]:
+    del client_identity
+    try:
+        data = get_oauth_service().start()
+    except HHConfigurationError as exc:
+        raise HTTPException(status_code=503, detail=exc.code) from exc
+    webbrowser.open(data['authorization_url'], new=2)
+    return {'data': data, 'meta': _meta(request)}
+
+
+@router.get('/hh/auth/callback', response_class=HTMLResponse, include_in_schema=False)
+def oauth_callback_browser(
+    request: Request, state: str = '', code: str = '', error: str = ''
+) -> HTMLResponse:
+    """Handle HH's top-level browser redirect without client-token headers."""
+    del request
+    if error or not state or not code:
+        return HTMLResponse(
+            '<h1>VacancyPilot HH authorization failed</h1><p>You may close this window.</p>',
+            status_code=400,
+        )
+    try:
+        get_oauth_service().callback(state=state, code=code)
+    except HHApiError:
+        return HTMLResponse(
+            '<h1>VacancyPilot HH authorization failed</h1><p>You may close this window.</p>',
+            status_code=400,
+        )
+    return HTMLResponse('<h1>VacancyPilot HH connected</h1><p>You may close this window.</p>')
+
+
+@router.get('/hh/capabilities', response_model=dict[str, Any])
+def hh_capabilities(
+    request: Request,
+    client_identity: ClientTokenDep,
+    db: Session | None = Depends(get_db_session_long),  # noqa: B008
+) -> dict[str, Any]:
+    del client_identity
+    try:
+        capabilities = HHApiClient(oauth=get_oauth_service()).discover_capabilities()
+    except HHConfigurationError as exc:
+        raise HTTPException(status_code=503, detail=exc.code) from exc
+    except HHApiError as exc:
+        code = 'HH_OAUTH_AUTHENTICATION_FAILED' if exc.status_code == 401 else exc.code
+        raise HTTPException(status_code=503, detail=code) from exc
+    _persist_capabilities(db, capabilities)
+    return {
+        'data': capabilities,
+        'meta': _meta(request),
+    }
+
+
+@router.post('/hh/auth/disconnect', response_model=dict[str, Any])
+def oauth_disconnect(request: Request, client_identity: ClientTokenDep) -> dict[str, Any]:
+    del client_identity
+    get_oauth_service().disconnect()
+    return {'data': {'connected': False}, 'meta': _meta(request)}
+
+
+@router.post('/hh/sync/applicant', response_model=dict[str, Any])
+@router.post('/hh/sync/resumes', response_model=dict[str, Any])
+@router.post('/hh/sync/negotiations', response_model=dict[str, Any])
+def sync_applicant(
+    request: Request,
+    client_identity: ClientTokenDep,
+    db: Session | None = Depends(get_db_session_long),  # noqa: B008
+) -> dict[str, Any]:
+    """Read-only applicant projection; no HH mutation and no raw payload storage."""
+    del client_identity
+    client = HHApiClient(oauth=get_oauth_service())
+    try:
+        capabilities = client.discover_capabilities()
+    except HHConfigurationError as exc:
+        raise HTTPException(status_code=503, detail=exc.code) from exc
+    except HHApiError as exc:
+        code = 'HH_OAUTH_AUTHENTICATION_FAILED' if exc.status_code == 401 else exc.code
+        raise HTTPException(status_code=503, detail=code) from exc
+    _persist_capabilities(db, capabilities, sync=True)
+    result = {
+        'capabilities': capabilities,
+        'resumes': _safe_capability_result(capabilities['resumes']),
+        'negotiations': _safe_capability_result(capabilities['negotiations']),
+        'status': (
+            'partial'
+            if any(
+                value['status'] in {'DENIED_BY_HH', 'ERROR'}
+                for value in (capabilities['resumes'], capabilities['negotiations'])
+            )
+            else 'success'
+        ),
+    }
+    return {
+        'data': result,
+        'meta': _meta(request),
+    }
+
+
+def _safe_capability_result(value: dict[str, Any]) -> dict[str, Any]:
+    """Expose capability state and counts, never an upstream payload."""
+    allowed = ('status', 'http_status', 'error_code', 'items_count')
+    return {key: value[key] for key in allowed if key in value}
+
+
+def _persist_capabilities(
+    db: Session | None, capabilities: dict[str, Any], *, sync: bool = False
+) -> None:
+    """Persist only capability metadata and a safe append-only sync audit."""
+    if db is None:
+        return
+    account = db.execute(select(HHAccount).order_by(HHAccount.created_at.asc())).scalars().first()
+    if account is None:
+        account = HHAccount()
+        db.add(account)
+    account.connected = capabilities['account']['status'] == 'AVAILABLE'
+    account.capabilities_json = json.dumps(capabilities, separators=(',', ':'))
+    account.last_sync_at = _now()
+    account.revision = (account.revision or 0) + 1
+    if sync:
+        states = (capabilities['resumes'], capabilities['negotiations'])
+        status = 'partial' if any(item['status'] != 'AVAILABLE' for item in states) else 'success'
+        db.add(
+            HHSyncRun(
+                id=new_uuid(),
+                sync_type='applicant_capabilities',
+                status=status,
+                items_seen=sum(item.get('items_count', 0) for item in states),
+                items_created=0,
+                items_updated=0,
+                error_summary=json.dumps(
+                    [item.get('error_code') for item in states if item.get('error_code')]
+                )
+                or None,
+                result_json=json.dumps(capabilities, separators=(',', ':')),
+                started_at=_now(),
+                finished_at=_now(),
+            )
+        )
+    db.commit()
 
 
 @router.get('/hh/search-profiles', response_model=ProfileListResponse)

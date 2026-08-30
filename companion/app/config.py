@@ -29,6 +29,11 @@ class Settings(BaseSettings):
     # Engine
     engine_package_root: str = ''  # empty => default companion/data/engine/
 
+    # HH OAuth application registration. The client secret is never loaded
+    # from configuration; it belongs in the OS keyring.
+    hh_client_id: str = ''
+    hh_redirect_uri: str = ''
+
     # Observability
     log_level: str = 'info'
 

@@ -13,7 +13,12 @@ class HHApiError(RuntimeError):
 
 
 class HHConfigurationError(HHApiError):
-    """The local application token is not configured."""
+    """A required local credential or setting is not configured."""
 
-    def __init__(self) -> None:
-        super().__init__('HH_APPLICATION_TOKEN_NOT_CONFIGURED')
+    def __init__(
+        self,
+        message: str = 'HH application token is not configured',
+        code: str = 'HH_APPLICATION_TOKEN_NOT_CONFIGURED',
+    ) -> None:
+        super().__init__(code)
+        self.message = message
