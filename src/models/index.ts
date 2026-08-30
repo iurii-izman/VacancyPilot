@@ -10,6 +10,7 @@ export type {
   CoverLetterVersion,
   CoverLetter,
   DraftProvenance,
+  LetterLifecycleState,
 } from "./cover-letter";
 export type { Application } from "./application";
 export type { EventLogType, EventLog } from "./event-log";

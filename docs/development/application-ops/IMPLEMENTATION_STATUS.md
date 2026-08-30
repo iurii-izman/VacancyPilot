@@ -1,6 +1,6 @@
 # Application Ops — Implementation Status
 
-Status: AOPS-08 complete; AOPS-09 next
+Status: AOPS-09 complete; AOPS-10 next
 Date: 2026-08-30
 
 ## Baseline Snapshot

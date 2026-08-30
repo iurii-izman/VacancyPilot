@@ -234,6 +234,70 @@
         "title": "AnalyzeResponse",
         "type": "object"
       },
+      "BridgeData": {
+        "properties": {
+          "bridge_request_id": {
+            "title": "Bridge Request Id",
+            "type": "string"
+          },
+          "engine_version_expected": {
+            "title": "Engine Version Expected",
+            "type": "string"
+          },
+          "request_text": {
+            "title": "Request Text",
+            "type": "string"
+          },
+          "vacancy_hash": {
+            "title": "Vacancy Hash",
+            "type": "string"
+          }
+        },
+        "required": [
+          "bridge_request_id",
+          "vacancy_hash",
+          "engine_version_expected",
+          "request_text"
+        ],
+        "title": "BridgeData",
+        "type": "object"
+      },
+      "BridgeEnvelope": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/BridgeData"
+          },
+          "meta": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Meta",
+            "type": "object"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "BridgeEnvelope",
+        "type": "object"
+      },
+      "BridgeRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "language": {
+            "default": "ru",
+            "enum": [
+              "ru",
+              "en"
+            ],
+            "title": "Language",
+            "type": "string"
+          }
+        },
+        "title": "BridgeRequest",
+        "type": "object"
+      },
       "ConflictDetail": {
         "properties": {
           "entity_id": {
@@ -255,6 +319,28 @@
           "reason"
         ],
         "title": "ConflictDetail",
+        "type": "object"
+      },
+      "DiffEnvelope": {
+        "properties": {
+          "data": {
+            "additionalProperties": true,
+            "title": "Data",
+            "type": "object"
+          },
+          "meta": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Meta",
+            "type": "object"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "DiffEnvelope",
         "type": "object"
       },
       "EngineHealthData": {
@@ -568,6 +654,32 @@
         "title": "ErrorResponse",
         "type": "object"
       },
+      "GenerateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "engine_run_id": {
+            "title": "Engine Run Id",
+            "type": "string"
+          },
+          "expected_revision": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Revision"
+          }
+        },
+        "required": [
+          "engine_run_id"
+        ],
+        "title": "GenerateRequest",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -663,6 +775,72 @@
         "title": "HealthResponse",
         "type": "object"
       },
+      "HistoryEnvelope": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/LetterVersionData"
+            },
+            "title": "Data",
+            "type": "array"
+          },
+          "meta": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Meta",
+            "type": "object"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "HistoryEnvelope",
+        "type": "object"
+      },
+      "ImportRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "bridge_request_id": {
+            "maxLength": 128,
+            "minLength": 8,
+            "title": "Bridge Request Id",
+            "type": "string"
+          },
+          "expected_revision": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Revision"
+          },
+          "response_text": {
+            "maxLength": 65536,
+            "minLength": 1,
+            "title": "Response Text",
+            "type": "string"
+          },
+          "vacancy_hash": {
+            "maxLength": 64,
+            "minLength": 16,
+            "title": "Vacancy Hash",
+            "type": "string"
+          }
+        },
+        "required": [
+          "bridge_request_id",
+          "vacancy_hash",
+          "response_text"
+        ],
+        "title": "ImportRequest",
+        "type": "object"
+      },
       "IntakeData": {
         "properties": {
           "description_hash": {
@@ -741,6 +919,139 @@
           "meta"
         ],
         "title": "IntakeResponse",
+        "type": "object"
+      },
+      "LetterEnvelope": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/LetterVersionData"
+          },
+          "meta": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Meta",
+            "type": "object"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "LetterEnvelope",
+        "type": "object"
+      },
+      "LetterVersionData": {
+        "properties": {
+          "body_text": {
+            "title": "Body Text",
+            "type": "string"
+          },
+          "bridge_request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bridge Request Id"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "engine_run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Engine Run Id"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "prompt_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Version"
+          },
+          "provider": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "vacancy_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vacancy Hash"
+          },
+          "validation_errors": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Validation Errors",
+            "type": "array"
+          },
+          "version_type": {
+            "title": "Version Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "version_type",
+          "body_text",
+          "source",
+          "provider",
+          "model",
+          "prompt_version",
+          "engine_run_id",
+          "bridge_request_id",
+          "vacancy_hash",
+          "validation_errors",
+          "created_at"
+        ],
+        "title": "LetterVersionData",
         "type": "object"
       },
       "MigrationImportData": {
@@ -1373,6 +1684,28 @@
           "snapshot_hash"
         ],
         "title": "SnapshotInfo",
+        "type": "object"
+      },
+      "TextRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "body_text": {
+            "maxLength": 5000,
+            "minLength": 1,
+            "title": "Body Text",
+            "type": "string"
+          },
+          "expected_revision": {
+            "minimum": 1.0,
+            "title": "Expected Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "body_text",
+          "expected_revision"
+        ],
+        "title": "TextRequest",
         "type": "object"
       },
       "TriageData": {
@@ -2116,6 +2449,443 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/applications/{application_id}/letters": {
+      "get": {
+        "operationId": "letter_history_api_v1_applications__application_id__letters_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "application_id",
+            "required": true,
+            "schema": {
+              "title": "Application Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoryEnvelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Letter History",
+        "tags": [
+          "letters"
+        ]
+      }
+    },
+    "/api/v1/applications/{application_id}/letters/bridge-request": {
+      "post": {
+        "operationId": "build_bridge_request_api_v1_applications__application_id__letters_bridge_request_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "application_id",
+            "required": true,
+            "schema": {
+              "title": "Application Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BridgeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BridgeEnvelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Build Bridge Request",
+        "tags": [
+          "letters"
+        ]
+      }
+    },
+    "/api/v1/applications/{application_id}/letters/diff": {
+      "get": {
+        "operationId": "letter_diff_api_v1_applications__application_id__letters_diff_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "application_id",
+            "required": true,
+            "schema": {
+              "title": "Application Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiffEnvelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Letter Diff",
+        "tags": [
+          "letters"
+        ]
+      }
+    },
+    "/api/v1/applications/{application_id}/letters/edit": {
+      "post": {
+        "description": "Append an explicit user-edit snapshot without promoting it to final.",
+        "operationId": "edit_letter_api_v1_applications__application_id__letters_edit_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "application_id",
+            "required": true,
+            "schema": {
+              "title": "Application Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TextRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LetterEnvelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Edit Letter",
+        "tags": [
+          "letters"
+        ]
+      }
+    },
+    "/api/v1/applications/{application_id}/letters/final": {
+      "put": {
+        "operationId": "final_letter_api_v1_applications__application_id__letters_final_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "application_id",
+            "required": true,
+            "schema": {
+              "title": "Application Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TextRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LetterEnvelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Final Letter",
+        "tags": [
+          "letters"
+        ]
+      }
+    },
+    "/api/v1/applications/{application_id}/letters/generate": {
+      "post": {
+        "operationId": "generate_letter_api_v1_applications__application_id__letters_generate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "application_id",
+            "required": true,
+            "schema": {
+              "title": "Application Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LetterEnvelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Generate Letter",
+        "tags": [
+          "letters"
+        ]
+      }
+    },
+    "/api/v1/applications/{application_id}/letters/import": {
+      "post": {
+        "operationId": "import_bridge_response_api_v1_applications__application_id__letters_import_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "application_id",
+            "required": true,
+            "schema": {
+              "title": "Application Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LetterEnvelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Import Bridge Response",
+        "tags": [
+          "letters"
+        ]
+      }
+    },
+    "/api/v1/applications/{application_id}/letters/sent": {
+      "post": {
+        "operationId": "sent_letter_api_v1_applications__application_id__letters_sent_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "application_id",
+            "required": true,
+            "schema": {
+              "title": "Application Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TextRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LetterEnvelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Sent Letter",
+        "tags": [
+          "letters"
+        ]
+      }
+    },
     "/api/v1/engine/runs/{run_id}": {
       "get": {
         "description": "Returns the full detail of a single engine run by ID.",

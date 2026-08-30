@@ -253,6 +253,13 @@ class LetterVersion(Base):
     provider: Mapped[str | None]
     model: Mapped[str | None]
     prompt_version: Mapped[str | None]
+    engine_run_id: Mapped[str | None] = mapped_column(
+        ForeignKey('engine_runs.id', ondelete='SET NULL')
+    )
+    bridge_request_id: Mapped[str | None]
+    vacancy_hash: Mapped[str | None]
+    validation_json: Mapped[str | None]
+    diff_json: Mapped[str | None]
     created_at: Mapped[str] = mapped_column(default=utcnow)
 
     __table_args__ = (

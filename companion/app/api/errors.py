@@ -109,6 +109,10 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException) 
         exc.status_code,
         ('HTTP_ERROR', 'The request could not be completed'),
     )
+    # Letter import validation is a documented machine-readable outcome.  Do
+    # not reflect user-provided provider text; expose only this fixed code.
+    if exc.status_code == 422 and exc.detail == 'IMPORT_INVALID':
+        error_code, message = ('IMPORT_INVALID', 'Imported response failed local validation')
 
     body = _build_error_body(
         code=error_code,
