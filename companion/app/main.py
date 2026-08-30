@@ -15,6 +15,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.analysis.service import EnginePackageUnavailableError
 from app.api.analysis import router as analysis_router
+from app.api.application_ops import router as application_ops_router
 from app.api.engine import router as engine_router
 from app.api.errors import (
     engine_package_unavailable_handler,
@@ -99,6 +100,7 @@ def create_app(*, initialize_db: bool = True) -> FastAPI:
     app.include_router(pairing_router, prefix=api_prefix)
     app.include_router(migration_router, prefix=api_prefix)
     app.include_router(vacancies_router, prefix=api_prefix)
+    app.include_router(application_ops_router, prefix=api_prefix)
     app.include_router(analysis_router, prefix=api_prefix)
     app.include_router(letters_router, prefix=api_prefix)
     app.include_router(engine_router, prefix=api_prefix)
