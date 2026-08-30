@@ -1,6 +1,6 @@
 # Application Ops — Implementation Status
 
-Status: AOPS-09 complete; AOPS-10 next
+Status: AOPS-10 complete; AOPS-11 next
 Date: 2026-08-30
 
 ## Baseline Snapshot
@@ -357,8 +357,8 @@ does not authorize product integration.
 | AOPS-06 | Vacancy intake, deduplication and local triage | complete |
 | AOPS-07 | Engine package, deterministic index and health | complete |
 | AOPS-08 | Full V4 analysis, providers and literal validation | complete |
-| AOPS-09 | Letter lifecycle, manual bridge and generated/sent diff | not started |
-| AOPS-10 | HH public API and search profiles | not started |
+| AOPS-09 | Letter lifecycle, manual bridge and generated/sent diff | complete |
+| AOPS-10 | HH public API and search profiles | complete |
 | AOPS-11 | HH OAuth and read-only applicant sync | not started |
 | AOPS-12 | Command Center, Inbox and Application Card | not started |
 | AOPS-13 | Pipeline, events and follow-ups | not started |
