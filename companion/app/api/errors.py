@@ -127,3 +127,19 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
         request_id=request_id,
     )
     return _error_response(500, body, request_id)
+
+
+async def engine_package_unavailable_handler(request: Request, exc: Any) -> JSONResponse:
+    """Map EnginePackageUnavailable to a 409 envelope with a safe reason.
+
+    The exception message is built by the service and contains only sanitized,
+    non-private information (error codes and filenames) — never candidate
+    content — so it is safe to expose.
+    """
+    request_id = _get_request_id(request)
+    body = _build_error_body(
+        code='ENGINE_PACKAGE_UNAVAILABLE',
+        message=str(exc),
+        request_id=request_id,
+    )
+    return _error_response(409, body, request_id)

@@ -1,6 +1,239 @@
 {
   "components": {
     "schemas": {
+      "AnalyzeData": {
+        "description": "Response data for a completed analysis.",
+        "properties": {
+          "cached": {
+            "default": false,
+            "title": "Cached",
+            "type": "boolean"
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence"
+          },
+          "cover_letter": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cover Letter"
+          },
+          "created_at": {
+            "default": "",
+            "title": "Created At",
+            "type": "string"
+          },
+          "decision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision"
+          },
+          "estimated_cost_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimated Cost Usd"
+          },
+          "ready": {
+            "title": "Ready",
+            "type": "boolean"
+          },
+          "recruiter_risks": {
+            "items": {
+              "$ref": "#/components/schemas/RecruiterRisk"
+            },
+            "title": "Recruiter Risks",
+            "type": "array"
+          },
+          "repair_status": {
+            "title": "Repair Status",
+            "type": "string"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "token_input": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token Input"
+          },
+          "token_output": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token Output"
+          },
+          "vacancy_id": {
+            "title": "Vacancy Id",
+            "type": "string"
+          },
+          "validation_errors": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Validation Errors",
+            "type": "array"
+          }
+        },
+        "required": [
+          "run_id",
+          "vacancy_id",
+          "status",
+          "repair_status",
+          "ready"
+        ],
+        "title": "AnalyzeData",
+        "type": "object"
+      },
+      "AnalyzeRequest": {
+        "additionalProperties": false,
+        "description": "POST /api/v1/vacancies/{id}/analyze request body.",
+        "properties": {
+          "case_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 5,
+            "title": "Case Ids",
+            "type": "array"
+          },
+          "claim_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 15,
+            "title": "Claim Ids",
+            "type": "array"
+          },
+          "force": {
+            "default": false,
+            "description": "When true, bypass the input-hash cache and force a new provider call.",
+            "title": "Force",
+            "type": "boolean"
+          },
+          "language": {
+            "default": "ru",
+            "enum": [
+              "ru",
+              "en"
+            ],
+            "title": "Language",
+            "type": "string"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "portfolio_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Portfolio Id"
+          },
+          "privacy_mode": {
+            "default": "standard",
+            "enum": [
+              "standard",
+              "strict"
+            ],
+            "title": "Privacy Mode",
+            "type": "string"
+          },
+          "provider": {
+            "const": "openai",
+            "default": "openai",
+            "title": "Provider",
+            "type": "string"
+          }
+        },
+        "title": "AnalyzeRequest",
+        "type": "object"
+      },
+      "AnalyzeResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AnalyzeData"
+          },
+          "meta": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Meta",
+            "type": "object"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "AnalyzeResponse",
+        "type": "object"
+      },
       "ConflictDetail": {
         "properties": {
           "entity_id": {
@@ -178,6 +411,112 @@
           "meta"
         ],
         "title": "EngineHealthResponse",
+        "type": "object"
+      },
+      "EngineRunDetailResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/EngineRunItem"
+          },
+          "meta": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Meta",
+            "type": "object"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "EngineRunDetailResponse",
+        "type": "object"
+      },
+      "EngineRunItem": {
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "decision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision"
+          },
+          "engine_version": {
+            "title": "Engine Version",
+            "type": "string"
+          },
+          "input_hash": {
+            "title": "Input Hash",
+            "type": "string"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "ready": {
+            "title": "Ready",
+            "type": "boolean"
+          },
+          "repair_status": {
+            "title": "Repair Status",
+            "type": "string"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "vacancy_id": {
+            "title": "Vacancy Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id",
+          "vacancy_id",
+          "status",
+          "repair_status",
+          "ready",
+          "engine_version",
+          "provider",
+          "input_hash",
+          "created_at"
+        ],
+        "title": "EngineRunItem",
         "type": "object"
       },
       "ErrorData": {
@@ -807,6 +1146,139 @@
           "meta"
         ],
         "title": "PairStartResponse",
+        "type": "object"
+      },
+      "PayloadPreview": {
+        "description": "Pre-execution payload preview for user review.",
+        "properties": {
+          "cache_hit": {
+            "default": false,
+            "title": "Cache Hit",
+            "type": "boolean"
+          },
+          "estimated_cost_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimated Cost Usd"
+          },
+          "input_hash": {
+            "title": "Input Hash",
+            "type": "string"
+          },
+          "language": {
+            "title": "Language",
+            "type": "string"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "privacy_mode": {
+            "title": "Privacy Mode",
+            "type": "string"
+          },
+          "prompt_version": {
+            "title": "Prompt Version",
+            "type": "string"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "token_estimate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token Estimate"
+          },
+          "what_is_not_sent": {
+            "items": {
+              "type": "string"
+            },
+            "title": "What Is Not Sent",
+            "type": "array"
+          },
+          "what_is_sent": {
+            "items": {
+              "type": "string"
+            },
+            "title": "What Is Sent",
+            "type": "array"
+          }
+        },
+        "required": [
+          "provider",
+          "model",
+          "prompt_version",
+          "input_hash",
+          "privacy_mode",
+          "language"
+        ],
+        "title": "PayloadPreview",
+        "type": "object"
+      },
+      "PreviewResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/PayloadPreview"
+          },
+          "meta": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Meta",
+            "type": "object"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "PreviewResponse",
+        "type": "object"
+      },
+      "RecruiterRisk": {
+        "additionalProperties": false,
+        "description": "Exactly two recruiter-side risks the candidate should prepare for.",
+        "properties": {
+          "mitigation": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Mitigation",
+            "type": "string"
+          },
+          "risk": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Risk",
+            "type": "string"
+          },
+          "severity": {
+            "default": "medium",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Severity",
+            "type": "string"
+          }
+        },
+        "required": [
+          "risk"
+        ],
+        "title": "RecruiterRisk",
         "type": "object"
       },
       "RiskFlagOut": {
@@ -1644,6 +2116,54 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/engine/runs/{run_id}": {
+      "get": {
+        "description": "Returns the full detail of a single engine run by ID.",
+        "operationId": "engine_run_detail_api_v1_engine_runs__run_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineRunDetailResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Get a persisted engine run",
+        "tags": [
+          "analysis"
+        ]
+      }
+    },
     "/api/v1/engine/status": {
       "get": {
         "description": "Returns sanitized engine health fields: installed/configured/valid, engine version, active file count, aggregate hash, claim/case/portfolio counts, validation error codes and safe filenames, and last successful load time. Candidate text is never returned through this endpoint.",
@@ -2166,6 +2686,84 @@
         "summary": "Vacancy Detail",
         "tags": [
           "vacancies"
+        ]
+      }
+    },
+    "/api/v1/vacancies/{vacancy_id}/analyze": {
+      "post": {
+        "description": "Compiles evidence, calls the configured LLM provider, validates the output, and persists an engine run.  Supports preview-only mode.",
+        "operationId": "vacancy_analyze_api_v1_vacancies__vacancy_id__analyze_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "vacancy_id",
+            "required": true,
+            "schema": {
+              "title": "Vacancy Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "When true, only generate a payload preview",
+            "in": "query",
+            "name": "preview",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "When true, only generate a payload preview",
+              "title": "Preview",
+              "type": "boolean"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalyzeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/AnalyzeResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/PreviewResponse"
+                    }
+                  ],
+                  "title": "Response Vacancy Analyze Api V1 Vacancies  Vacancy Id  Analyze Post"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Analyze a vacancy with the V4 engine",
+        "tags": [
+          "analysis"
         ]
       }
     },
