@@ -37,6 +37,7 @@ class HHOAuthService:
 
     AUTHORIZE_URL = 'https://hh.ru/oauth/authorize'
     TOKEN_URL = 'https://api.hh.ru/token'
+    REDIRECT_URI = 'http://127.0.0.1:8765/api/v1/hh/auth/callback'
     PENDING_TTL = 300
     CLOCK: Callable[[], float] = time.time
 
@@ -60,7 +61,7 @@ class HHOAuthService:
         bundle = self._read_bundle()
         configured = bool(
             settings.hh_client_id.strip()
-            and settings.hh_redirect_uri.strip()
+            and settings.hh_redirect_uri.strip() == self.REDIRECT_URI
             and self._keyring.get_secret(SecretSlot.HH_CLIENT_SECRET)
         )
         return {
@@ -158,7 +159,7 @@ class HHOAuthService:
     def _require_app_config() -> None:
         if (
             settings.hh_client_id.strip() == ''
-            or settings.hh_redirect_uri.strip() != 'http://127.0.0.1:8765/api/v1/hh/auth/callback'
+            or settings.hh_redirect_uri.strip() != HHOAuthService.REDIRECT_URI
         ):
             raise HHConfigurationError(
                 'HH OAuth application credentials are not configured',

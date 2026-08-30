@@ -8,7 +8,7 @@ import random
 import re
 import time
 from typing import Any
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 import httpx
 
@@ -161,6 +161,45 @@ class HHApiClient:
         _validate_resource_id(negotiation_id)
         return self._oauth_request(f'/negotiations/{negotiation_id}/messages')
 
+    def discover_capabilities(self) -> dict[str, Any]:
+        """Probe account and optional applicant reads without blind retries."""
+        account = self.current_user()
+        if not isinstance(account, dict):
+            raise HHApiError('HH_ACCOUNT_PAYLOAD_INVALID')
+        result: dict[str, Any] = {
+            'account': {
+                'status': 'AVAILABLE',
+                'auth_type': account.get('auth_type'),
+                'is_applicant': account.get('is_applicant'),
+                'is_employer': account.get('is_employer'),
+                'resumes_url_present': isinstance(account.get('resumes_url'), str),
+                'negotiations_url_present': isinstance(account.get('negotiations_url'), str),
+            },
+            'resumes': self._probe_capability(
+                _official_resource_path(account.get('resumes_url'), '/resumes/mine')
+            ),
+            'negotiations': self._probe_capability(
+                _official_resource_path(account.get('negotiations_url'), '/negotiations')
+            ),
+            'write_actions': 'FORBIDDEN_BY_PRODUCT',
+        }
+        return result
+
+    def _probe_capability(self, path: str) -> dict[str, Any]:
+        try:
+            payload = self._oauth_request(path)
+        except HHApiError as exc:
+            if exc.status_code == 403:
+                return {'status': 'DENIED_BY_HH', 'http_status': 403, 'error_code': exc.code}
+            if exc.status_code == 401:
+                raise HHApiError('HH_OAUTH_AUTHENTICATION_FAILED', exc.status_code) from exc
+            return {'status': 'ERROR', 'error_code': exc.code}
+        items = payload.get('items', []) if isinstance(payload, dict) else payload
+        return {
+            'status': 'AVAILABLE',
+            'items_count': len(items) if isinstance(items, list) else 0,
+        }
+
 
 def _retry_after(value: str | None) -> float:
     try:
@@ -172,6 +211,23 @@ def _retry_after(value: str | None) -> float:
 def _validate_resource_id(value: str) -> None:
     if not re.fullmatch(r'[A-Za-z0-9_-]{1,128}', value):
         raise HHApiError('HH_RESOURCE_ID_INVALID')
+
+
+def _official_resource_path(value: Any, fallback: str) -> str:
+    """Accept only canonical paths returned by /me on the official API host."""
+    if not isinstance(value, str):
+        return fallback
+    parsed = urlparse(value)
+    if (
+        parsed.scheme != 'https'
+        or parsed.netloc != 'api.hh.ru'
+        or parsed.params
+        or parsed.query
+        or parsed.fragment
+        or parsed.path not in {'/resumes/mine', '/negotiations'}
+    ):
+        raise HHApiError('HH_RESOURCE_URL_INVALID')
+    return parsed.path
 
 
 def _status_code(status: int) -> str:

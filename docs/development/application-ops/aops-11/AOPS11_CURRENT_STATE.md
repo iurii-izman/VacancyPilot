@@ -14,7 +14,7 @@ AOPS-10 was fully accepted and locally merged into `main` before this branch was
 - Safe status reporting without token values or raw upstream payloads.
 - Interactive local client-secret setup command that never accepts the secret as a CLI argument.
 
-## Live blocking state
+## Live acceptance state
 
 Current local configuration is:
 
@@ -23,4 +23,4 @@ Current local configuration is:
 - OS-keyring `HH_CLIENT_SECRET`: configured
 - OS-keyring OAuth token bundle: present after explicit authorization
 
-The registered redirect is the VacancyPilot loopback callback. Earlier Postman-based attempts are obsolete. AOPS-11 now uses a real GET callback and does not refresh while the access token is still valid. Live `/me` succeeded, while `/resumes/mine` and `/negotiations` returned 403 capability denials. AOPS-11 remains unmerged.
+The registered redirect is the exact VacancyPilot loopback callback. Earlier Postman-based attempts are obsolete. AOPS-11 uses a real GET callback and does not refresh while the access token is still valid. Live `/me` succeeded with applicant auth; canonical `/resumes/mine` and `/negotiations` both returned sanitized 403 `forbidden` responses. These are represented as `DENIED_BY_HH`, persisted as safe capability metadata, and do not trigger retries or writes. The honest live matrix is `account=AVAILABLE`, `resumes=DENIED_BY_HH`, `negotiations=DENIED_BY_HH`; this is partial live capability acceptance, not successful resume/negotiation sync.
