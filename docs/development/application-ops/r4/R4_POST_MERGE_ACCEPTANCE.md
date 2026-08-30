@@ -17,7 +17,8 @@ tag, release, AOPS-14 work, or private-engine source change was performed.
 - `d3fa7e8` — AOPS-13 implementation
 - `4b1f92c` — local no-ff AOPS-13 merge
 
-`main` is four commits ahead of `origin/main`; `origin/main` is unchanged.
+`main` is five commits ahead of `origin/main` (the fifth is this acceptance
+record); `origin/main` is unchanged.
 
 ## Gates
 
