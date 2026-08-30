@@ -14,7 +14,7 @@ The AOPS-11 OAuth/account acceptance passed. Optional applicant capabilities are
 - `/me` canonical URLs were present and validated to `https://api.hh.ru/resumes/mine` and `https://api.hh.ru/negotiations`.
 - Real `GET /resumes/mine` and `GET /negotiations` returned sanitized HTTP 403 `forbidden`; both are represented as `DENIED_BY_HH`.
 
-No secret was requested or printed in chat. AOPS-10 remains accepted and merged locally; AOPS-11 is accepted on its feature branch pending the local no-ff merge.
+No secret was requested or printed in chat. AOPS-10 remains accepted and merged locally; AOPS-11 is accepted and merged locally into `main`.
 
 ## Implemented and tested
 

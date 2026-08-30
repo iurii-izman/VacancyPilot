@@ -2,7 +2,7 @@
 
 ## Boundary
 
-AOPS-10 was fully accepted and locally merged into `main` before this branch was created. AOPS-11 is implemented on `feat/aops-11-hh-oauth-sync` and has not been merged.
+AOPS-10 was fully accepted and locally merged into `main` before this branch was created. AOPS-11 was accepted and merged into `main` as merge commit `3694ad1`.
 
 ## Implemented
 
