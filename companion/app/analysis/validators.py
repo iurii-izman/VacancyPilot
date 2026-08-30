@@ -191,34 +191,37 @@ def _check_recruiter_risks(result: V4StructuredResult) -> list[str]:
 def _check_signature(letter: str) -> list[str]:
     """Signature present, and only whitespace (or just a name) after signature."""
     errors: list[str] = []
-    sig_patterns = [
-        re.compile(r'^[A-ZА-Я][a-zа-я]+\s+[A-ZА-Я][a-zа-я]+', re.MULTILINE),
-        re.compile(r'(?:с уважением|best regards|kind regards|искренне| sincerely)', re.I),
-    ]
-    has_sig = any(p.search(letter) for p in sig_patterns)
-    if not has_sig:
-        errors.append('SIGNATURE_MISSING: no signature detected')
-
-    # Check that after the signature, only a name or whitespace follows
     lines = letter.split('\n')
+    signoff_pattern = re.compile(
+        r'(?:с уважением|best regards|kind regards|искренне|sincerely)', re.I
+    )
+    name_pattern = re.compile(r'^[A-ZА-ЯЁ][a-zа-яё]+\s+[A-ZА-ЯЁ][a-zа-яё]+$')
 
-    # Find the last significant line (salutation or name)
+    # A name is a signature only when it is the final non-empty line. Treating
+    # any two capitalized words as a name misclassified greetings such as
+    # "Dear Hiring Manager" and rejected otherwise valid letters.
+    non_empty_indexes = [i for i, line in enumerate(lines) if line.strip()]
     sig_idx = -1
-    for i, line in enumerate(lines):
-        if any(p.search(line) for p in sig_patterns):
+    for i in reversed(non_empty_indexes):
+        if signoff_pattern.search(lines[i]):
             sig_idx = i
             break
+    if (
+        sig_idx < 0
+        and non_empty_indexes
+        and name_pattern.match(lines[non_empty_indexes[-1]].strip())
+    ):
+        sig_idx = non_empty_indexes[-1]
+    if sig_idx < 0:
+        errors.append('SIGNATURE_MISSING: no signature detected')
 
     if sig_idx >= 0:
         # Content after signature: allow at most one name line
         trailing_lines = [ln.strip() for ln in lines[sig_idx + 1 :] if ln.strip()]
-        if len(trailing_lines) > 1:
+        if len(trailing_lines) > 1 or (
+            len(trailing_lines) == 1 and not name_pattern.match(trailing_lines[0])
+        ):
             errors.append('SIGNATURE_TRAILING: content found after signature line')
-        elif len(trailing_lines) == 1:
-            # Check if the trailing line looks like a name (two capitalized words)
-            name_pat = re.compile(r'^[A-ZА-ЯЁ][a-zа-яё]+\s+[A-ZА-ЯЁ][a-zа-яё]+$')
-            if not name_pat.match(trailing_lines[0]):
-                errors.append('SIGNATURE_TRAILING: content found after signature line')
     return errors
 
 
@@ -510,17 +513,17 @@ def validate_structured_result(
     errors.extend(_check_evidence_whitelist(evidence_dicts))
     errors.extend(_check_portfolio_boundary(evidence_dicts, index))
 
-    # If there's a cover letter, validate it too
-    if result.cover_letter:
-        errors.extend(
-            validate_letter(
-                result.cover_letter,
-                recommendation=result.score.decision,
-                language='en' if english_required else 'ru',
-                title=result.vacancy_identity.role,
-                english_required=english_required,
-            )
+    # A successful Full V4 result must include a letter that passes every
+    # literal validator. Skipping an empty string would permit a false PASS.
+    errors.extend(
+        validate_letter(
+            result.cover_letter,
+            recommendation=result.score.decision,
+            language='en' if english_required else 'ru',
+            title=result.vacancy_identity.role,
+            english_required=english_required,
         )
+    )
 
     return errors
 

@@ -17,7 +17,7 @@ from app.analysis.models import (
 from app.engine.index import KnowledgeIndex
 from app.engine.models import LoadedEnginePackage
 
-PROMPT_VERSION = 'v4.0.0-ao8-1'
+PROMPT_VERSION = 'v4.0.0-ao8-2'
 
 OUTPUT_JSON_SCHEMA = {
     'type': 'object',
@@ -136,7 +136,7 @@ OUTPUT_JSON_SCHEMA = {
                 },
             },
         },
-        'cover_letter': {'type': 'string', 'maxLength': 5000},
+        'cover_letter': {'type': 'string', 'minLength': 400, 'maxLength': 5000},
         'recruiter_risks': {
             'type': 'array',
             'minItems': 2,
@@ -625,6 +625,11 @@ def _build_system_prompt_ru() -> str:
         '6. Верни строго валидный JSON без markdown-обёртки.\n'
         '7. Если информации недостаточно для трёх требований — '
         'верни пустой массив central_requirements.\n'
+        '8. `cover_letter` обязателен: пять абзацев в порядке приветствие, '
+        'интерес к вакансии, опыт с конкретным количественным proof, ценность '
+        'для компании, закрытие с благодарностью и подписью. Для decision '
+        '`apply`/`consider` — 150–220 слов; для `skip` — 90–130. Используй '
+        'минимум два термина из названия вакансии и только разрешённые факты.\n'
     )
 
 
@@ -641,6 +646,11 @@ def _build_system_prompt_en() -> str:
         '6. Return strictly valid JSON without markdown fences.\n'
         '7. If insufficient information for three requirements — '
         'return empty central_requirements array.\n'
+        '8. `cover_letter` is mandatory: write five paragraphs in this order: '
+        'greeting, vacancy interest, experience with a concrete quantitative '
+        'proof, value for the company, and a thankful closing with signature. '
+        'For `apply`/`consider`, use 150–220 words; for `skip`, use 90–130. '
+        'Include at least two terms from the vacancy title and use only allowed facts.\n'
     )
 
 

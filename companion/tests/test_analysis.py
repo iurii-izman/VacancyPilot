@@ -297,6 +297,12 @@ class TestLiteralValidators:
         errors = _check_signature('No signature here.')
         assert any('SIGNATURE_MISSING' in e for e in errors)
 
+    def test_greeting_is_not_misclassified_as_a_signature(self) -> None:
+        from app.analysis.validators import _check_signature
+
+        letter = 'Dear Hiring Manager,\n\nI am interested in the role.\n\nBest regards,\nJane Doe'
+        assert _check_signature(letter) == []
+
     def test_english_mode_required(self) -> None:
         from app.analysis.validators import _check_english_mode
 
@@ -313,6 +319,30 @@ class TestLiteralValidators:
         )
         errors = _check_english_mode(english_letter, required=True)
         assert errors == []
+
+    def test_empty_cover_letter_is_rejected(self) -> None:
+        """An empty letter must not bypass the Full V4 validation gate."""
+        from app.analysis.models import V4StructuredResult
+        from app.analysis.validators import validate_structured_result
+
+        result = V4StructuredResult(
+            vacancy_identity={'company': 'Test Corp', 'role': 'Python Developer'},
+            eligibility={'hard_fail': False, 'reasons': []},
+            central_requirements=[],
+            evidence_map=[],
+            score={'raw': 80, 'final': 80, 'confidence': 'high', 'decision': 'apply'},
+            strategy={'positioning': 'test', 'tone': 'confident'},
+            cover_letter='',
+            recruiter_risks=[
+                {'risk': 'Risk A', 'severity': 'low'},
+                {'risk': 'Risk B', 'severity': 'medium'},
+            ],
+            interview_prep=[],
+            qa={'passed': True, 'errors': []},
+        )
+
+        errors = validate_structured_result(result)
+        assert any('H1_MISSING' in error for error in errors)
 
 
 class TestScoreValidation:
@@ -378,6 +408,13 @@ class TestRecruiterRisks:
 
 class TestPromptCompiler:
     """Prompt compiler determinism and hash consistency."""
+
+    def test_system_prompt_requires_a_valid_cover_letter(self) -> None:
+        from app.analysis.compiler import _build_system_prompt_en
+
+        prompt = _build_system_prompt_en()
+        assert '`cover_letter` is mandatory' in prompt
+        assert '150–220 words' in prompt
 
     def test_input_hash_deterministic(self) -> None:
         from app.analysis.compiler import compile_prompt
