@@ -36,17 +36,17 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@types/chrome": "^0.1.43",
+    "@types/chrome": "^0.2.7",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitest/coverage-v8": "^3.2.6",
     "@wxt-dev/module-react": "1.2.2",
-    "eslint": "^10.5.0",
+    "eslint": "^10.9.1",
     "fake-indexeddb": "^6.2.5",
-    "happy-dom": "^20.10.6",
+    "happy-dom": "^20.11.12",
     "typescript": "^6.0.0",
-    "typescript-eslint": "^8.61.1",
+    "typescript-eslint": "^8.68.0",
     "vitest": "^3.2.6",
-    "wxt": "0.20.26"
+    "wxt": "0.21.4"
   }
 }
