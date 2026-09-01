@@ -1,5 +1,9 @@
 # AI Agent Instructions
 
+## Startup Context
+
+Before planning repository work, read [`docs/project-memory/README.md`](docs/project-memory/README.md). It is a navigation aid; accepted specifications, ADRs, contracts, security reviews, acceptance reports, code, and tests remain authoritative.
+
 This repository is specification-first. Before making implementation changes, read:
 
 1. `docs/Техническое заданиеV.1.md`
@@ -48,4 +52,3 @@ Keep permissions minimal. Do not add broad host permissions or sensitive extensi
 - Use clear, short commit messages.
 - Do not commit generated build outputs, secrets, API keys, browser profiles, or local logs.
 - If adding implementation code, include the relevant test or fixture coverage in the same change when practical.
-
