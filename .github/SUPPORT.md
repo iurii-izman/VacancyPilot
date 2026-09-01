@@ -1,6 +1,6 @@
 # Support
 
-VacancyPilot is an **early-stage, private-alpha project**. It is actively developed by a single maintainer.
+VacancyPilot is an **early-stage, pre-release personal-dogfood project**. The public repository is visible, but current product use is personal and feature development is frozen while evidence is collected.
 
 ---
 
@@ -18,7 +18,7 @@ VacancyPilot is an **early-stage, private-alpha project**. It is actively develo
 
 Open an issue on GitHub:
 
-→ [New Issue](https://github.com/VacancyPilot/VacancyPilot/issues/new/choose)
+→ [New Issue](https://github.com/iurii-izman/VacancyPilot/issues/new/choose)
 
 Use the provided templates:
 - **Bug Report** — for unexpected behavior, parsing failures, crashes
@@ -26,8 +26,8 @@ Use the provided templates:
 
 ### Before Reporting
 
-- Check [existing issues](https://github.com/VacancyPilot/VacancyPilot/issues) to avoid duplicates
-- Read the [README](https://github.com/VacancyPilot/VacancyPilot#readme) and [documentation](../docs/)
+- Check [existing issues](https://github.com/iurii-izman/VacancyPilot/issues) to avoid duplicates
+- Read the [README](https://github.com/iurii-izman/VacancyPilot#readme) and [documentation](../docs/)
 - If the parser fails on a specific vacancy, include the page structure (not the page HTML — see privacy note below)
 
 ---
@@ -42,7 +42,7 @@ Use the provided templates:
 
 ## Links
 
-- [README](https://github.com/VacancyPilot/VacancyPilot#readme)
+- [README](https://github.com/iurii-izman/VacancyPilot#readme)
 - [Documentation](../docs/)
 - [Security Policy](../SECURITY.md)
 - [Contributing Guide](CONTRIBUTING.md)

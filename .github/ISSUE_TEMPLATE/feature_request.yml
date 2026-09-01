@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for proposing a feature. Please review the project's [safety boundaries](https://github.com/VacancyPilot/VacancyPilot#what-it-does-not-do) before submitting.
+        Thanks for proposing a feature. Please review the project's [safety boundaries](https://github.com/iurii-izman/VacancyPilot#what-it-does-not-do) before submitting.
 
         **VacancyPilot is not an auto-apply bot.** Features that involve auto-submit, auto-click, or hidden HH requests will not be accepted.
 

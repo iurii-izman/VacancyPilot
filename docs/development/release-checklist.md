@@ -1,11 +1,14 @@
 # Release Checklist — VacancyPilot
 
-Status: ITER-064  
+Status: FUTURE PUBLIC-RELEASE BACKLOG / NOT IMMINENT
+Last reviewed: 2026-09-01
 Source: spec sections 19.6, 22.4, 26.5, 26.6; EPIC-11; EPIC-15; PHASE-1-SIGNOFF
+
+This checklist is not a current release sign-off. R5 and manual browser QA are accepted for personal dogfood; the optional local companion adds packaging, pairing and storage-scope questions that must be resolved before a public store release.
 
 ## Automated Checks (CI Gate)
 
-These checks run automatically via `pnpm test` and must all pass before release. Status as of ITER-064:
+These checks run automatically via `pnpm test` and must all pass before release. Current gate commands are `pnpm verify`, `pnpm verify:companion` and `pnpm test:release`; record actual counts in the dated sync report rather than copying historical totals.
 
 - [x] **Manifest permission audit** — `src/release-safety/manifest-safety.test.ts`
   - Only `storage`, `sidePanel`, `activeTab` in permissions
@@ -115,11 +118,11 @@ The following checks are NOT automated and require manual verification:
 
 ## Release Candidate Sign-off
 
-- [x] All automated CI checks pass (1615 tests, 0 failures)
+- [x] Fresh automated gates pass for the reviewed snapshot (actual counts recorded in the dated sync report)
 - [x] `pnpm typecheck` passes
 - [x] `pnpm lint` passes
 - [x] `pnpm build` succeeds
-- [x] `pnpm test:release` passes (373 release-safety tests, 0 failures)
+- [x] `pnpm test:release` passes (actual count recorded in the dated sync report)
 - [x] No secrets committed
 - [x] Manifest permissions are minimal
 - [x] Manual QA rerun completed in at least 2 browsers for the current Phase 1 core scope (see `docs/development/manual-qa-run-2026-06-20.md` § Phase 1 Closeout Rerun)

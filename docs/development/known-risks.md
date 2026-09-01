@@ -144,7 +144,7 @@ This document lists all known risks, open decisions, and unresolved gaps at Phas
 
 **Risk**: Core closeout rerun (Chrome + Edge) passed for Phase 1 scope. The wider public-release regression matrix in `release-checklist.md` and `qa-checklist.md` has not been fully re-run item-by-item. Phase 2 features (search triage, HR timeline, queue, reminders) have not been manually QA'd in live browsers.
 
-**Mitigation**: QA checklists are comprehensive. All automated safety, privacy, and fixture tests pass (1615 unit tests, 373 release-safety tests).
+**Mitigation**: QA checklists are comprehensive and the current verification gates are rerun at the documentation sync/release gate. Counts are recorded from the dated run rather than hardcoded in this risk register.
 
 **Residual**: Full public-release regression QA not yet executed. Some Phase 2+ features untested in real browser runtime.
 

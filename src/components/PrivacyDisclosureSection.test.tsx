@@ -49,7 +49,7 @@ describe("PrivacyDisclosureSection — content disclosure", () => {
     expect(source).toMatch(/No Other External/);
     expect(source).toMatch(/No analytics/);
     expect(source).toMatch(/crash reporting/);
-    expect(source).toMatch(/developer-operated backend/);
+    expect(source).toMatch(/developer-operated cloud backend/);
     expect(source).toMatch(/third-party advertising/);
   });
 

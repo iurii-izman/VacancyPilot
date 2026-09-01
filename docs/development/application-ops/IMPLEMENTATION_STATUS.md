@@ -3,29 +3,34 @@
 Status: R5 PASS; feature development frozen for real daily use / dogfood
 Date: 2026-09-01
 
-## R5 Closure (2026-09-01)
+## Current snapshot (2026-09-01)
 
-R5 is implemented locally as a bounded Application Factory and lightweight
-conversion read model. R5-A and R5-B were developed on separate feature
-branches and accepted with local no-ff merges. The implementation preserves
-the existing V4, cover-letter and AOPS-13 transition boundaries. AOPS-14 is
-still not started; canonical AOPS-15 is not complete.
+R5 is accepted and pushed as a bounded Application Factory and descriptive
+conversion read model. Manual browser QA is PASS with synthetic local data.
+R5.1 Project Memory Lite is accepted and pushed. Dependency maintenance is
+also merged. Feature development is frozen while real daily-use evidence is
+collected; this is the current operating baseline, not an active epic queue.
 
-Manual Browser QA is PASS with synthetic local data. Feature development is
-frozen while real daily-use evidence is collected. AOPS-14 remains deferred
+R5 preserves the existing V4, cover-letter and AOPS-13 boundaries. Preview
+makes zero provider calls, execution requires explicit confirmation, queue
+preparation never creates `APPLIED`, no-response remains pending, and
+conversion analytics are descriptive rather than causal. AOPS-14 is deferred
 and not started; full canonical AOPS-15 remains incomplete.
+
+The runtime/code baseline reviewed before this documentation-only pass is
+`607f8004f39ab2d810181f7fd973bbb8935e871c`. Fresh local dependency audit on
+this snapshot reports 3 high and 1 moderate advisory in the pnpm graph;
+GitHub Dependabot exposes 2 open alerts. No dependency upgrade is performed
+or implied here.
 
 ## Baseline Snapshot
 
 ```text
-branch:            main (direct commits; no feature branches or PRs)
-start commit:      e13eec2535f0c32534a659489262df3c052af99f
-                   ("docs: add repo-local Zed launcher")
-pack import:       8117cc7ec479210a027bc09954d9069c65d23bd4 (ancestor ✓)
-predecessor:       e36a067ae4e8ef931bf0f151712016cb4dbce47e (ancestor ✓)
-historical MVP:    71ab48c48376a1e7b44ed0733fdc9aa435f39e76 (ancestor ✓)
+branch:            main (direct commits; one active branch)
+reviewed baseline: 607f8004f39ab2d810181f7fd973bbb8935e871c
+origin/main:       607f8004f39ab2d810181f7fd973bbb8935e871c (before docs pass)
 v4.0.0 tag:        ABSENT (preserved — not created, moved, or deleted)
-worktree:          clean
+worktree:          clean before docs pass
 ```
 
 ## Baseline Validation (2026-07-29)
@@ -296,16 +301,16 @@ throughout all AOPS epics:
 - Onboarding: permission disclosure, privacy explainer
 
 ### Technical Baseline
-- WXT 0.20.26, Manifest V3, Chrome MV3
-- TypeScript 6, React 19, Dexie 4.4.4, Vitest 3.2.6
+- WXT 0.21.4, Manifest V3, Chrome MV3
+- TypeScript 6, React 19, Dexie 4.4.5, Vitest 3.2.6
 - Permissions: `storage`, `sidePanel`, `activeTab`
 - Optional `host_permissions`: `https://api.openai.com/*`, exact companion loopback origin
 - No broad host permissions
 - Package manager: pnpm 11.1.1
 
 ### Quality Baseline
-- 65 test files, 1700 tests
-- 10 release-safety files, 391 tests
+- Current counts are recorded from the fresh verification run in `docs/development/DOCUMENTATION_TRUTH_SYNC_2026-09-01.md`.
+- TypeScript strict mode
 - TypeScript strict mode
 - ESLint with type-aware rules
 

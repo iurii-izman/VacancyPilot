@@ -1,7 +1,7 @@
 # Chrome Web Store Listing Draft — VacancyPilot
 
-Status: first real release baseline  
-Date: 2026-06-22
+Status: future public-release draft; not imminent
+Date: 2026-09-01
 
 This file contains ready-to-edit store copy and review-facing text for a future public release. It is intentionally narrower than the full public-release prerequisites checklist.
 
@@ -15,7 +15,7 @@ Local-first HH.ru job-search copilot for vacancy scoring, cover letters, and tra
 
 ## Full Description
 
-VacancyPilot is a local-first, read-first browser extension for HH.ru.
+VacancyPilot is a local-first, read-first browser extension for HH.ru with an optional loopback-only FastAPI companion for Ops Mode.
 
 It helps you:
 
@@ -26,16 +26,22 @@ It helps you:
 - generate and edit cover-letter drafts with optional BYOK AI assistance;
 - export your local data as JSON or CSV.
 
+Standalone Mode uses Dexie/IndexedDB. Ops Mode uses a paired local companion
+with SQLite authority, OS-keyring secrets, official HH API reads and the
+private local V4 engine package. The companion is not a developer cloud
+backend.
+
 VacancyPilot is explicitly designed around safety boundaries:
 
 - no auto-submit;
 - no auto-click on HH controls;
 - no form autofill on HH pages;
-- no hidden HH requests;
+- no hidden browser-side HH requests; official companion-side HH API reads are
+  read-only and explicit;
 - no cookies or session handling;
 - no telemetry by default.
 
-All core product data stays local in your browser through IndexedDB and `chrome.storage.local`. Optional AI requests are user-triggered, previewed before sending, and routed directly to the user-configured provider.
+Data may remain in the browser or in the user’s local companion. Optional AI requests are user-triggered, previewed before sending, and use either the standalone BYOK path or the paired companion path.
 
 ## Permissions Justification
 
@@ -57,9 +63,9 @@ Requested only when the user explicitly enables AI and confirms an AI action. Us
 
 ## Privacy / Support Links
 
-- Privacy policy: `https://github.com/VacancyPilot/VacancyPilot/blob/main/PRIVACY.md`
-- Support: `https://github.com/VacancyPilot/VacancyPilot/blob/main/.github/SUPPORT.md`
-- Security: `https://github.com/VacancyPilot/VacancyPilot/security/advisories/new`
+- Privacy policy: `https://github.com/iurii-izman/VacancyPilot/blob/main/PRIVACY.md`
+- Support: `https://github.com/iurii-izman/VacancyPilot/blob/main/.github/SUPPORT.md`
+- Security: `https://github.com/iurii-izman/VacancyPilot/security/advisories/new`
 
 ## Store Screenshot Plan
 

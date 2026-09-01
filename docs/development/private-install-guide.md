@@ -1,238 +1,138 @@
-# Private Install & Validation Guide — VacancyPilot
+# Private Install and Daily-Use Guide — VacancyPilot
 
-Status: ITER-064  
-Target audience: developer or early tester installing from source
+Status: current personal dogfood guide
+Last reviewed: 2026-09-01
 
-This guide covers building and loading the extension for private/personal use. It does NOT cover Chrome Web Store submission.
-
----
+This guide covers installation from source for personal use. It does not describe Chrome Web Store publication. Do not copy private engine payloads, real candidate data, API keys, OAuth tokens, browser profiles, databases or QA artifacts into the repository.
 
 ## Prerequisites
 
-| Requirement | Version | Check |
-|-------------|---------|-------|
-| Node.js | >= 18 | `node --version` |
-| pnpm | >= 8 | `pnpm --version` |
-| Chromium browser | Chrome, Edge, Brave, or Яндекс Браузер (latest stable) | — |
-| Git | any recent | `git --version` |
+| Requirement | Current policy/check |
+| --- | --- |
+| Node.js | Use the current LTS supported by the toolchain; CI uses Node 22. Check with `node --version`. |
+| pnpm | `pnpm@11.1.1` from `package.json`; check with `pnpm --version`. |
+| Python | 3.12 or newer, required by `companion/pyproject.toml`. |
+| uv | Required for the companion workflow; check with `uv --version`. |
+| Chromium | Chrome, Edge, Brave or Yandex Browser for unpacked extension use. |
+| Git | Recent version. |
 
----
-
-## 1. Clone and Install
+## 1. Install the repository
 
 ```bash
-git clone <repository-url> vacancy-pilot
+git clone https://github.com/iurii-izman/VacancyPilot.git vacancy-pilot
 cd vacancy-pilot
 pnpm install
 ```
 
----
+The repository package version remains `0.1.0`; this is a dogfood build, not a release version.
 
-## 2. Verify the Build
+## 2. Standalone Mode
 
-Run the automated checks before loading the extension:
+Standalone Mode needs only the extension:
 
 ```bash
-# TypeScript type checking
-pnpm typecheck
-
-# Lint
-pnpm lint
-
-# Unit and safety tests
-pnpm test
-
-# Production build
+pnpm verify
 pnpm build
+```
 
-# Release safety tests
+Load `.output/chrome-mv3/` as an unpacked extension from the browser’s extensions page with Developer mode enabled. Open an HH.ru vacancy yourself, then use the VacancyPilot UI. Dexie/IndexedDB is the canonical domain store; settings, small state and the standalone BYOK path use `chrome.storage.local`.
+
+## 3. Ops Mode companion
+
+Ops Mode is optional. It adds local SQLite authority, the paired FastAPI companion, official HH read-only API access, the private local V4 engine and Application Factory workflows.
+
+Install and verify the companion:
+
+```bash
+uv sync --project companion
+pnpm verify:companion
+```
+
+Apply the local schema before using operational endpoints:
+
+```bash
+uv run --project companion alembic -c companion/alembic.ini upgrade head
+```
+
+Start the loopback-only service:
+
+```bash
+uv run --project companion uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8765
+```
+
+The companion health endpoint is `http://127.0.0.1:8765/api/v1/health`. It does not silently migrate the database at startup.
+
+## 4. Pair the extension locally
+
+1. Build and load the extension.
+2. In the extension’s **Companion** settings, enable **Ops Mode** and grant the narrow loopback permission when prompted.
+3. Start pairing from the same screen.
+4. Read the short-lived six-digit code displayed in the companion terminal and enter it in the extension.
+5. Confirm that the status is **Connected**.
+
+The extension stores its client token separately in browser local storage; the companion stores only a hash for verification. Disconnect/revoke pairing when the local relationship should end.
+
+## 5. Install and verify the private V4 engine
+
+The real engine package is supplied privately and is not committed here. Install it into the companion’s local engine data root with the existing CLI:
+
+```bash
+uv run --project companion vacancypilot-engine install --source <private-engine-package-directory>
+uv run --project companion vacancypilot-engine verify
+```
+
+The CLI validates and atomically activates the package. Full V4 analysis is blocked when the package is missing or invalid; deterministic Stage A triage remains independent. Keep the source package, local engine data and any candidate knowledge outside Git.
+
+## 6. Optional AI and HH setup
+
+### Standalone AI
+
+Configure OpenAI BYOK in the extension settings only if needed. The standalone key is kept in `chrome.storage.local`, separately from IndexedDB and exports, with a clear non-vault warning. AI actions are opt-in and payload-previewed.
+
+### Ops Mode Full V4 AI
+
+Configure the companion’s provider secret through its OS keyring and use the local companion analysis flow. Do not put secrets in shell history, source files, SQLite domain records or logs. The companion supports the OpenAI path accepted by the current Application Ops contract.
+
+### HH official API/OAuth
+
+The companion’s HH integration is optional and read-only. Obtain credentials through HH’s official developer/OAuth process; keep application credentials, client secrets and OAuth token bundles on the companion side. The repository includes the local HH credential helper for the OAuth client secret (`python -m app.hh.credentials`), while application-token provisioning is an operator setup concern and must not be passed to the extension or committed. OAuth uses the loopback callback shown by the companion contract.
+
+The extension UI reports capability reality honestly: account `AVAILABLE`, resumes `DENIED_BY_HH`, negotiations `DENIED_BY_HH`, and writes `FORBIDDEN_BY_PRODUCT` where applicable. No private-endpoint or scraping fallback exists.
+
+## 7. Daily R5 workflow
+
+Search Profiles / HH discovery → Inbox → select → preview → explicit process → review V4 decision → prepare/review letter → manually apply externally → confirm `APPLIED` → track response/outcome.
+
+Application Factory preview makes zero provider calls. Processing requires explicit confirmation and prepares a manual queue; it does not submit applications or create `APPLIED`. Conversion/Performance views are descriptive and warn about small samples and non-causation.
+
+## 8. Verification commands
+
+```bash
+pnpm verify
+pnpm verify:companion
 pnpm test:release
 ```
 
-All five commands must pass. The build output is in `.output/chrome-mv3/`.
-
-Expected current output: about **1615 tests** in the main suite and **373 release-safety tests**. Exact counts may move slightly as tests are added, but both commands must stay fully green.
-
----
-
-## 3. Load the Extension in Chrome
-
-1. Open Chrome and navigate to `chrome://extensions/`.
-2. Enable **Developer mode** (toggle in the top-right corner).
-3. Click **Load unpacked**.
-4. Select the `.output/chrome-mv3/` directory from this project.
-5. The extension "VacancyPilot" should appear in your extensions list.
-
----
-
-## 3a. Load in Edge
-
-1. Open Edge and navigate to `edge://extensions/`.
-2. Enable **Developer mode**.
-3. Click **Load unpacked**.
-4. Select the `.output/chrome-mv3/` directory.
-
----
-
-## 3b. Load in Brave
-
-1. Open Brave and navigate to `brave://extensions/`.
-2. Enable **Developer mode**.
-3. Click **Load unpacked**.
-4. Select the `.output/chrome-mv3/` directory.
-
----
-
-## 3c. Load in Яндекс Браузер
-
-1. Open Яндекс Браузер and navigate to `browser://extensions/`.
-2. Enable **Developer mode**.
-3. Click **Load unpacked**.
-4. Select the `.output/chrome-mv3/` directory.
-
----
-
-## 4. Permissions Granted
-
-At the current private-alpha stage, the extension requests only:
-
-| Permission | Reason |
-|------------|--------|
-| `storage` | Save vacancy data, settings, and profiles locally |
-| `sidePanel` | Open a side panel for the current browser window |
-| `activeTab` | Read the user-opened HH.ru page after explicit user action |
-
-There are currently no broad `host_permissions` and no `optional_permissions` in the manifest.
-
-The current build also declares a narrow optional runtime host access for OpenAI requests: `https://api.openai.com/*`. It is not a broad install-time host permission.
-
----
-
-## 5. Smoke Test After Install
-
-1. Open any HH.ru vacancy page (e.g., `https://hh.ru/vacancy/12345678`).
-2. Confirm the **VacancyPilot badge** appears on the page (small floating badge, top-right area).
-3. Click the badge — the **side panel** should open with vacancy details.
-4. Click the extension icon in the toolbar — the **popup** should open.
-5. Click "Dashboard" from the popup — the dashboard page should open.
-6. Check that no errors appear in the browser console (F12 → Console).
-
-If the badge does not appear:
-- Check that the extension is enabled in `chrome://extensions/`.
-- Ensure you are on a `https://*.hh.ru/vacancy/*` URL.
-- Check `chrome.storage.local` settings: `showPageBadge` must not be `false`.
-
----
-
-## 6. Onboarding
-
-On first install, the extension shows an onboarding flow that explains:
-- Permissions and what data is accessed
-- Storage (local-only, no cloud sync)
-- AI features (opt-in, BYOK)
-- n8n integration (opt-in, Labs)
-- Non-goals (no auto-apply, no auto-click)
-
----
-
-## 7. Quick Feature Tour
-
-### Parse a vacancy
-Navigate to any HH.ru vacancy. The extension automatically extracts title, company, salary, description, and skills. Passive HH status (applied, invitation, rejection, viewed) is also detected.
-
-### Score a vacancy
-Open the side panel. A rule-based score (0–100) is displayed with a breakdown of factors (title match, skills, experience fit, work mode, salary, company preference).
-
-### Track application status
-From the side panel or popup, change the status: Saved → Applied → Interview → Offer → Rejected → Archived. Status history is recorded with timestamps.
-
-### Search triage (Phase 2)
-On HH.ru search result pages, the extension shows quick-action badges on each vacancy card. Use **Save** or **Reject** directly from the search page without opening each vacancy.
-
-### Queue and workflow
-Use the queue view to manage your application pipeline with kanban stages. Company greylist helps you track organizations you've decided not to engage with.
-
-### HR timeline
-When an employer sends you an invitation, message, or rejection, the extension captures it on the vacancy page. Timeline entries are stored locally and linked to the corresponding job.
-
-### AI analysis (requires API key)
-1. Go to extension **Settings** → **AI**.
-2. Enter your API key (OpenAI-compatible provider).
-3. Configure privacy mode (Standard or Strict).
-4. On a vacancy page, click **Analyze** in the side panel.
-5. Review the **payload preview** before confirming.
-6. AI analysis results appear in the side panel.
-
-### Generate a cover letter
-1. From the vacancy side panel, click **Cover Letter**.
-2. Select mode (short / full / concise).
-3. Click **Generate**.
-4. Edit the generated text if needed.
-5. **Save** or **Copy** the letter.
-
-### HR follow-up drafts
-From the HR workspace, draft replies and schedule follow-ups for employer communications. All drafts are stored locally.
-
-### Export data
-1. Go to extension **Settings** → **Data**.
-2. Click **Export CSV** or **Export JSON**.
-3. File downloads to your default download location.
-
-### Delete all data
-1. Go to extension **Settings** → **Data**.
-2. Click **Delete All Data**.
-3. Confirm the action.
-
----
-
-## 8. Uninstalling
-
-1. Go to `chrome://extensions/`.
-2. Find "VacancyPilot".
-3. Click **Remove**.
-4. All local data is deleted with the extension.
-
-To keep data before uninstalling, export first (CSV or JSON).
-
----
+These commands cover extension typecheck, lint, tests, build, release-safety tests, companion Ruff/mypy/pytest and OpenAPI drift. All must pass for a trusted local baseline. Test totals are intentionally not hardcoded here; record the observed count with the date in a report.
 
 ## 9. Troubleshooting
 
-| Problem | Check |
-|---------|-------|
-| Badge not appearing | Only on `https://*.hh.ru/vacancy/*` or `https://*.hh.ru/search/*` pages. Check `showPageBadge` setting. |
-| Search badge not appearing | Only on `https://*.hh.ru/search/vacancy*` pages. Ensure Phase 2 features are not disabled in settings. |
-| Side panel not opening | Click the badge or extension icon → "Open side panel". Ensure `sidePanel` permission is granted. |
-| AI request fails | Check API key in Settings. Check network connectivity. Review payload preview for errors. |
-| Parser returns no data | HH page may have changed DOM. Check browser console for parser errors. Report with vacancy URL. |
-| Extension crashes | Reload extension in `chrome://extensions/`. Check console for error stack traces. |
+| Symptom | Check |
+| --- | --- |
+| Badge absent | Use a user-opened `https://*.hh.ru/vacancy/*` or search page; verify the extension is enabled and page-badge setting is on. |
+| Companion unavailable | Confirm the Uvicorn process, `127.0.0.1:8765`, browser permission and the health endpoint. |
+| Not paired | Enable Ops Mode, grant loopback permission, start pairing and use the current terminal code before it expires. |
+| API incompatible | Run the repository and companion from matching accepted revisions; inspect the displayed API versions. |
+| Engine invalid | Run `vacancypilot-engine verify`; replace only through the validated private package install flow. |
+| Keyring failure | Check the OS credential-store integration and companion process user; never replace it with plaintext logs or command-line secrets. |
+| HH capability denied | Treat `DENIED_BY_HH` as a real upstream restriction; do not retry through scraping or private endpoints. |
+| AI request fails | Review the payload preview, provider/key configuration and provider response; cached results may still be used where the UI indicates. |
+| Queue cannot resume | Treat as an immediate hotfix criterion; preserve local evidence and do not manually mark items `APPLIED` without the explicit workflow. |
 
----
+## 10. Local data and uninstall
 
-## 10. Updating
+Browser deletion controls clear extension-managed Dexie tables and known `chrome.storage.local` keys. They do not delete unknown browser keys or companion SQLite, OS-keyring or engine data. Uninstalling the extension may remove browser-managed storage but does not necessarily remove the separate companion resources; export before deletion when retention is wanted.
 
-To update to a newer build:
+## 11. Current scope
 
-```bash
-git pull
-pnpm install
-pnpm build
-```
-
-Then:
-1. Go to `chrome://extensions/`.
-2. Find "VacancyPilot".
-3. Click the **reload** icon (circular arrow).
-4. Your data persists across reloads (stored in IndexedDB and `chrome.storage.local`).
-
----
-
-## 11. Development
-
-For development with hot reload:
-
-```bash
-pnpm dev
-```
-
-This starts WXT in development mode. Load the `.output/chrome-mv3-dev/` directory as an unpacked extension. Changes to source files trigger automatic rebuild.
+Feature development is frozen for real daily use / dogfood. AOPS-14 Interview Pack and full AOPS-15 remain deferred/incomplete. Do not treat historical `ITER-060`/`EPIC-31` text as the next automatic implementation step.

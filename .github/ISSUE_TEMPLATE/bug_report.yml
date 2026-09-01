@@ -8,7 +8,7 @@ body:
       value: |
         Thanks for taking the time to report a bug. Please fill out the form below.
 
-        **Before submitting**: check [existing issues](https://github.com/VacancyPilot/VacancyPilot/issues) for duplicates.
+        **Before submitting**: check [existing issues](https://github.com/iurii-izman/VacancyPilot/issues) for duplicates.
         **Do not include secrets, API keys, or personal data.**
 
   - type: textarea

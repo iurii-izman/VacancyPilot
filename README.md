@@ -1,162 +1,154 @@
 # VacancyPilot
 
-**Local-first HH.ru job-search copilot** for safe vacancy triage, explainable scoring, cover letters and application tracking.
+Local-first, human-controlled HH.ru job-search copilot for read-only vacancy intake, explainable analysis, evidence-aware cover letters, application preparation and tracking, and descriptive conversion feedback.
 
-> Read-first. Local-first. No auto-apply. No hidden HH requests.
+No auto-apply. No hidden browser-side HH requests. No external recruiter or follow-up sending.
 
----
-
-[![CI](https://github.com/VacancyPilot/VacancyPilot/actions/workflows/ci.yml/badge.svg)](https://github.com/VacancyPilot/VacancyPilot/actions/workflows/ci.yml)
-[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![CI](https://github.com/iurii-izman/VacancyPilot/actions/workflows/ci.yml/badge.svg)](https://github.com/iurii-izman/VacancyPilot/actions/workflows/ci.yml)
+[![TypeScript](https://img.shields.io/badge/TypeScript-6-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-19-20232A?logo=react)](https://react.dev/)
-[![WXT](https://img.shields.io/badge/WXT-0.20-67C0E6)](https://wxt.dev/)
+[![WXT](https://img.shields.io/badge/WXT-0.21-67C0E6)](https://wxt.dev/)
 [![Manifest V3](https://img.shields.io/badge/Manifest-V3-4285F4?logo=googlechrome&logoColor=white)](https://developer.chrome.com/docs/extensions/mv3/intro/)
-[![Local-first](https://img.shields.io/badge/local--first-%E2%9C%93-success)](#)
-[![Privacy-first](https://img.shields.io/badge/privacy--first-%E2%9C%93-success)](#)
-[![Status](https://img.shields.io/badge/status-private%20alpha-orange)](#current-status)
 
----
+## Status
 
-## Preview
+**Pre-release / personal dogfood.** R5 is accepted and pushed; R5.1 Project Memory Lite is accepted and pushed; dependency maintenance is merged. Feature development is frozen while real usage evidence is collected. VacancyPilot is not published as a Chrome Web Store release.
 
-Screenshots will be added after the next Chrome/Edge manual QA pass.
+“Personal dogfood” describes current product use, not repository visibility: this GitHub repository is public, while the private V4 engine package and real candidate knowledge remain outside it.
 
-Planned:
-- Vacancy popup
-- Side panel
-- Dashboard / Kanban
-- Search results badges
+## What It Does Today
 
-Repository social preview artwork: [`assets/social-preview/vacancypilot-social-preview.svg`](assets/social-preview/vacancypilot-social-preview.svg)
+- Reads visible vacancy and search-card data from HH.ru pages the user opened.
+- Uses the official HH read-only API through the optional local companion in Ops Mode.
+- Manages Search Profiles and deterministic Stage A triage.
+- Runs evidence-aware Full V4 analysis when the private local engine package and explicit AI configuration are available.
+- Prepares, edits and tracks evidence-aware cover letters; generated text is never evidence.
+- Provides the R5 Application Factory: preview, explicit confirmation and a resumable manual preparation queue. Queue preparation never creates `APPLIED`.
+- Tracks applications, pipeline events, follow-ups and explicit manual `APPLIED` confirmation.
+- Provides bounded descriptive conversion/performance views with provenance and small-sample/non-causation warnings.
+- Exports and deletes local data, with storage scope depending on Standalone versus Ops Mode.
 
----
+## What It Does Not Do
 
-## What It Does
+- No auto-submit, auto-apply, auto-click, or programmatic writes to HH forms.
+- No synthetic HH form events, CAPTCHA or antibot bypass.
+- No cookie, password or HH browser-session handling.
+- No hidden browser/content-script fetches to HH pages or private endpoints.
+- No external recruiter, follow-up or message sending.
+- No developer-operated cloud backend, cloud sync or developer telemetry by default.
 
-- Extracts visible vacancy data from user-opened HH.ru pages
-- Scores vacancies against user profiles with explainable 0–100 breakdown
-- Saves and rejects jobs locally (IndexedDB via Dexie)
-- Shows search result badges for quick triage
-- Tracks application statuses and HR communication timeline
-- Prepares cover letter inputs with privacy-first AI assist
-- Exports all data as JSON or CSV — no lock-in
+External actions remain explicit and human-controlled. AI and other external flows are opt-in and previewed before execution.
 
----
+## Architecture
 
-## What It Does NOT Do
+VacancyPilot has two local operating surfaces:
 
-- **No auto-submit** — never submits forms or applications
-- **No auto-click** — never programmatically clicks HH.ru controls
-- **No form autofill** — never writes values into HH.ru form fields
-- **No hidden HH fetch** — no fetch/XHR to HH.ru endpoints from background or content scripts
-- **No cookie/session handling** — does not access HH.ru cookies, tokens, or session state
-- **Minimal permission surface** — current core permissions are `storage`, `sidePanel`, `activeTab`, with a narrow optional OpenAI runtime host for user-confirmed AI requests
-- **No telemetry by default** — no analytics, crash reporting, or usage tracking
+```mermaid
+flowchart LR
+    HH[User-opened HH pages] --> DOM[Read-only content scripts]
+    DOM --> UI[Extension UI]
+    UI --> DEXIE[(Dexie / IndexedDB)]
+    UI --> STORAGE[chrome.storage.local]
+    UI <--> API[Paired localhost API]
+    API <--> COMP[Local FastAPI companion]
+    COMP --> SQLITE[(SQLite canonical store)]
+    COMP --> KEYRING[OS keyring]
+    COMP --> ENGINE[Private local V4 engine package]
+    COMP --> HHAPI[Official api.hh.ru read API]
+    COMP --> OPENAI[OpenAI BYOK on explicit action]
+```
 
----
+**Standalone Mode** is the extension-only workflow: WXT, Manifest V3, TypeScript and React; Dexie/IndexedDB is the canonical domain store and `chrome.storage.local` holds settings, small state and the standalone BYOK path.
 
-## Current Status
+**Ops Mode** pairs the extension with a loopback-only FastAPI companion. SQLite is canonical there; Dexie acts as cache/outbox and sync metadata. The companion keeps its operational secrets in the OS keyring, loads the private V4 package locally, and makes official HH API reads. It is not a developer cloud backend.
 
-**Private alpha / dogfooding.**
+## Safety and Privacy
 
-- CI pipeline with typecheck, lint, unit tests, build, and release-safety tests — green
-- OpenAI BYOK provider is implemented behind explicit user action and payload preview
-- Critical dependency alerts — remediated
-- High dependency alert backlog — triaged/remediated in the latest security pass
-- GitHub infrastructure and security baseline — 90+ % complete
-- Public-release work remains mostly in packaging, legal/compliance, broader manual QA, and larger parser coverage
+The browser HH path is read-only DOM inspection on user-opened pages. The companion’s official HH integration is also read-only; current capability denials are represented honestly (`AVAILABLE`, `DENIED_BY_HH`, and `FORBIDDEN_BY_PRODUCT`). There is no fallback to scraping or private HH endpoints.
 
----
+Read the [security policy](SECURITY.md) and [privacy policy](PRIVACY.md) for storage, key handling, external requests, retention and deletion boundaries.
+
+## AI, Engine and Application Factory
+
+Full V4 analysis requires the private engine package installed locally; real candidate knowledge is intentionally absent from this public repository. OpenAI BYOK requests are explicit, payload-previewed and locally accounted for. A generated letter is a draft until the user reviews and records the appropriate state.
+
+R5 Application Factory prepares a manual queue. Preview makes zero provider calls, execution requires explicit confirmation, and the user must perform any HH application action outside VacancyPilot and then confirm `APPLIED`. R5 conversion intelligence is descriptive: it reports the observed sample and provenance, not causal proof.
 
 ## Tech Stack
 
 | Layer | Technology |
-|-------|-----------|
-| Extension framework | [WXT](https://wxt.dev/) |
-| Manifest | Manifest V3 |
-| Language | TypeScript |
-| UI | React 19 |
-| Local database | Dexie (IndexedDB) |
-| Settings / small state | `chrome.storage.local` |
-| Testing | Vitest |
-| Linting | ESLint |
-| CI | GitHub Actions |
-
----
-
-## Architecture
-
-```mermaid
-flowchart LR
-    HH[User-opened HH.ru pages] --> CS[Read-only content scripts]
-    CS --> BG[Background service worker]
-    BG --> DB[(Dexie / IndexedDB)]
-    UI[Popup / Side panel / Dashboard] --> DB
-    UI --> Storage[chrome.storage.local]
-    DB --> Export[JSON / CSV export]
-    AI[Optional AI providers] -. explicit user action .-> UI
-```
-
----
+| --- | --- |
+| Extension | WXT 0.21, Manifest V3, TypeScript 6, React 19 |
+| Standalone storage | Dexie 4 / IndexedDB; `chrome.storage.local` |
+| Companion | Python 3.12+, FastAPI, Pydantic, SQLite, SQLAlchemy, Alembic |
+| Secrets | OS keyring for companion secrets; standalone extension BYOK remains in `chrome.storage.local` with a warning |
+| Contract | Generated OpenAPI snapshot at [`shared/contracts/openapi.json`](shared/contracts/openapi.json) |
+| Verification | Vitest, pytest, Ruff, mypy, ESLint |
 
 ## Quick Start
 
+### A. Standalone extension
+
 ```bash
-pnpm install          # Install dependencies
-pnpm dev              # Dev mode with hot reload (Chrome)
-pnpm build            # Production build
-pnpm typecheck        # TypeScript type-check
-pnpm lint             # Lint code
-pnpm test             # Run unit tests
-pnpm test:release     # Run release-safety tests
+pnpm install
+pnpm verify
+pnpm build
 ```
 
-Load the unpacked extension from `.output/chrome-mv3/` in Chrome Developer mode.
+Load `.output/chrome-mv3/` as an unpacked extension in a Chromium browser. Open an HH.ru vacancy yourself, then use the extension UI.
 
-See [`docs/development/private-install-guide.md`](docs/development/private-install-guide.md) for detailed instructions.
+### B. Ops Mode with the local companion
 
----
+```bash
+uv sync --project companion
+pnpm verify:companion
+uv run --project companion uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8765
+```
 
-## Development Safety Checks
+Pair the extension with the running loopback companion, install and verify the private engine package using the local CLI/docs, and configure OpenAI BYOK or HH official API/OAuth only if those optional flows are needed. The [private install guide](docs/development/private-install-guide.md) contains the current workflow and troubleshooting; do not put engine payloads or secret values in the repository.
 
-Every PR and push to `main` runs through CI:
+## Development and Verification
 
-1. **TypeScript type-check** — `pnpm typecheck`
-2. **Lint** — `pnpm lint`
-3. **Unit tests** — `pnpm test`
-4. **Production build** — `pnpm build`
-5. **Release-safety tests** — validates generated manifest, content-script safety, and forbidden automation patterns
+Root verification:
 
-Release-safety tests are the project's automated guard against accidentally introducing forbidden HH automation or broad permissions.
+```bash
+pnpm verify
+pnpm test:release
+```
 
----
+Companion verification:
 
-## Roadmap
+```bash
+pnpm verify:companion
+```
 
-| Priority | Workstream | Status |
-|----------|-----------|--------|
-| P0 | Data Integrity Hardening | Planned |
-| P0 | Runtime QA (Chrome / Edge) | Planned |
-| P1 | Parser Fixture Expansion | Planned |
-| P1 | Public Release Docs And Assets | Planned |
-| P2 | UI Design System | Backlog |
-| P2 | Public Beta Readiness | Backlog |
+CI workflows are listed in [`.github/workflows/`](.github/workflows/). No release, version bump, license selection or public-store publication is implied by a green local build.
 
-See [`docs/ROADMAP.md`](docs/ROADMAP.md) for full details and near-term priorities.
+## Current Roadmap
 
----
+The current mode is real daily use / dogfood. Observe search-profile yield, Stage A/V4 quality, letter edits, queue friction, provider/token/cost behavior, response/interview conversion and provenance correctness. Apply immediate hotfixes only for data loss, duplicate applications, incorrect `APPLIED`, duplicate paid calls, cache corruption, wrong vacancy/letter linkage, wrong outcome/provenance, security/privacy issues or a queue that cannot resume.
+
+The next feature milestone will be selected from repeated evidence after an observation period; AOPS-14 Interview Pack and full AOPS-15 remain deferred/incomplete. Public-release work is a separate backlog.
+
+See the [current roadmap](docs/ROADMAP.md).
 
 ## Documentation
 
-- [Product specification](docs/Техническое%20заданиеV.1.md)
-- [Development pack](docs/development/)
-- [Docs index](docs/README.md)
-- [Privacy policy](PRIVACY.md)
-- [Security policy](SECURITY.md)
-- [Release notes](docs/release-notes.md)
+- [Project Memory Lite](docs/project-memory/README.md) — startup map for future agents and developers
+- [Current state](docs/project-memory/CURRENT_STATE.md) — accepted runtime baseline and operating mode
+- [Application Ops status](docs/development/application-ops/IMPLEMENTATION_STATUS.md) — current implementation and validation
+- [Master specification](docs/Техническое%20заданиеV.1.md)
+- [Daily-use readiness](docs/development/application-ops/r5/R5_DAILY_USE_READINESS.md)
+- [Private install guide](docs/development/private-install-guide.md)
+- [Privacy policy](PRIVACY.md) and [security policy](SECURITY.md)
+- [Public-release prerequisites](docs/development/public-release-prerequisites.md)
 
----
+Historical acceptance reports and development packs remain evidence and planning context; they are not automatically the next implementation instruction.
+
+## Preview
+
+No public screenshots are currently committed. R5 manual browser QA passed on 2026-09-01 using synthetic local data; the browser screenshots, logs and disposable database remain local and gitignored intentionally. The repository social preview artwork is [`assets/social-preview/vacancypilot-social-preview.svg`](assets/social-preview/vacancypilot-social-preview.svg).
 
 ## License
 
-**Not selected yet.** Until a license is added, all rights are reserved by default.
+No license has been selected. Until a license is added, all rights are reserved by default.

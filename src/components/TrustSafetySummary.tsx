@@ -61,7 +61,7 @@ export function TrustSafetySummary({
           <li>Does not auto-submit applications or fill HH.ru forms</li>
           <li>Does not auto-click HH.ru controls or simulate user actions</li>
           <li>Does not access your HH.ru login, cookies, or session</li>
-          <li>Does not send data to developer servers — there are none</li>
+          <li>Does not send data to a developer cloud backend or sync service</li>
           <li>Does not collect analytics, telemetry, or crash reports</li>
           {!isCompact && (
             <>
@@ -81,11 +81,12 @@ export function TrustSafetySummary({
           <h3 style={cardHeading}>Where Data Is Stored</h3>
           <ul style={listStyle}>
             <li>
-              All data is stored <strong>only in your browser</strong>:
-              IndexedDB for vacancy data and profiles,{" "}
-              <code>chrome.storage.local</code> for settings and API keys
+              Standalone data is stored in your browser: IndexedDB for vacancy
+              data and profiles, <code>chrome.storage.local</code> for settings
+              and the standalone BYOK path. Optional Ops Mode stores canonical
+              operational data in the local companion SQLite database.
             </li>
-            <li>No cloud sync, no developer backend, no third-party storage</li>
+            <li>No developer cloud backend or sync service; companion secrets use the OS keyring</li>
             <li>
               You can export all data (CSV or JSON) and delete everything from
               the Dashboard at any time
@@ -99,8 +100,9 @@ export function TrustSafetySummary({
         <h3 style={cardHeading}>Key Principles</h3>
         <ul style={listStyle}>
           <li>
-            <strong>Local-first</strong> — All data stays in your browser
-            (IndexedDB + chrome.storage.local). No cloud sync.
+            <strong>Local-first</strong> — Data stays on your device: browser
+            storage in Standalone Mode, optional SQLite companion storage in Ops
+            Mode. No developer cloud sync.
           </li>
           <li>
             <strong>Read-first</strong> — The extension reads vacancy pages you

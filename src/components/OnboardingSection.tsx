@@ -42,7 +42,7 @@ const STEPS: StepDef[] = [
   {
     id: "labs",
     number: 6,
-    title: "Enable Labs / n8n (optional)",
+    title: "Review Labs / n8n (deferred optional)",
     kind: "optional",
   },
 ];
@@ -246,9 +246,9 @@ export function OnboardingSection(): ReactNode {
               >
                 This build declares only <strong>storage</strong>,{" "}
                 <strong>sidePanel</strong>, and <strong>activeTab</strong>. It
-                does not declare install-time host permissions. OpenAI host
-                access is optional and requested only when you confirm an AI
-                request.
+                does not declare install-time host permissions. OpenAI host and
+                loopback companion access are optional and requested only when
+                you explicitly use those flows.
               </p>
             </div>
 
@@ -270,11 +270,13 @@ export function OnboardingSection(): ReactNode {
                   margin: 0,
                 }}
               >
-                API keys are stored locally in <code>chrome.storage.local</code>{" "}
-                in plaintext. This is <strong>not a secure vault</strong>.
-                Anyone with access to your unlocked computer and browser profile
-                could read them. Use an API key with minimal permissions and
-                consider a dedicated key for VacancyPilot.
+                Standalone API keys are stored locally in{" "}
+                <code>chrome.storage.local</code> in plaintext. This is{" "}
+                <strong>not a secure vault</strong>. Anyone with access to your
+                unlocked computer and browser profile could read them. Ops Mode
+                provider and HH secrets use the local companion&apos;s OS keyring.
+                Use an API key with minimal permissions and consider a
+                dedicated key for VacancyPilot.
               </p>
             </div>
           </>
@@ -380,8 +382,9 @@ export function OnboardingSection(): ReactNode {
               </ul>
             </div>
             <p style={{ ...stepDesc, margin: 0 }}>
-              Go to <strong>Settings</strong> → AI. Enter your API key and
-              select a provider.
+              Go to <strong>Settings</strong> → AI. Enter a standalone API key
+              only if needed; Ops Mode Full V4 uses the paired companion&apos;s
+              OS-keyring configuration.
             </p>
           </div>
         ),
@@ -407,7 +410,8 @@ export function OnboardingSection(): ReactNode {
                   &quot;interview scheduled&quot;) to your own n8n webhook URL
                 </li>
                 <li>
-                  n8n is <strong>off by default</strong> — you must enable Labs
+                  n8n is <strong>off by default</strong> and deferred from the
+                  current dogfood path — you must enable Labs
                   and configure a webhook URL
                 </li>
                 <li>
