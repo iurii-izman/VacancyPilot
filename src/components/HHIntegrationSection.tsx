@@ -3,6 +3,14 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { getOpsClient } from '@/services/companion-service';
 import type { HHSearchProfile, HHVacancySyncResponse } from '@/adapters/companion/types';
 
+export function describeSyncErrors(
+  errors: HHVacancySyncResponse['data']['errors'],
+  profiles: Array<Pick<HHSearchProfile, 'id' | 'name'>>,
+): string[] {
+  const names = new Map(profiles.map((profile) => [profile.id, profile.name]));
+  return errors.map(({ profile_id, code }) => `${names.get(profile_id) ?? profile_id}: ${code}`);
+}
+
 export function HHIntegrationSection(): ReactNode {
   const [configured, setConfigured] = useState<boolean | null>(null);
   const [profiles, setProfiles] = useState<HHSearchProfile[]>([]);
@@ -61,7 +69,18 @@ export function HHIntegrationSection(): ReactNode {
       </div>
       {profiles.length > 0 && <ul style={{ fontSize: 11, margin: '0 0 8px', paddingLeft: 18 }}>{profiles.map((profile) => <li key={profile.id}>{profile.name} {profile.enabled ? '(enabled)' : '(disabled)'}</li>)}</ul>}
       <button type="button" onClick={() => void sync()} disabled={busy || configured !== true}>Sync now</button>
-      {summary && <div role="status" style={{ fontSize: 11, marginTop: 8 }}>Last sync: {summary.status}; seen {summary.items_seen}, created {summary.vacancies_created}, updated {summary.vacancies_updated}, unchanged {summary.vacancies_unchanged}; errors {summary.errors.length}.</div>}
+      {summary && (
+        <div role="status" style={{ fontSize: 11, marginTop: 8 }}>
+          <div>
+            Last sync: {summary.status}; seen {summary.items_seen}, created {summary.vacancies_created}, updated {summary.vacancies_updated}, unchanged {summary.vacancies_unchanged}; errors {summary.errors.length}.
+          </div>
+          {summary.errors.length > 0 && (
+            <ul aria-label="HH sync errors" style={{ margin: '4px 0 0', paddingLeft: 18 }}>
+              {describeSyncErrors(summary.errors, profiles).map((message) => <li key={message}>{message}</li>)}
+            </ul>
+          )}
+        </div>
+      )}
       {error && <div role="alert" style={{ color: '#a33', fontSize: 11, marginTop: 8 }}>{error}</div>}
     </section>
   );

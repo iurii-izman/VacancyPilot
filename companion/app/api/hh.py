@@ -20,7 +20,7 @@ from app.domain.triage import TriageConfig, TriageVacancy, triage_vacancy
 from app.domain.vacancy_intake import VacancyIntakeService
 from app.hh.client import HHApiClient
 from app.hh.errors import HHApiError, HHConfigurationError
-from app.hh.models import HHSearchProfileInput, HHSearchProfilePatch
+from app.hh.models import HHSearchProfileInput, HHSearchProfilePatch, HHSearchQuery
 from app.hh.normalize import normalize_vacancy
 from app.hh.oauth import get_oauth_service
 from app.security.auth import ClientTokenDep
@@ -364,10 +364,16 @@ def sync_vacancies(
         'status': 'running',
     }
     result['sync_run_id'] = new_uuid()
+    touched_hits: list[VacancySearchProfileHit] = []
     client = HHApiClient()
     for profile in profiles:
         try:
-            query = json.loads(profile.query_json)
+            # ``schema_version`` is storage metadata, not an HH API query
+            # parameter.  Re-validate at this boundary and serialize only
+            # the allowlisted query fields before calling the client.
+            query = HHSearchQuery.model_validate(json.loads(profile.query_json)).model_dump(
+                exclude_none=True, exclude_defaults=True
+            )
             max_pages = 2000 // PER_PAGE
             for page, _ in enumerate(range(max_pages)):
                 response = client.search_vacancies(query, page=page, per_page=PER_PAGE)
@@ -389,17 +395,20 @@ def sync_vacancies(
                         )
                     ).scalar_one_or_none()
                     if hit is None:
-                        session.add(
-                            VacancySearchProfileHit(
-                                vacancy_id=intake.vacancy_id,
-                                search_profile_id=profile.id,
-                                last_sync_run_id=result['sync_run_id'],
-                            )
+                        hit = VacancySearchProfileHit(
+                            vacancy_id=intake.vacancy_id,
+                            search_profile_id=profile.id,
+                            # The append-only audit row is inserted after
+                            # item processing; attach the run ID below.
+                            last_sync_run_id=None,
                         )
+                        session.add(hit)
                     else:
                         hit.last_seen_at = _now()
                         hit.hit_count += 1
-                        hit.last_sync_run_id = result['sync_run_id']
+                    # Resolve the run FK only after the final audit row is
+                    # pending, so intake's intermediate flushes remain valid.
+                    touched_hits.append(hit)
                     result_key = f'vacancies_{intake.result}'
                     result[result_key] += 1
                     if intake.snapshot_id and intake.result in ('created', 'updated'):
@@ -437,5 +446,7 @@ def sync_vacancies(
         finished_at=result['finished_at'],
     )
     session.add(audit)
+    for hit in touched_hits:
+        hit.last_sync_run_id = result['sync_run_id']
     session.commit()
     return SyncResponse(data=result, meta=_meta(request))

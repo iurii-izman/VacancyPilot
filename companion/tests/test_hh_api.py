@@ -76,7 +76,7 @@ def test_vacancy_sync_reuses_intake_and_records_safe_audit(
 
     class FakeHHClient:
         def search_vacancies(self, query, *, page, per_page):
-            assert query['text'] == 'backend'
+            assert query == {'text': 'backend'}
             assert page == 0
             assert per_page == 100
             return HHPage.model_validate(
@@ -89,7 +89,15 @@ def test_vacancy_sync_reuses_intake_and_records_safe_audit(
                             'employer': {'id': 'e-1', 'name': 'Example'},
                             'area': {'id': 'a-1', 'name': 'Chisinau'},
                             'description': '<p>Python</p>',
-                        }
+                        },
+                        {
+                            'id': 'hh-2',
+                            'name': 'Backend Platform Engineer',
+                            'alternate_url': 'https://hh.ru/vacancy/hh-2',
+                            'employer': {'id': 'e-1', 'name': 'Example'},
+                            'area': {'id': 'a-1', 'name': 'Chisinau'},
+                            'description': '<p>Python and SQLite</p>',
+                        },
                     ],
                     'page': 0,
                     'pages': 1,
@@ -104,13 +112,13 @@ def test_vacancy_sync_reuses_intake_and_records_safe_audit(
     assert response.status_code == 200
     result = response.json()['data']
     assert result['status'] == 'success'
-    assert result['vacancies_created'] == 1
-    assert result['snapshots_created'] == 1
+    assert result['vacancies_created'] == 2
+    assert result['snapshots_created'] == 2
 
     response2 = client_with_db.post(
         '/api/v1/hh/sync/vacancies', headers=headers, json={'profile_ids': [profile_id]}
     )
-    assert response2.json()['data']['vacancies_unchanged'] == 1
+    assert response2.json()['data']['vacancies_unchanged'] == 2
     assert response2.json()['data']['snapshots_created'] == 0
     audit = db_session.execute(text('SELECT result_json FROM hh_sync_runs')).scalars().all()
     assert len(audit) == 2
