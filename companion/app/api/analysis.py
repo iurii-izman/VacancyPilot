@@ -21,6 +21,9 @@ from app.analysis.models import (
 from app.analysis.service import AnalysisOptions, AnalysisService, EnginePackageUnavailableError
 from app.db.models import Vacancy
 from app.db.session import get_db_session_long
+from app.domain.vacancy_hydration import ensure_analysis_ready, vacancy_is_analysis_ready
+from app.hh.client import HHApiClient
+from app.hh.errors import HHApiError, HHConfigurationError
 from app.security.auth import ClientTokenDep
 
 router = APIRouter(tags=['analysis'])
@@ -97,6 +100,28 @@ def vacancy_analyze(
         raise
     if vacancy is None:
         raise HTTPException(status_code=404, detail='Vacancy not found')
+
+    # Search results are intentionally lightweight. Hydrate only this selected
+    # item before compiling or executing Full V4; never fetch the whole Inbox.
+    if vacancy.source == 'hh' and not vacancy_is_analysis_ready(vacancy):
+        try:
+            vacancy = ensure_analysis_ready(session, vacancy, client=HHApiClient()).vacancy
+            session.commit()
+        except HHConfigurationError as exc:
+            session.rollback()
+            raise HTTPException(status_code=503, detail=exc.code) from exc
+        except HHApiError as exc:
+            session.rollback()
+            raise HTTPException(status_code=502, detail=exc.code) from exc
+        except ValueError as exc:
+            session.rollback()
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    if vacancy.source == 'hh' and not vacancy_is_analysis_ready(vacancy):
+        raise HTTPException(
+            status_code=409,
+            detail='VACANCY_DESCRIPTION_INSUFFICIENT: full vacancy text is required for Full V4',
+        )
 
     # Build the PromptCompilerInput from stored vacancy
     import json

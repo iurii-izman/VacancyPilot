@@ -3473,6 +3473,26 @@
         "title": "VacancyDetailResponse",
         "type": "object"
       },
+      "VacancyHydrationResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/VacancyItem"
+          },
+          "meta": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Meta",
+            "type": "object"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "VacancyHydrationResponse",
+        "type": "object"
+      },
       "VacancyIntakeV1": {
         "additionalProperties": false,
         "properties": {
@@ -6540,6 +6560,54 @@
         "summary": "Analyze a vacancy with the V4 engine",
         "tags": [
           "analysis"
+        ]
+      }
+    },
+    "/api/v1/vacancies/{vacancy_id}/hydrate": {
+      "post": {
+        "description": "Explicitly refresh one HH vacancy using GET /vacancies/{source_id}.",
+        "operationId": "vacancy_hydrate_api_v1_vacancies__vacancy_id__hydrate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "vacancy_id",
+            "required": true,
+            "schema": {
+              "title": "Vacancy Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VacancyHydrationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Vacancy Hydrate",
+        "tags": [
+          "vacancies"
         ]
       }
     },

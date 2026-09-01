@@ -28,7 +28,7 @@ import type {
   HHSearchPreviewResponse,
   HHVacancySyncResponse,
 } from './types';
-import type { VacancyListFilters, VacancyListResponse } from './vacancy-types';
+import type { VacancyListFilters, VacancyListResponse, VacancyDetailResponse, FullV4PreviewResponse, FullV4AnalyzeResponse } from './vacancy-types';
 import type {
   ApplicationListResponse,
   ApplicationResponse,
@@ -323,6 +323,22 @@ export class OpsClient {
       if (value !== undefined) query.set(key, String(value));
     }
     return this.authenticatedGet<VacancyListResponse>(`/vacancies?${query.toString()}`, signal);
+  }
+
+  async getVacancy(id: string, signal?: AbortSignal): Promise<VacancyDetailResponse> {
+    return this.authenticatedGet<VacancyDetailResponse>(`/vacancies/${encodeURIComponent(id)}`, signal);
+  }
+
+  async hydrateVacancy(id: string, signal?: AbortSignal): Promise<VacancyDetailResponse> {
+    return this.authenticatedPost<VacancyDetailResponse>(`/vacancies/${encodeURIComponent(id)}/hydrate`, {}, signal);
+  }
+
+  async previewFullV4(id: string, signal?: AbortSignal): Promise<FullV4PreviewResponse> {
+    return this.authenticatedPost<FullV4PreviewResponse>(`/vacancies/${encodeURIComponent(id)}/analyze?preview=true`, {}, signal);
+  }
+
+  async analyzeFullV4(id: string, signal?: AbortSignal): Promise<FullV4AnalyzeResponse> {
+    return this.authenticatedPost<FullV4AnalyzeResponse>(`/vacancies/${encodeURIComponent(id)}/analyze`, {}, signal);
   }
 
   async listApplications(status?: string, signal?: AbortSignal): Promise<ApplicationListResponse> {

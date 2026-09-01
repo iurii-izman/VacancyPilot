@@ -98,6 +98,45 @@ export interface VacancyDetailResponse {
   meta: Record<string, string>;
 }
 
+export type FullV4PreviewResponse = {
+  data: {
+    provider: string;
+    model: string;
+    token_estimate: number | null;
+    estimated_cost_usd: number | null;
+    prompt_version: string;
+    input_hash: string;
+    cache_hit: boolean;
+    privacy_mode: string;
+    language: string;
+    what_is_sent: string[];
+    what_is_not_sent: string[];
+  };
+  meta: Record<string, string>;
+};
+
+export type FullV4AnalyzeResponse = {
+  data: {
+    run_id: string;
+    vacancy_id: string;
+    status: string;
+    repair_status: string;
+    ready: boolean;
+    score: number | null;
+    decision: string | null;
+    confidence: string | null;
+    cover_letter: string | null;
+    recruiter_risks: Array<{ risk: string; severity: string; mitigation: string }>;
+    validation_errors: string[];
+    token_input: number | null;
+    token_output: number | null;
+    estimated_cost_usd: number | null;
+    cached: boolean;
+    created_at: string;
+  };
+  meta: Record<string, string>;
+};
+
 // ── Triage (POST /vacancies/{id}/triage) ────────────────────────────────────
 
 export interface VacancyTriageRequest {

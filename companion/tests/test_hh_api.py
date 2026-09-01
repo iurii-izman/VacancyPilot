@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.db.models import Vacancy
 from app.hh.models import HHPage
 from app.security.pairing import generate_client_token, hash_client_token
 
@@ -204,3 +205,33 @@ def test_too_broad_profile_is_not_ingested(
     assert data['items_seen'] == 0
     assert calls == [(0, 1)]
     assert db_session.execute(text('SELECT COUNT(*) FROM vacancies')).scalar_one() == 0
+
+
+def test_selected_vacancy_hydration_updates_full_text_without_application(
+    client_with_db: TestClient, db_session: Session, monkeypatch
+) -> None:
+    headers = _auth(db_session)
+    created = client_with_db.post(
+        '/api/v1/vacancies/intake', headers=headers,
+        json={'schema_version': 1, 'source': 'hh', 'source_vacancy_id': '136022615',
+              'title': 'Search result', 'description': '', 'skills': []},
+    )
+    vacancy_id = created.json()['data']['vacancy_id']
+    calls = []
+
+    class FakeHHClient:
+        def vacancy(self, source_id):
+            calls.append(source_id)
+            return {'id': source_id, 'name': 'Full role',
+                    'description': '<p>' + ('Requirement. ' * 25) + '</p>',
+                    'key_skills': [{'name': 'Python'}]}
+
+    monkeypatch.setattr('app.api.vacancies.HHApiClient', FakeHHClient)
+    response = client_with_db.post(
+        f'/api/v1/vacancies/{vacancy_id}/hydrate', headers=headers, json={}
+    )
+    assert response.status_code == 200
+    assert calls == ['136022615']
+    assert len(response.json()['data']['description']) > 200
+    assert db_session.query(Vacancy).count() == 1
+    assert db_session.execute(text('SELECT COUNT(*) FROM applications')).scalar_one() == 0

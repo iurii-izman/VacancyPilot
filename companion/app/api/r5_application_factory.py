@@ -23,6 +23,9 @@ from app.db.models import (
     Vacancy,
 )
 from app.db.session import get_db_session_long
+from app.domain.vacancy_hydration import ensure_analysis_ready, vacancy_is_analysis_ready
+from app.hh.client import HHApiClient
+from app.hh.errors import HHApiError, HHConfigurationError
 from app.security.auth import ClientTokenDep
 
 router = APIRouter(tags=['application-factory'])
@@ -295,6 +298,11 @@ def execute_session(
         item.started_at = utcnow()
         session.commit()
         try:
+            if vacancy.source == 'hh' and not vacancy_is_analysis_ready(vacancy):
+                vacancy = ensure_analysis_ready(session, vacancy, client=HHApiClient()).vacancy
+                session.commit()
+            if vacancy.source == 'hh' and not vacancy_is_analysis_ready(vacancy):
+                raise ValueError('VACANCY_DESCRIPTION_INSUFFICIENT')
             result = service.analyze(vacancy.id, _compiler_input(vacancy), AnalysisOptions())
             item.analysis_run_id = result.run_id
             decision = (
@@ -309,9 +317,9 @@ def execute_session(
             )
             item.completed_at = utcnow()
             item.error_message = None
-        except EnginePackageUnavailableError as error:
+        except (HHConfigurationError, HHApiError, EnginePackageUnavailableError) as error:
             item.queue_state = 'FAILED'
-            item.error_message = str(error)
+            item.error_message = getattr(error, 'code', str(error))
         except Exception as error:  # keep one failed item from corrupting the queue
             item.queue_state = 'FAILED'
             item.error_message = f'ANALYSIS_FAILED: {type(error).__name__}'

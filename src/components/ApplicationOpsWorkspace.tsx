@@ -206,21 +206,55 @@ export function Inbox({ onSelect }: { onSelect?: (job: Job) => void }): ReactNod
 
 export function ApplicationCard({ job, onBack }: { job: Job; onBack?: () => void }): ReactNode {
   const [tab, setTab] = useState("Overview");
+  const [currentJob, setCurrentJob] = useState(job);
+  const [preview, setPreview] = useState<{ provider: string; model: string; token_estimate: number | null; cache_hit: boolean; what_is_sent: string[]; what_is_not_sent: string[] } | null>(null);
+  const [run, setRun] = useState<{ run_id: string; status: string; score: number | null; decision: string | null; confidence: string | null; cover_letter: string | null; recruiter_risks: Array<{ risk: string; severity: string; mitigation: string }>; cached: boolean; token_input: number | null; token_output: number | null; estimated_cost_usd: number | null } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const tabs = ["Overview", "Vacancy", "Evidence", "Score", "Letter", "Timeline", "Follow-up", "Interview", "Debug"];
+  const isFull = currentJob.descriptionClean.trim().length >= 200;
+  const hydrate = async () => {
+    const hydrated = await getOpsClient().hydrateVacancy(currentJob.id);
+    const item = hydrated.data;
+    setCurrentJob((value) => ({ ...value, title: item.title, companyName: item.company_name ?? "", sourceUrl: item.url ?? value.sourceUrl, descriptionClean: item.description ?? "", skills: item.skills, workMode: (item.work_mode ?? "unknown") as Job["workMode"], updatedAt: item.updated_at, lastSeenAt: item.last_seen_at, descriptionHash: item.description_hash ?? value.descriptionHash }));
+  };
+  const previewFullV4 = async () => {
+    setBusy(true); setError(null); setPreview(null);
+    try { await hydrate(); const response = await getOpsClient().previewFullV4(currentJob.id); setPreview(response.data); }
+    catch (err) { setError(err instanceof Error ? err.message : "Full vacancy preview failed"); }
+    finally { setBusy(false); }
+  };
+  const refreshFullDetails = async () => {
+    setBusy(true); setError(null);
+    try { await hydrate(); }
+    catch (err) { setError(err instanceof Error ? err.message : "Full vacancy refresh failed"); }
+    finally { setBusy(false); }
+  };
+  const executeFullV4 = async () => {
+    if (!preview || busy) return;
+    setBusy(true); setError(null);
+    try { const response = await getOpsClient().analyzeFullV4(currentJob.id); setRun(response.data); setTab("Score"); }
+    catch (err) { setError(err instanceof Error ? err.message : "Full V4 analysis failed"); }
+    finally { setBusy(false); }
+  };
   return <section aria-labelledby="application-card-title">
     <button type="button" onClick={onBack} style={{ marginBottom: 10 }}>← Back to Inbox</button>
-    <h2 id="application-card-title" style={{ margin: "0 0 4px" }}>{job.title}</h2><p style={{ marginTop: 0, color: "#536273", fontSize: 13 }}>{job.companyName} · {job.source.toUpperCase()} · {statusLabel(job.status)}</p>
+    <h2 id="application-card-title" style={{ margin: "0 0 4px" }}>{currentJob.title}</h2><p style={{ marginTop: 0, color: "#536273", fontSize: 13 }}>{currentJob.companyName} · {currentJob.source.toUpperCase()} · {statusLabel(currentJob.status)}</p>
+    <p>Vacancy details: <strong>{isFull ? "Full" : "Search preview"}</strong>{!isFull && " — refresh or preview Full V4 to load the official full vacancy."}</p>
+    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><button type="button" onClick={() => void refreshFullDetails()} disabled={busy}>Refresh full vacancy details</button><button type="button" onClick={() => void previewFullV4()} disabled={busy}>Preview Full V4</button>{preview && <button type="button" onClick={() => void executeFullV4()} disabled={busy}>Confirm and run Full V4</button>}</div>
+    {busy && <p role="status">Working…</p>}{error && <p role="alert">{error}</p>}
+    {preview && <div style={{ ...cardStyle, margin: "12px 0", background: "#f7f9fb" }}><strong>Preview only — no provider call was made.</strong><p>Target: {preview.provider}/{preview.model}. Expected provider call: {preview.cache_hit ? 0 : 1} (cache hit: {preview.cache_hit ? "yes" : "no"}).</p><p>Payload readiness: full vacancy text loaded; privacy disclosure applies. Sent: {preview.what_is_sent.join(", ") || "none"}.</p></div>}
     <div role="tablist" aria-label="Application card sections" style={{ display: "flex", gap: 4, flexWrap: "wrap", borderBottom: "1px solid #dce2e8", marginBottom: 14 }}>{tabs.map((item) => <button key={item} type="button" role="tab" aria-selected={tab === item} onClick={() => setTab(item)}>{item}</button>)}</div>
     <div role="tabpanel" style={cardStyle}>
-      {tab === "Overview" && <><h3>Overview</h3><p>Source: {job.source}. Work mode: {job.workMode}. Last seen: {formatShortDate(job.lastSeenAt)}.</p><p>Current status is shown only from persisted local state. Viewing this card does not create an application or mark it Applied.</p></>}
-      {tab === "Vacancy" && <><h3>Vacancy</h3><p style={{ whiteSpace: "pre-wrap" }}>{job.descriptionClean}</p><button type="button" onClick={() => window.open(job.sourceUrl, "_blank", "noopener,noreferrer")}>Open source vacancy</button></>}
-      {tab === "Evidence" && <><h3>Evidence</h3><p>Only persisted safe evidence references are shown here. Generated letters and provider output are not evidence.</p><p>Evidence trace: {job.aiAnalysis ? "available in the stored analysis" : "not available"}.</p></>}
-      {tab === "Score" && <><h3>Score</h3><p>Stage A score: <strong>{job.ruleScore?.total ?? "not available"}</strong>. Decision: {job.ruleScore?.recommendation ?? "not available"}.</p>{job.ruleScore?.capsApplied?.map((cap) => <p key={cap.reason}>Cap: {cap.reason} (max {cap.maxScore})</p>)}</>}
-      {tab === "Letter" && <><h3>Letter</h3><p>Use the existing Cover Letter Studio lifecycle. Copying is not sending; a final letter is not an application sent.</p><p>Letter reference: {job.coverLetterId ?? "not created"}.</p></>}
-      {tab === "Timeline" && <><h3>Timeline</h3><p>Existing local status history only. Canonical append-only application events are introduced in AOPS-13.</p>{job.statusHistory.map((event, index) => <p key={`${event.at}-${index}`}>{formatShortDate(event.at)} · {event.from ?? "—"} → {event.to} · {event.source}</p>)}</>}
-      {tab === "Follow-up" && <FollowUpPanel job={job} />}
+      {tab === "Overview" && <><h3>Overview</h3><p>Source: {currentJob.source}. Work mode: {currentJob.workMode}. Last seen: {formatShortDate(currentJob.lastSeenAt)}.</p><p>Full V4: {run ? `persisted (${run.status})` : "not run"}. Viewing this card does not create an application or mark it Applied.</p></>}
+      {tab === "Vacancy" && <><h3>Vacancy</h3><p style={{ whiteSpace: "pre-wrap" }}>{currentJob.descriptionClean || "Full vacancy description is not available."}</p><button type="button" onClick={() => window.open(currentJob.sourceUrl, "_blank", "noopener,noreferrer")}>Open source vacancy</button></>}
+      {tab === "Evidence" && <><h3>Evidence</h3><p>Only persisted safe evidence references are shown here. Generated letters and provider output are not evidence.</p><p>Evidence trace: {run ? "available in the persisted Full V4 run" : "not available"}.</p></>}
+      {tab === "Score" && <><h3>Score</h3><p>Stage A deterministic score: <strong>{currentJob.ruleScore?.total ?? "not run/not available"}</strong>. Decision: {currentJob.ruleScore?.recommendation ?? "not run/not available"}.</p><p>Full V4 final score: <strong>{run?.score ?? "not run"}</strong>. Decision: {run?.decision ?? "not run"}; confidence: {run?.confidence ?? "not run"}.</p></>}
+      {tab === "Letter" && <><h3>Letter</h3><p>Copying is not sending; a final letter is not an application sent.</p><p>{run?.decision === "skip" ? "SKIP: no letter was generated." : `Full V4 letter: ${run?.cover_letter ? "available in persisted result" : "not created"}.`}</p></>}
+      {tab === "Timeline" && <><h3>Timeline</h3><p>Existing local status history only.</p>{currentJob.statusHistory.map((event, index) => <p key={`${event.at}-${index}`}>{formatShortDate(event.at)} · {event.from ?? "—"} → {event.to} · {event.source}</p>)}</>}
+      {tab === "Follow-up" && <FollowUpPanel job={currentJob} />}
       {tab === "Interview" && <><h3>Interview</h3><p>Not-yet-active in AOPS-12. Interview Pack is deferred.</p></>}
-      {tab === "Debug" && <><h3>Safe debug metadata</h3><p>ID: {job.id}</p><p>Vacancy hash: {job.descriptionHash}</p><p>Analysis: {job.aiAnalysis ? `${job.aiAnalysis.provider}/${job.aiAnalysis.model}` : "not run"}</p><p>No credentials, raw provider payloads or private evidence bodies are displayed.</p></>}
+      {tab === "Debug" && <><h3>Safe debug metadata</h3><p>ID: {currentJob.id}</p><p>Vacancy hash: {currentJob.descriptionHash}</p><p>Run ID: {run?.run_id ?? "not run"}</p><p>Analysis status: {run?.status ?? "not run"}</p><p>Provider calls: {run ? (run.cached ? "0 (cache hit)" : "1") : "0"}</p><p>No credentials, raw provider payloads or private evidence bodies are displayed.</p></>}
     </div>
   </section>;
 }

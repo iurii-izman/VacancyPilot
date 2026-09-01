@@ -72,3 +72,4 @@ companion/.venv/
 companion/data/engine/current/
 companion/data/engine/.staging*/
 companion/data/engine/.previous/
+.playwright-cli/
