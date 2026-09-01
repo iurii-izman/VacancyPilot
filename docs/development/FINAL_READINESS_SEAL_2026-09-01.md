@@ -6,9 +6,9 @@ Audit scope: final R5.4 release-readiness, baseline hygiene, reproducibility, se
 
 ## 1. Verdict
 
-`FINAL_READINESS_SEALED_REMOTE_CHECKS_PENDING`
+`FINAL_READINESS_SEALED_AND_PUSHED`
 
-The evidence gate passed locally and in an isolated clean clone. This provisional verdict remains pending the final documentation commit, merge to `main`, push, and post-push GitHub checks.
+The evidence gate passed locally and in an isolated clean clone. The readiness merge `fd61bf9ad2d3be0b33057805402f2c05ff7d77b0` was pushed to `main`; post-push CI run `33533504995` and SonarQube Cloud run `33533504929` completed successfully.
 
 No P0/P1 inconsistency was found. No runtime or product-boundary correction was justified.
 
@@ -16,6 +16,7 @@ No P0/P1 inconsistency was found. No runtime or product-boundary correction was 
 
 - Starting baseline: `4459ae6e5205a82c6fc7e516e6a159280314fd09` (`docs: clarify final merge record`).
 - At audit start, `main == origin/main == 4459ae6e5205a82c6fc7e516e6a159280314fd09`.
+- Final readiness merge pushed before this documentation-only finalization: `fd61bf9ad2d3be0b33057805402f2c05ff7d77b0`.
 - Working tree was clean; no tags, releases, extra active worktrees, or unexpected branches were present.
 - A local-only audit branch `chore/r5-final-readiness-seal` was used for this report and will not be pushed.
 - Four pre-existing stashes were retained.
@@ -129,6 +130,7 @@ Verified recovery bundles:
 ## 14. Changes made by this seal
 
 - Added this release-readiness evidence document only.
+- Finalized the verdict and recorded successful post-push checks in this document; this remains documentation-only.
 - No runtime code, package versions, lockfiles, permissions, manifest hosts, database schema, migrations, OpenAPI contract, V4 artifacts, recovery artifacts, or historical reports were changed.
 - No generated build output, secret, browser profile, or local log was committed.
 
