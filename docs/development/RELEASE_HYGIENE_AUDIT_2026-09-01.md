@@ -2,9 +2,9 @@
 
 ## VERDICT
 
-`IN_PROGRESS` while the local-prune and validation gates run. No feature work is
-in scope. The intended operating mode remains **FEATURE DEVELOPMENT: FROZEN** /
-**MODE: REAL DAILY USE / DOGFOOD**.
+`RELEASE_HYGIENE_COMPLETE_WITH_MANUAL_RETIREMENTS`. No feature work was
+introduced. The intended operating mode remains **FEATURE DEVELOPMENT:
+FROZEN** / **MODE: REAL DAILY USE / DOGFOOD**.
 
 ## BASELINE
 
@@ -20,7 +20,7 @@ in scope. The intended operating mode remains **FEATURE DEVELOPMENT: FROZEN** /
 | Starting tracked bytes | 4,394,423 |
 | `git diff --check` | PASS |
 | `git fsck --full` | no missing/corrupt reachable objects; dangling recovery objects retained |
-| Local branch | `chore/r5-release-hygiene` (local only; never push) |
+| Local hygiene branch before merge | `chore/r5-release-hygiene` (local only; never pushed) |
 
 The baseline was verified before creating the local hygiene branch. The
 pre-prune VacancyPilot bundle is preserved outside the active development root:
@@ -31,10 +31,11 @@ SHA-256: `AA1D19E2BEDA5D18726AE271C8539741DA0BE69FE85824349DCB264FF6C7731B`.
 
 ## MAIN REPO BEFORE/AFTER
 
-Before pruning: 740 tracked files / 4,394,423 tracked bytes. The after values
-will be filled after the cleanup commit and merge. Runtime, tests, fixtures,
-migrations, contracts and required tooling are protected unless a later proof
-entry says otherwise.
+Before pruning: 740 tracked files / 4,394,423 tracked bytes. After the local
+prune and fixture-isolation fix: 511 tracked files / 3,504,975 tracked bytes
+(working-tree byte measurement; Git tree blob total is 3,497,235 bytes).
+The tracked deletion count is 231 files. Runtime, tests, fixtures, migrations,
+contracts and required tooling were protected.
 
 Tracked size by top-level folder before pruning:
 
@@ -72,7 +73,7 @@ accepted ADR or canonical contract is in this table.
 | `docs/development/03-autopilot-workflow.md` | `DELETE_TRACKED_CURRENT_TREE` | Superseded external-agent workflow | Only prompt/session docs referenced it; no executable consumer | Git history before pre-prune SHA |
 | `docs/development/04-zed-deepseek-workflow.md` | `DELETE_TRACKED_CURRENT_TREE` | Superseded executor workflow | Only prompt/session docs referenced it; no executable consumer | Git history before pre-prune SHA |
 
-The initial deletion command removed the five groups and six superseded
+The initial deletion command removed the five groups and five superseded
 top-level plan/workflow files above. The remaining current-facing references
 were updated in the same change; historical reports may still mention old
 paths as historical facts, but do not drive runtime or release tooling.
@@ -91,8 +92,10 @@ Python module, CLI entrypoint or script was found. The two empty tracked
 
 Tests and fixtures are release protection. Current parser, search-card,
 security, release-safety, migration and companion coverage remains kept. No
-test is removed merely to reduce counts. Counts and fresh gate results will be
-recorded after validation.
+test was removed merely to reduce counts. Root verification passed 78 test
+files / 1,864 tests; release safety passed 10 files / 420 tests; companion
+verification passed 356 tests. The fixture inventory remains 19 vacancy
+fixtures and 3 search fixtures.
 
 ## DOCUMENTATION PRUNE
 
@@ -109,9 +112,13 @@ Explicitly regenerable directories are measured before deletion and removed
 only by exact path: `.mypy_cache`, `.output`, `.playwright-cli`, `.ruff_cache`,
 `.wxt`, companion Python caches and `output`. `node_modules`, companion `.venv`,
 `companion/data`, private engine data, keyring data and `.claude` are not
-blanket-cleaned. Before cleanup, the measured removable set is 57,750,232
-bytes;
-the exact after byte total will be recorded after removal.
+blanket-cleaned. Before the first final cleanup pass, the measured removable
+set was 75,879,498 bytes; all exact targets were absent immediately afterward.
+The retained `node_modules`, `companion/.venv`, `companion/data` and `.claude`
+paths were verified present. Python cache directories inside the retained
+`.venv` were removed as regenerable caches; the environment itself was not
+removed. Final gates may regenerate ignored caches, which are safe to remove
+again without affecting tracked state.
 
 ## AUXILIARY WORKSPACE TABLE
 
@@ -140,10 +147,12 @@ or modified.
 ## RECOVERY CONSOLIDATION
 
 The existing recovery backup contains an exact duplicate of the new
-`workoutreachHH` bundle (same size and SHA-256). The corrupt-main forensic file,
-all unique patch/status manifests and the verified bundles are preserved. The
-consolidated external archive location and any exact-duplicate removal will be
-recorded after the move is completed.
+`workoutreachHH` bundle (same 2,861,759-byte size and SHA-256). The corrupt-main
+forensic file, all unique patch/status manifests and both verified bundles are
+preserved under `C:\Dev-archive\VacancyPilot\recovery\2026-09-01` (70 recovery
+files plus the new evidence). The duplicate was not removed: retaining both
+copies is the safer recovery posture while the old backup remains an explicit
+forensic record.
 
 ## LEGACY GITHUB REPOS AND ARCHIVE DECISIONS
 
@@ -163,24 +172,30 @@ bundle exists.
 
 ## DEPENDENCY/SECURITY STATE
 
-The package dependency graph is unchanged. A fresh `pnpm audit --json` result,
-the companion locked environment result and Dependabot details will be filled
-after the clean-clone and full-gate runs. `pnpm audit fix --force` is forbidden
-and will not be run.
+The package dependency graph is unchanged. `pnpm audit --json` reported 3 high
+and 1 moderate advisories, all in the development graph through PostCSS/Vite/
+Vitest/WXT and nanoid; no production dependency change was justified during
+release hygiene. `pnpm audit fix --force` was not run. `uv lock --check
+--project companion` passed. The GitHub audit found two open Dependabot alerts,
+zero open code-scanning alerts and zero open secret-scanning alerts.
 
 ## CLEAN-CLONE PROOF
 
-Pending after tracked cleanup. The temporary clone will be outside the active
-repository and will run the repository-supported locked setup and release
-commands. It must not resolve any sibling path or private V4 source.
+Fresh clone proof passed from `dd93df55c6bd68a5bed2bbf753abff524d7fff8b`
+outside the active repository. `pnpm install --frozen-lockfile`, `pnpm verify`,
+`pnpm test:release`, `uv sync --project companion --frozen` and
+`pnpm verify:companion` all passed. The clone used no sibling path or private V4
+source; the temporary clone was removed afterward. The only sibling-name scan
+hits were the expected references in this audit report.
 
 ## GITHUB HARDENING
 
 Read-only audit completed. Main deletion and force-push protections are already
-disabled at the remote. CI, dependency review, secret scanning/push protection
-and Dependabot configuration are recorded in current repository docs. Ruleset
-details and stale-branch status will be recorded without changing solo-owner
-workflow settings.
+disabled at the remote; three rulesets exist, with administrator enforcement not
+enabled. CI, dependency review, secret scanning/push protection and Dependabot
+configuration are present. No remote branch or repository archive/delete
+mutation was applied: `career-signal-hh` and `workoutreach` both require manual
+review because their local checkouts are dirty.
 
 ## SAFETY
 
@@ -195,16 +210,19 @@ workflow settings.
 
 ## FINAL GIT STATE
 
-Pending. Target is a clean pushed `main` with no hygiene branch after the
-post-merge gates. If any required gate or remote synchronization fails, the
-verdict will be downgraded to the applicable blocked/manual state.
+The hygiene branch was merged into `main` with a non-fast-forward merge after
+the full gates, the post-merge gates passed, the local hygiene branch was
+deleted, and `main` was pushed without force. The final handoff verifies a
+clean `main` tracking `origin/main` at the merge result. No history rewrite or
+force push was used.
 
 ## FINAL C:\Dev ACTIVE WORKSPACE
 
-Expected safe target: active `C:\Dev\VacancyPilot`; protected
+Final safe state: active `C:\Dev\VacancyPilot`; protected
 `C:\Dev\workoutreachHH`; separate `C:\Dev\workoutreach`; no active copies of
 the archived helper/prompt/recovery directories. `career-signal-hh` remains
-manual because its current checkout is dirty.
+manual because its current checkout is dirty. The archived local paths are
+intact under `C:\Dev-archive\VacancyPilot`.
 
 ## OPERATIONAL MODE
 
