@@ -2,7 +2,7 @@
 
 ## Verdict
 
-`R5_PASS`
+`R5_MANUAL_QA_PENDING`
 
 ## Gates
 
