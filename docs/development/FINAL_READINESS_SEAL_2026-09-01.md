@@ -8,7 +8,7 @@ Audit scope: final R5.4 release-readiness, baseline hygiene, reproducibility, se
 
 `FINAL_READINESS_SEALED_AND_PUSHED`
 
-The evidence gate passed locally and in an isolated clean clone. The readiness merge `fd61bf9ad2d3be0b33057805402f2c05ff7d77b0` was pushed to `main`; post-push CI run `33533504995` and SonarQube Cloud run `33533504929` completed successfully.
+The evidence gate passed locally and in an isolated clean clone. The readiness merge `fd61bf9ad2d3be0b33057805402f2c05ff7d77b0` was pushed to `main`; post-push CI run `33533504995` completed successfully. The SonarQube Cloud workflow `33533504929` concluded successfully because its scan step is advisory (`continue-on-error`), but the scanner itself returned exit 3: organization key `VacancyPilot` does not exist. This is documented as a remote tooling configuration caveat, not a product or security finding.
 
 No P0/P1 inconsistency was found. No runtime or product-boundary correction was justified.
 
@@ -109,7 +109,7 @@ The active Chrome MV3 artifact was inspected after build:
 - Remote: `git@github.com:iurii-izman/VacancyPilot.git`; repository is public, active, and defaults to `main`.
 - No remote tags or releases exist; no tag/release operation was performed.
 - Main protection rules prevent deletion and non-fast-forward updates. No mandatory PR review/status-check requirement is configured; this was not changed.
-- Latest workflows for the audited baseline `4459ae6`: CI passed and SonarQube Cloud passed.
+- CI passed for both the readiness merge and final documentation push. SonarQube Cloud workflow conclusion was `success` for both, but the scanner step was non-blocking and failed with the configured organization-key error (`VacancyPilot` does not exist); no Sonar analysis result is claimed by this seal.
 - Dependency-review and Sonar workflows retain their documented advisory/conditional behavior; no external-product or sibling-repository path was introduced.
 
 ## 12. Recovery and historical preservation
