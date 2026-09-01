@@ -93,7 +93,7 @@ Python module, CLI entrypoint or script was found. The two empty tracked
 Tests and fixtures are release protection. Current parser, search-card,
 security, release-safety, migration and companion coverage remains kept. No
 test was removed merely to reduce counts. Root verification passed 78 test
-files / 1,864 tests; release safety passed 10 files / 420 tests; companion
+files / 1,850 tests; release safety passed 10 files / 420 tests; companion
 verification passed 356 tests. The fixture inventory remains 19 vacancy
 fixtures and 3 search fixtures.
 
