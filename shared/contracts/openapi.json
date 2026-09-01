@@ -4005,6 +4005,28 @@
         "title": "PreviewResponse",
         "type": "object"
       },
+      "app__api__hh__PreviewResponse": {
+        "properties": {
+          "data": {
+            "additionalProperties": true,
+            "title": "Data",
+            "type": "object"
+          },
+          "meta": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Meta",
+            "type": "object"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "PreviewResponse",
+        "type": "object"
+      },
       "app__api__r5_application_factory__PreviewResponse": {
         "properties": {
           "data": {
@@ -5705,6 +5727,54 @@
         ]
       }
     },
+    "/api/v1/hh/search-profiles/{profile_id}/preview": {
+      "post": {
+        "description": "Read-only HH search-size preview; it never touches the database.",
+        "operationId": "preview_profile_api_v1_hh_search_profiles__profile_id__preview_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "title": "Profile Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/app__api__hh__PreviewResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Preview Profile",
+        "tags": [
+          "hh"
+        ]
+      }
+    },
     "/api/v1/hh/sync/applicant": {
       "post": {
         "description": "Read-only applicant projection; no HH mutation and no raw payload storage.",
@@ -6247,6 +6317,23 @@
                 }
               ],
               "title": "Updated After"
+            }
+          },
+          {
+            "in": "query",
+            "name": "search_profile_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search Profile Id"
             }
           }
         ],

@@ -85,6 +85,7 @@ export interface VacancyListFilters {
   work_mode?: "remote" | "hybrid" | "office" | "unknown";
   archived?: boolean;
   updated_after?: string;
+  search_profile_id?: string;
 }
 
 export interface VacancyListResponse {

@@ -132,6 +132,18 @@ export interface HHSearchProfileResponse {
   meta: Record<string, string>;
 }
 
+export interface HHSearchPreviewResponse {
+  data: {
+    profile_id: string;
+    name: string;
+    found: number | null;
+    classification: 'GOOD' | 'ACCEPTABLE' | 'TOO_BROAD' | 'ERROR';
+    sync_allowed: boolean;
+    error_code?: string;
+  };
+  meta: Record<string, string>;
+}
+
 export interface HHVacancySyncResponse {
   data: {
     sync_run_id: string;
@@ -148,6 +160,17 @@ export interface HHVacancySyncResponse {
     started_at: string;
     finished_at: string | null;
     status: 'running' | 'success' | 'partial' | 'error';
+    too_broad: number;
+    profiles: Array<{
+      profile_id: string;
+      name: string;
+      found: number | null;
+      seen: number;
+      created: number;
+      updated: number;
+      unchanged: number;
+      error: string | null;
+    }>;
   };
   meta: Record<string, string>;
 }
