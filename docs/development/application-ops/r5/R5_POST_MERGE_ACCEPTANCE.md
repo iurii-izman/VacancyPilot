@@ -2,7 +2,7 @@
 
 ## Verdict
 
-`R5_MANUAL_QA_PENDING`
+`R5_PASS`
 
 ## Gates
 
@@ -18,6 +18,7 @@
 | migrations | PASS — upgrade/idempotence/downgrade/upgrade |
 | `git diff --check` | PASS |
 | audit | 0 critical, 14 high, 2 moderate; unchanged baseline |
+| manual browser QA | PASS — isolated Chromium, synthetic local data, Inbox/Performance |
 
 R5 is a local, human-controlled Application Factory plus bounded descriptive
 conversion read model. Preview performs zero provider calls; batch execution
@@ -28,12 +29,12 @@ absence of response remains pending. Search Profile feedback is read-only.
 
 V4 scoring policy is unchanged. AOPS-14 remains deferred/not started and the
 full canonical AOPS-15 remains not completed by this milestone. No push was
-performed. Manual visual QA of narrow Inbox/Performance surfaces should be
-performed with synthetic local data before real sessions.
+performed. Manual visual QA of the narrow Inbox/Performance surfaces passed
+with synthetic local data; see `R5_MANUAL_QA.md`.
 
 ## Git
 
 R5-A feature commit: `1beca33`; R5-A merge: `7766322`.
 R5-B feature commit: `a140bf1`; R5-B merge: `5416898`.
-Local `main` is ahead of `origin/main` by 6 commits. Worktree is clean and
-push was not performed.
+Local `main` contains the accepted R5 commits. Worktree was clean at acceptance
+time and push was not performed.
