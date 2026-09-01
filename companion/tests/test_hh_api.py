@@ -212,9 +212,16 @@ def test_selected_vacancy_hydration_updates_full_text_without_application(
 ) -> None:
     headers = _auth(db_session)
     created = client_with_db.post(
-        '/api/v1/vacancies/intake', headers=headers,
-        json={'schema_version': 1, 'source': 'hh', 'source_vacancy_id': '136022615',
-              'title': 'Search result', 'description': '', 'skills': []},
+        '/api/v1/vacancies/intake',
+        headers=headers,
+        json={
+            'schema_version': 1,
+            'source': 'hh',
+            'source_vacancy_id': '136022615',
+            'title': 'Search result',
+            'description': '',
+            'skills': [],
+        },
     )
     vacancy_id = created.json()['data']['vacancy_id']
     calls = []
@@ -222,9 +229,12 @@ def test_selected_vacancy_hydration_updates_full_text_without_application(
     class FakeHHClient:
         def vacancy(self, source_id):
             calls.append(source_id)
-            return {'id': source_id, 'name': 'Full role',
-                    'description': '<p>' + ('Requirement. ' * 25) + '</p>',
-                    'key_skills': [{'name': 'Python'}]}
+            return {
+                'id': source_id,
+                'name': 'Full role',
+                'description': '<p>' + ('Requirement. ' * 25) + '</p>',
+                'key_skills': [{'name': 'Python'}],
+            }
 
     monkeypatch.setattr('app.api.vacancies.HHApiClient', FakeHHClient)
     response = client_with_db.post(

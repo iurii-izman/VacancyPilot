@@ -28,7 +28,7 @@ import type {
   HHSearchPreviewResponse,
   HHVacancySyncResponse,
 } from './types';
-import type { VacancyListFilters, VacancyListResponse, VacancyDetailResponse, FullV4PreviewResponse, FullV4AnalyzeResponse } from './vacancy-types';
+import type { VacancyListFilters, VacancyListResponse, VacancyDetailResponse, FullV4PreviewResponse, FullV4AnalyzeResponse, FullV4PersistedRunResponse } from './vacancy-types';
 import type {
   ApplicationListResponse,
   ApplicationResponse,
@@ -339,6 +339,10 @@ export class OpsClient {
 
   async analyzeFullV4(id: string, signal?: AbortSignal): Promise<FullV4AnalyzeResponse> {
     return this.authenticatedPost<FullV4AnalyzeResponse>(`/vacancies/${encodeURIComponent(id)}/analyze`, {}, signal);
+  }
+
+  async getFullV4Run(id: string, signal?: AbortSignal): Promise<FullV4PersistedRunResponse> {
+    return this.authenticatedGet<FullV4PersistedRunResponse>(`/engine/runs/${encodeURIComponent(id)}`, signal);
   }
 
   async listApplications(status?: string, signal?: AbortSignal): Promise<ApplicationListResponse> {

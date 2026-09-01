@@ -2,7 +2,7 @@
 
 ## Verdict
 
-Implementation and offline acceptance are complete. Live HH read verification for vacancy `136022615` passed. Production MV3 card/provider execution was not claimed: the current browser session did not have the unpacked extension/Application Card surface available, so no provider call was made.
+HH_FULL_DETAIL_UPSTREAM_BLOCKED. Implementation and offline acceptance are complete; live MV3 Application Card smoke reached the explicit Full V4 confirmation and hydration passed. The single authorized provider execution timed out upstream before a persisted run was created, so the branch is not claimed as pushed.
 
 ## Root cause
 
@@ -23,13 +23,13 @@ No HH writes, form interaction, auto-apply, application creation, APPLIED mutati
 
 ## Live read evidence
 
-Official HH documentation describes `GET https://api.hh.ru/vacancies/{vacancy_id}` and its full vacancy response. The configured local client read `136022615` successfully with sanitized output: description length 3461, 6 key skills, experience `От 3 до 6 лет`, source URL preserved. Browser inspection showed the same vacancy page with full description and six key skills. No provider execution was performed during acceptance.
+Official HH documentation describes `GET https://api.hh.ru/vacancies/{vacancy_id}` and its full vacancy response. The configured local client read `136022615` successfully with sanitized output: description length 3461, 6 key skills, experience `От 3 до 6 лет`, source URL preserved. Browser inspection showed the same vacancy page with full description and six key skills. The live card showed `Vacancy details: Full`; Preview Full V4 reported no provider call and a 2858-character persisted description. The one authorized Confirm and run attempt timed out after 10 seconds; no `engine_runs` row was persisted and no retry was made.
 
 ## Tests
 
 - HH client GET/ID validation and hydration/idempotency regressions: PASS.
 - Companion format, Ruff, strict mypy, full pytest and OpenAPI drift: PASS after snapshot regeneration.
-- Frontend typecheck/lint: PASS.
+- Frontend typecheck/lint: PASS; post-smoke persisted-run refresh path typechecks.
 - Fresh hermetic frontend suite after stopping the manually running Companion: 80 files, 1869 tests PASS. The earlier `unpaired` vs `unavailable` result was confirmed as the documented port-conflict/environment condition.
 - MV3 build: PASS; release safety: 10 files, 422 tests PASS; workflow verifier: PASS; diff-check: PASS.
 
@@ -37,4 +37,4 @@ Official HH documentation describes `GET https://api.hh.ru/vacancies/{vacancy_id
 
 Branch: `hotfix/hh-vacancy-hydration-v4-card`.
 
-Commit: `00e4072` (`fix: hydrate HH vacancies before Full V4 analysis`). The branch is intentionally not merged or pushed because the production MV3 card smoke was unavailable. No live provider call was performed.
+Latest implementation commit: `fix: finalize Full V4 card smoke path` (this commit). The branch is intentionally not merged or pushed because the only authorized provider execution was upstream-timeout blocked. No provider retry was performed.

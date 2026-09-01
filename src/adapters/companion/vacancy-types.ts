@@ -137,6 +137,24 @@ export type FullV4AnalyzeResponse = {
   meta: Record<string, string>;
 };
 
+export type FullV4PersistedRunResponse = {
+  data: {
+    run_id: string;
+    vacancy_id: string;
+    status: string;
+    repair_status: string;
+    ready: boolean;
+    score: number | null;
+    decision: string | null;
+    engine_version: string;
+    provider: string;
+    model: string | null;
+    input_hash: string;
+    created_at: string;
+  };
+  meta: Record<string, string>;
+};
+
 // ── Triage (POST /vacancies/{id}/triage) ────────────────────────────────────
 
 export interface VacancyTriageRequest {

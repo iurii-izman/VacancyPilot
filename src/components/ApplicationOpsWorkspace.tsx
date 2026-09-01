@@ -233,7 +233,12 @@ export function ApplicationCard({ job, onBack }: { job: Job; onBack?: () => void
   const executeFullV4 = async () => {
     if (!preview || busy) return;
     setBusy(true); setError(null);
-    try { const response = await getOpsClient().analyzeFullV4(currentJob.id); setRun(response.data); setTab("Score"); }
+    try {
+      const response = await getOpsClient().analyzeFullV4(currentJob.id);
+      const persisted = await getOpsClient().getFullV4Run(response.data.run_id);
+      setRun({ ...response.data, status: persisted.data.status, score: persisted.data.score, decision: persisted.data.decision });
+      setTab("Score");
+    }
     catch (err) { setError(err instanceof Error ? err.message : "Full V4 analysis failed"); }
     finally { setBusy(false); }
   };
