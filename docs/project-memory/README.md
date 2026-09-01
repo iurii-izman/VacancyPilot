@@ -24,7 +24,10 @@ Recommended startup reading for a future agent:
 5. The relevant accepted milestone report, runtime/security artifacts and ADRs in [`docs/development/application-ops/adr/`](../development/application-ops/adr/)
 6. The master specification before implementation changes
 
-`docs/ROADMAP.md` and `docs/development/00-product-development-plan.md` provide current planning context, but historical epic/iteration files are archaeology and must not be treated as an automatic implementation queue during the dogfood freeze.
+`docs/ROADMAP.md` provides current planning context. Superseded plans and
+epic/iteration files are archaeology retrievable through [`docs/HISTORY.md`](../HISTORY.md)
+and must not be treated as an automatic implementation queue during the
+dogfood freeze.
 
 ## Canonical document map
 
@@ -35,7 +38,7 @@ Recommended startup reading for a future agent:
 | Milestone acceptance | Relevant `*_ACCEPTANCE*.md` or post-merge report under [`docs/development/`](../development/) | Evidence link |
 | Architecture decisions | Accepted ADRs under [`docs/development/application-ops/adr/`](../development/application-ops/adr/) | Retrieval register |
 | API contract | [`shared/contracts/openapi.json`](../../shared/contracts/openapi.json) and its accepted ADR | Link only |
-| Product priority | [`docs/development/00-product-development-plan.md`](../development/00-product-development-plan.md) and [`docs/ROADMAP.md`](../ROADMAP.md) | Context; not acceptance authority |
+| Product priority | [`docs/ROADMAP.md`](../ROADMAP.md) | Context; not acceptance authority |
 | Implementation behavior | Source code and tests | Final truth |
 
 ## Search before create

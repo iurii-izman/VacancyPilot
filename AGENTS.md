@@ -7,7 +7,7 @@ Before planning repository work, read [`docs/project-memory/README.md`](docs/pro
 This repository is specification-first. Before making implementation changes, read:
 
 1. `docs/Техническое заданиеV.1.md`
-2. Relevant files in `docs/search/` only when validating a product or architecture decision.
+2. Relevant historical analysis, retrievable from Git history, only when validating a product or architecture decision.
 
 ## Product Boundaries
 

@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -28,24 +28,27 @@ requireMatch(session, /HEAD[\s\S]*origin\/main/, sessionPath);
 requireMatch(session, /Pull requests and feature branches[\s\S]*not part/, sessionPath);
 requireMatch(session, /Do not:[\s\S]*- commit;[\s\S]*- push;/, sessionPath);
 
-const actionableFiles = [
+const packFiles = [
   sessionPath,
   "docs/development/application-ops-pack/CODEX_REVIEW_GATE.md",
   "docs/development/application-ops-pack/EPIC_MAP.md",
+  "docs/development/application-ops-pack/MICROPROMPT_TEMPLATES.md",
+  "docs/development/application-ops-pack/README.md",
 ];
 
-for (let epic = 3; epic <= 18; epic += 1) {
-  const id = `AOPS-${String(epic).padStart(2, "0")}`;
-  const relativePath = `docs/development/application-ops-pack/prompts/${id}.md`;
-  const prompt = read(relativePath);
-  requireMatch(prompt, /\bmain\b/, relativePath);
-  requireMatch(prompt, /\bPR\b|pull request/i, relativePath);
-  actionableFiles.push(relativePath);
+const retiredPromptDirectory = resolve(packRoot, "prompts");
+if (existsSync(retiredPromptDirectory)) {
+  throw new Error(
+    "application-ops executor prompts must remain retired from the current tree",
+  );
 }
 
-for (const relativePath of actionableFiles) {
+for (const relativePath of packFiles) {
   const content = read(relativePath);
-  if (content.includes("codex/application-ops-mvp")) {
+  if (
+    relativePath !== "docs/development/application-ops-pack/README.md" &&
+    content.includes("codex/application-ops-mvp")
+  ) {
     throw new Error(`${relativePath} contains the retired implementation branch`);
   }
 }
