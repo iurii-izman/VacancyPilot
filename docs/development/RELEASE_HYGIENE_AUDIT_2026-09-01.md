@@ -215,8 +215,10 @@ review because their local checkouts are dirty.
 The hygiene branch was merged into `main` with a non-fast-forward merge after
 the full gates, the post-merge gates passed, the local hygiene branch was
 deleted, and `main` was pushed without force. The final handoff verifies a
-clean `main` tracking `origin/main` at `8020566ec3d7e2cd50dde7aa9c6636d2bbe74601`.
-No history rewrite or force push was used.
+clean `main` tracking `origin/main`; the non-fast-forward merge result was
+`8020566ec3d7e2cd50dde7aa9c6636d2bbe74601`. The final audit-record commit was
+pushed afterward as a normal commit. No history rewrite or force push was
+used.
 
 ## FINAL C:\Dev ACTIVE WORKSPACE
 
