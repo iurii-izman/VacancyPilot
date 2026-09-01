@@ -33,7 +33,7 @@ describe("TrustSafetySummary — content disclosure", () => {
     expect(source).toMatch(/Where Data Is Stored/);
     expect(source).toMatch(/IndexedDB/);
     expect(source).toMatch(/chrome\.storage\.local/);
-    expect(source).toMatch(/only in your browser/);
+    expect(source).toMatch(/Standalone data is stored/);
   });
 
   it("discloses key principles", () => {

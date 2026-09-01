@@ -15,13 +15,16 @@ Use this precedence when sources disagree:
 5. This Memory Lite index and snapshot.
 6. Historical notes, prompts, audits, and discussion material.
 
-Recommended startup reading:
+Recommended startup reading for a future agent:
 
 1. [`AGENTS.md`](../../AGENTS.md)
 2. [`CURRENT_STATE.md`](CURRENT_STATE.md)
-3. The relevant accepted milestone report and runtime/security artifacts
-4. The applicable ADRs in [`docs/development/application-ops/adr/`](../development/application-ops/adr/)
-5. The master specification before implementation changes
+3. [`IMPLEMENTATION_STATUS.md`](../development/application-ops/IMPLEMENTATION_STATUS.md)
+4. [`R5_DAILY_USE_READINESS.md`](../development/application-ops/r5/R5_DAILY_USE_READINESS.md) when operating the product
+5. The relevant accepted milestone report, runtime/security artifacts and ADRs in [`docs/development/application-ops/adr/`](../development/application-ops/adr/)
+6. The master specification before implementation changes
+
+`docs/ROADMAP.md` and `docs/development/00-product-development-plan.md` provide current planning context, but historical epic/iteration files are archaeology and must not be treated as an automatic implementation queue during the dogfood freeze.
 
 ## Canonical document map
 

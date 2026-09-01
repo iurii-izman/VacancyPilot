@@ -1,7 +1,16 @@
 # VacancyPilot Product Development Plan
 
-Status: Phase 1 implementation complete; closeout gate passed; Phase 2 pack complete; dependency maintenance pack complete; security-closure pack complete; workflow-assist pack complete; HR communication pack complete; post-audit reliability/scoring pack complete; final moderate security tail closed; private release readiness pack complete; AI assist quality/trust pack is the current active sequence (`ITER-060`..`ITER-062`)  
+Status: HISTORICAL IMPLEMENTATION PLAN / superseded as active execution guidance by accepted Application Ops R5 + dogfood freeze
 Source of truth: `docs/Техническое заданиеV.1.md` v1.1 FINAL
+
+Current-state pointer:
+
+- Current product/runtime truth: [`docs/project-memory/CURRENT_STATE.md`](../project-memory/CURRENT_STATE.md)
+- Current implementation evidence: [`docs/development/application-ops/IMPLEMENTATION_STATUS.md`](application-ops/IMPLEMENTATION_STATUS.md)
+- Daily-use gate: [`docs/development/application-ops/r5/R5_DAILY_USE_READINESS.md`](application-ops/r5/R5_DAILY_USE_READINESS.md)
+- Current roadmap and next decision gate: [`docs/ROADMAP.md`](../ROADMAP.md)
+
+The decomposition below is retained for archaeology and traceability. It is not an active implementation queue while feature development is frozen.
 
 Implementation note:
 
@@ -11,8 +20,7 @@ Implementation note:
 - the HR communication pack landed through `ITER-044` and `ITER-045`;
 - the post-audit reliability/scoring hardening pack landed through `ITER-058`;
 - the private release readiness pack (`ITER-063` / `ITER-064`) landed on 2026-06-21;
-- the next active product-scope pack is `EPIC-31 — AI Assist Quality And Trust` (`ITER-060`..`ITER-062`);
-- the next queued follow-up pack after that is the GUI/UI/UX polish sequence (`ITER-065`..`ITER-068`);
+- the former AI/UI follow-up sequences are historical planning context, not current work;
 - a post-polish runtime stabilization pack is prepared as `EPIC-35` (`ITER-069`..`ITER-071`) for defects confirmed by manual QA/screenshots;
 - a visual consistency consolidation pack is prepared as `EPIC-36` (`ITER-072`..`ITER-075`) from the 2026-06-21 runtime UX audit;
 - a non-duplicated audit-closure follow-up pack is prepared as `EPIC-37` (`ITER-076`..`ITER-078`) for repo-local quality/trust items from the 2026-06-22 full audit, while the duplicated runtime/UI findings remain intentionally mapped to `EPIC-35` and `EPIC-36`;
@@ -120,13 +128,6 @@ Required:
 - privacy/safety tests pass;
 - manual QA in Chrome and one additional Chromium browser.
 
-## Immediate Next Actions
+## Immediate Next Actions — superseded current guidance
 
-1. Start `EPIC-31` with `ITER-060`.
-2. Continue with `ITER-061` after `ITER-060` is reviewed and merged.
-3. Continue with `ITER-062` after `ITER-061` is reviewed and merged.
-4. Keep `ITER-043` deferred until the `n8n` permission model decision is explicitly reopened.
-5. Prepare the queued UI/UX follow-up pack (`ITER-065`..`ITER-068`) while `EPIC-31` runs.
-6. After that pack, use `EPIC-35` only for confirmed runtime/UI defects that remain.
-7. After `EPIC-35`, use `EPIC-36` for the remaining visual-consistency/UI-role cleanup that does not change permissions or product boundaries.
-8. Keep multi-site expansion, backend sync, and public store submission out of the next active pack.
+The former `ITER-060`..`ITER-062` and UI-pack sequence is preserved above for historical traceability. Current actions are real vacancy/application dogfood, repeated friction and quality evidence collection, and immediate hotfixes only for the criteria in [`R5_DAILY_USE_READINESS.md`](application-ops/r5/R5_DAILY_USE_READINESS.md). Do not start AOPS-14 or full AOPS-15 by default; choose the next feature milestone only from evidence.

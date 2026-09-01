@@ -21,7 +21,9 @@ export function AboutSection(): ReactNode {
       <p style={para}>
         VacancyPilot is a <strong>local-first, read-first</strong> copilot for
         HH.ru. It helps you analyze vacancies, prepare cover letters, and track
-        your job search history — all from your browser, with no cloud backend.
+        your job search history. Standalone Mode works in the browser; optional
+        Ops Mode adds a paired loopback companion, with no developer cloud
+        backend.
       </p>
 
       <div style={{ ...card, padding: "10px 14px", marginBottom: 14 }}>
@@ -32,15 +34,15 @@ export function AboutSection(): ReactNode {
             margin: 0,
           }}
         >
-          <strong>Status:</strong> Private alpha · dogfooding
+          <strong>Status:</strong> Pre-release · personal dogfood · R5 accepted
         </p>
       </div>
 
       <div style={card}>
         <h3 style={cardHeading}>Stack</h3>
         <p style={{ ...para, margin: 0 }}>
-          Manifest V3 · WXT · TypeScript · React · Dexie (IndexedDB) ·
-          chrome.storage.local · Vitest
+          Manifest V3 · WXT 0.21 · TypeScript 6 · React 19 · Dexie (IndexedDB) ·
+          chrome.storage.local · FastAPI · SQLite · Vitest
         </p>
       </div>
 
@@ -53,7 +55,7 @@ export function AboutSection(): ReactNode {
         <ul style={{ margin: 0, paddingLeft: 18, color: colors.textSecondary }}>
           <li>
             <a
-              href="https://github.com/VacancyPilot/VacancyPilot/blob/main/PRIVACY.md"
+              href="https://github.com/iurii-izman/VacancyPilot/blob/main/PRIVACY.md"
               target="_blank"
               rel="noreferrer"
               style={linkStyle}
@@ -63,7 +65,7 @@ export function AboutSection(): ReactNode {
           </li>
           <li>
             <a
-              href="https://github.com/VacancyPilot/VacancyPilot/blob/main/.github/SUPPORT.md"
+              href="https://github.com/iurii-izman/VacancyPilot/blob/main/.github/SUPPORT.md"
               target="_blank"
               rel="noreferrer"
               style={linkStyle}
@@ -73,7 +75,7 @@ export function AboutSection(): ReactNode {
           </li>
           <li>
             <a
-              href="https://github.com/VacancyPilot/VacancyPilot/security/advisories/new"
+              href="https://github.com/iurii-izman/VacancyPilot/security/advisories/new"
               target="_blank"
               rel="noreferrer"
               style={linkStyle}

@@ -1,104 +1,77 @@
 # VacancyPilot Privacy Policy
 
-Effective date: 2026-06-22  
-Last updated: 2026-06-22  
-Version: 0.1
+Effective date: 2026-09-01
+Last updated: 2026-09-01
+Version: 0.2
 
-VacancyPilot is a local-first browser extension for HH.ru vacancy analysis, tracking, and writing assistance. This policy covers the VacancyPilot extension itself. It does not cover any separate developer website or backend because VacancyPilot does not operate one.
+This policy describes the public VacancyPilot extension and its optional local loopback companion. VacancyPilot has no developer-operated cloud backend, cloud sync service or developer telemetry by default.
 
 ## Summary
 
-- VacancyPilot stores its main data locally in your browser.
-- VacancyPilot does not send data to developer-operated servers.
-- External requests happen only when you explicitly use optional integrations such as AI.
-- VacancyPilot does not auto-apply, auto-click HH controls, or access HH cookies or session data.
+- VacancyPilot is local-first and user-controlled, but data may live in the browser and, when Ops Mode is enabled, in the user’s local companion SQLite database.
+- Standalone Mode uses Dexie/IndexedDB for domain data and `chrome.storage.local` for settings, small state and the standalone BYOK provider path.
+- Ops Mode uses a paired loopback-only FastAPI companion. SQLite is canonical there; companion secrets are stored in the OS keyring and the private V4 engine package stays on local disk.
+- HH browser-page access is read-only DOM inspection of pages the user opened. Official HH API reads, when configured, are made by the local companion.
+- OpenAI requests happen only after an explicit AI action and payload review. The user’s provider terms and privacy policy apply.
+- VacancyPilot does not auto-apply, auto-click, write HH forms, send recruiter/follow-up messages, or bypass CAPTCHA/antibot controls.
 
-## What Data VacancyPilot Stores Locally
+## Data Stored Locally
 
-VacancyPilot may store the following on your device:
+The extension may store vacancy data, search profiles, profiles and resume highlights supplied by the user, scores and analysis results, cover-letter drafts and versions, application statuses/events/follow-ups, local cache and outbox records, and UI/settings state.
 
-- vacancy data from HH.ru pages you open, such as title, company, salary, skills, URL, and extracted plain-text description;
-- your local job-search history, statuses, and timestamps;
-- your profiles, preferences, and resume highlights that you enter yourself;
-- cover letters and draft content generated or edited in the extension;
-- settings such as privacy mode, AI controls, UI preferences, and Labs toggles;
-- AI cache entries for results you requested;
-- local event and workflow records used by the extension UI.
+### Standalone Mode
 
-Storage is implemented through IndexedDB and `chrome.storage.local`.
+- Dexie/IndexedDB is the canonical domain store.
+- `chrome.storage.local` stores application settings, small/badge state, the paired companion client token when used, and standalone BYOK API keys.
+- Standalone API keys are stored separately from IndexedDB and exports, but browser local storage is not a secure vault; the UI warns users to use a minimally scoped key.
 
-## What VacancyPilot Does Not Collect
+### Ops Mode
 
-VacancyPilot does not collect:
+- The loopback companion stores its canonical operational records in local SQLite, including applications, events, snapshots, engine runs, evidence usage, letters, follow-ups and Search Profiles as defined by the accepted data model.
+- Companion HH/OAuth/provider secrets and pairing material are handled by the OS keyring. The companion stores only hashed client-token material in SQLite.
+- The private V4 engine package and real candidate knowledge are loaded from local disk and are not part of this public repository.
+- Local logs/cache contain only the data implemented by the current companion; secrets and authorization headers are redacted or excluded by the runtime.
 
-- HH.ru login credentials, cookies, tokens, or session secrets;
-- browsing history outside the extension's active use on HH.ru pages;
-- telemetry, analytics, crash reporting, advertising identifiers, or tracking profiles by default;
-- data from non-HH.ru websites as part of the core product flow.
+## Data Not Collected
 
-## When Data Is Sent Externally
+VacancyPilot does not collect developer telemetry, advertising identifiers, browsing history outside its active product use, HH browser cookies, HH passwords or browser session secrets. It does not intentionally collect data from non-HH sites as part of the core flow.
 
-### AI provider requests
+## External Connections
 
-If you enable AI features and explicitly start an AI action, VacancyPilot may send a reviewed payload to your chosen provider.
+### HH browser pages
 
-This is limited by the product's safety model:
+Content scripts inspect visible DOM on user-opened HH pages. They do not make hidden fetch/XHR requests to HH, click HH controls, write form values or read cookies/session state.
 
-- you configure the provider and your own API key;
-- the extension shows a payload preview before sending;
-- emails, phone numbers, and URLs are redacted before external requests;
-- Strict Privacy mode can exclude vacancy description text and resume highlights;
-- raw HH page HTML is not sent.
+### Official HH API
 
-For the current implementation, the supported real provider is OpenAI through the runtime origin `https://api.openai.com/*`. You are responsible for reviewing your provider's terms and privacy policy.
+When the user configures the optional companion integration, the local companion may call official `api.hh.ru` read endpoints for account, vacancy/search and permitted applicant data. The current capability matrix is honest: account `AVAILABLE`, resumes `DENIED_BY_HH`, negotiations `DENIED_BY_HH`, and writes `FORBIDDEN_BY_PRODUCT`. There is no fallback to scraping or private endpoints. HH OAuth/application credentials are kept on the companion side in the OS keyring where implemented.
 
-### Other external integrations
+### AI providers
 
-The project keeps webhook automation and related external delivery out of the current public-ready path. If such integrations are enabled in a future build, they remain opt-in and must be explicitly disclosed in the relevant release notes and settings.
+An explicit user-confirmed AI action may send a reviewed, redacted payload to the configured provider. Standalone AI uses the extension’s OpenAI BYOK path and its local key storage; Ops Mode Full V4 uses the local companion and its OS-keyring provider secret. Payload preview, redaction and Strict Privacy behavior apply as implemented. Raw HH HTML, cookies, tokens, email addresses, phone numbers and URLs are not sent by the supported redaction path. Generated text is not promoted to evidence.
 
-## Permissions
+### n8n / other webhook integrations
 
-VacancyPilot currently declares these core permissions:
+n8n remains an opt-in Labs/deferred integration, not the current default operating path. If a user explicitly enables an existing n8n flow, events go to the user-configured webhook rather than a developer endpoint; the user is responsible for that destination. It must not be described as external recruiter or follow-up sending.
 
-- `storage`
-- `sidePanel`
-- `activeTab`
+## User Controls and Retention
 
-VacancyPilot does not request broad host permissions at install time. The current optional runtime host access is narrowly scoped to OpenAI for user-confirmed AI requests.
+The extension provides export and deletion controls for browser-managed data, AI cache controls and AI/Labs toggles. Export excludes API keys and other secret material. The extension’s `Delete All Data` clears its Dexie tables and known extension storage keys, including standalone API keys and badge state; it does not delete unknown browser storage keys.
 
-## User Controls
+Ops Mode companion SQLite data, OS-keyring secrets and local engine files are separate local resources. The current extension delete action does not imply deletion of those companion resources; manage or remove them through the companion’s documented local storage procedures. Uninstalling the extension may remove browser-managed storage but does not necessarily remove companion SQLite, keyring or engine data.
 
-You can:
+Data remains locally until the user deletes it, clears the relevant browser/companion storage, or removes the relevant local resources. There is no developer-side backup or cloud retention. Export before deletion when a copy is wanted.
 
-- export your data as JSON or CSV;
-- delete all local data;
-- disable AI features;
-- clear AI cache through extension settings;
-- hide the page badge;
-- remove the extension entirely.
+## Permissions and Security
 
-Uninstalling the extension removes extension-managed local storage from your browser profile.
+The extension declares `storage`, `sidePanel` and `activeTab`, with no broad install-time host permissions. Optional runtime host access is narrowly scoped to OpenAI and the loopback companion. The companion binds only to loopback and uses paired client authentication, strict extension-origin CORS, SQLite constraints, generated OpenAPI and OS keyring integration.
 
-## Data Retention
+No remote code, external scripts or developer backend are loaded into the extension runtime. See [`SECURITY.md`](SECURITY.md) for the security boundary and reporting process.
 
-VacancyPilot keeps data on your device until you delete it, clear browser extension storage, or uninstall the extension. VacancyPilot does not provide cloud sync or developer-side backups.
+## Children and Policy Changes
 
-## Security Notes
-
-- API keys are stored locally in `chrome.storage.local`.
-- The extension warns that browser local storage is not a secure vault.
-- API keys are not exported with project data.
-- VacancyPilot does not load remote code into the extension runtime.
-
-## Children's Privacy
-
-VacancyPilot is not directed at children.
-
-## Policy Changes
-
-If this policy changes materially, the updated version will be published in the repository and may also be referenced from release notes or onboarding content.
+VacancyPilot is not directed at children. Material policy changes will be reflected in this repository and, where relevant, onboarding or release notes.
 
 ## Contact
 
-For general project questions, use the repository issue tracker: [GitHub Issues](https://github.com/VacancyPilot/VacancyPilot/issues)  
-For sensitive security matters, use: [GitHub Security Advisories](https://github.com/VacancyPilot/VacancyPilot/security/advisories/new)
+For general questions, use [GitHub Issues](https://github.com/iurii-izman/VacancyPilot/issues). For sensitive security matters, use [GitHub Security Advisories](https://github.com/iurii-izman/VacancyPilot/security/advisories/new).

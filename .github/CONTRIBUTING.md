@@ -1,6 +1,6 @@
 # Contributing to VacancyPilot
 
-Thank you for your interest in contributing. VacancyPilot is currently in **private alpha / dogfooding** stage. Issues and pull requests are welcome, but the scope is controlled to keep the project aligned with its core safety principles.
+Thank you for your interest in contributing. VacancyPilot is currently in **pre-release personal dogfood** with feature development frozen while real-use evidence is collected. Issues and pull requests are welcome, but the scope is controlled to keep the project aligned with its core safety principles.
 
 ---
 
@@ -13,7 +13,7 @@ VacancyPilot is a **local-first, read-first HH.ru job-search copilot**. It is no
 ## Local Setup
 
 ```bash
-git clone git@github.com:VacancyPilot/VacancyPilot.git
+git clone git@github.com:iurii-izman/VacancyPilot.git
 cd VacancyPilot
 pnpm install
 pnpm dev        # Dev mode with hot reload (Chrome)
@@ -50,7 +50,7 @@ All contributions must respect these boundaries:
 - **No auto-click on HH controls** — never programmatically click HH.ru UI elements
 - **No form writes** — never write values into HH.ru form fields
 - **No hidden HH fetch/XHR** — no background or content-script requests to HH.ru endpoints
-- **No broad permissions** — keep permissions minimal (`storage`, `sidePanel`, `activeTab`)
+- **No broad permissions** — keep permissions minimal (`storage`, `sidePanel`, `activeTab`); optional OpenAI/loopback companion hosts require explicit justification
 - **No telemetry by default** — no analytics, crash reporting, or usage tracking unless explicitly opt-in and off by default
 - **AI and n8n must remain opt-in** — no automatic external requests without explicit user action
 
@@ -88,8 +88,9 @@ Before opening a pull request:
 
 ## Documentation
 
+- Project Memory Lite: [`docs/project-memory/README.md`](../docs/project-memory/README.md)
 - Product specification: [`docs/Техническое заданиеV.1.md`](../docs/Техническое%20заданиеV.1.md)
-- Development plan: [`docs/development/00-product-development-plan.md`](../docs/development/00-product-development-plan.md)
+- Current roadmap: [`docs/ROADMAP.md`](../docs/ROADMAP.md)
 - Security policy: [`SECURITY.md`](../SECURITY.md)
 
 ---
@@ -98,4 +99,4 @@ Before opening a pull request:
 
 **Do not post security vulnerabilities publicly.** Follow the process in [`SECURITY.md`](../SECURITY.md):
 
-GitHub → [Report a vulnerability](https://github.com/VacancyPilot/VacancyPilot/security/advisories/new)
+GitHub → [Report a vulnerability](https://github.com/iurii-izman/VacancyPilot/security/advisories/new)

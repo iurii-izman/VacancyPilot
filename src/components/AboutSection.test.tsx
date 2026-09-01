@@ -20,8 +20,8 @@ describe("AboutSection — product identity", () => {
   });
 
   it("shows the product status", () => {
-    expect(source).toMatch(/Status.*Private alpha/);
-    expect(source).toMatch(/dogfooding/);
+    expect(source).toMatch(/Status.*Pre-release/);
+    expect(source).toMatch(/dogfood/);
   });
 
   it("discloses the tech stack", () => {

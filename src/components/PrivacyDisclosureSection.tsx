@@ -29,8 +29,9 @@ export function PrivacyDisclosureSection(): ReactNode {
       <div style={card}>
         <h3 style={cardHeading}>Data Stored Locally</h3>
         <p style={muted}>
-          All of the following is stored only in your browser (IndexedDB +
-          chrome.storage.local):
+          In Standalone Mode, the following is stored in the browser (IndexedDB
+          + chrome.storage.local). In Ops Mode, operational records are
+          canonical in the paired local companion SQLite database:
         </p>
         <ul style={listStyle}>
           <li>
@@ -85,6 +86,10 @@ export function PrivacyDisclosureSection(): ReactNode {
           </li>
           <li>
             Pairing tokens are isolated from exports and migration payloads.
+          </li>
+          <li>
+            Companion secrets use the OS keyring; the private V4 engine package
+            remains on local disk and is not part of this repository.
           </li>
         </ul>
       </div>
@@ -159,8 +164,8 @@ export function PrivacyDisclosureSection(): ReactNode {
         <h3 style={cardHeading}>No Other External Communication</h3>
         <ul style={listStyle}>
           <li>No analytics, crash reporting, or telemetry of any kind</li>
-          <li>No hidden background requests to external services</li>
-          <li>No developer-operated backend or API</li>
+          <li>No hidden browser-side HH requests; official HH API reads are companion-side and read-only</li>
+          <li>No developer-operated cloud backend or sync API</li>
           <li>No third-party advertising or tracking</li>
           <li>No CDN, external fonts, or remote scripts</li>
         </ul>
@@ -232,8 +237,9 @@ export function PrivacyDisclosureSection(): ReactNode {
             user account
           </li>
           <li>
-            API keys are stored in <code>chrome.storage.local</code> in
-            plaintext — use a dedicated key with minimal permissions
+            Standalone API keys are stored in <code>chrome.storage.local</code>{" "}
+            in plaintext; companion provider and HH secrets use the OS keyring.
+            Use a dedicated key with minimal permissions.
           </li>
           <li>API keys are never exported, synced, or sent to developer</li>
           <li>No remote code is loaded or executed at runtime</li>

@@ -87,8 +87,8 @@ loopback redirect URI. Secret values were not printed.
 
 | Item | Result |
 |---|---|
-| source | `C:\Users\iurii\.codex\attachments\ca0689ae-ef79-4133-82d5-dce8f683b9b2\pasted-text-1.txt` (pasted source; repo-local copy was the expected untracked file) |
-| destination | `C:\Dev\VacancyPilot-prompts\archive\R3\CODEX_TERRA_5_6_MEDIUM_R3_HH_DATA_PLANE_AOPS10_AOPS11.md` |
+| source | local pasted source (absolute path intentionally omitted) |
+| destination | local prompt archive path (absolute path intentionally omitted) |
 | SHA-256 verified | yes; source and destination matched `53A2AD4D…F55E72` |
 | repo copy removed | yes |
 | committed | no |

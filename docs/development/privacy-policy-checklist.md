@@ -1,6 +1,6 @@
 # Privacy Policy Draft Checklist — VacancyPilot
 
-Status: ITER-064  
+Status: FUTURE PUBLIC-RELEASE CHECKLIST / reviewed 2026-09-01
 Source: spec sections 20, 22.6, 26.4; EPIC-10
 
 Use this checklist when drafting the public privacy policy. Each item must be addressed in the final policy document. A public privacy policy is **mandatory** for Chrome Web Store submission (spec 26.4).
@@ -19,7 +19,7 @@ Use this checklist when drafting the public privacy policy. Each item must be ad
 
 ## 2. Data Collection
 
-### 2.1 Data Stored Locally (IndexedDB / chrome.storage.local)
+### 2.1 Data Stored Locally (browser and optional companion)
 
 - [ ] **Vacancy data**: Title, company name, salary, description text, skills, URL, HH vacancy ID.
 - [ ] **Status history**: User-assigned application statuses with timestamps.
@@ -30,7 +30,7 @@ Use this checklist when drafting the public privacy policy. Each item must be ad
 - [ ] **Event log**: Timestamps of user actions within the extension (status changes, exports, AI requests initiated).
 - [ ] **AI cache**: Responses from AI provider, keyed by content hash (can be cleared by user).
 
-**None of this data is synced to any cloud service.**
+In Standalone Mode this data is in Dexie/IndexedDB and `chrome.storage.local`. In Ops Mode operational records may be canonical in the user’s local SQLite companion; companion secrets use the OS keyring and the private engine package stays on local disk. None of this is synced to a developer cloud service.
 
 ### 2.2 Data NOT Collected
 
@@ -65,7 +65,7 @@ Use this checklist when drafting the public privacy policy. Each item must be ad
 ### 3.3 No Other External Communication
 
 - [ ] No analytics, crash reporting, or telemetry of any kind.
-- [ ] No background network requests.
+- [ ] No hidden browser-side HH requests. Explicit companion-side reads use only the official HH API when configured.
 - [ ] No developer-operated backend or API.
 - [ ] No third-party advertising or tracking.
 
@@ -95,9 +95,9 @@ Use this checklist when drafting the public privacy policy. Each item must be ad
 
 ## 6. Data Retention
 
-- [ ] Data is stored **only on the user's device** in the browser's local storage (IndexedDB, `chrome.storage.local`).
-- [ ] Data persists until user deletes it or uninstalls the extension.
-- [ ] Uninstalling the extension removes all stored data.
+- [ ] Data is stored on the user's device: browser storage in Standalone Mode and local companion SQLite/keyring/engine storage in Ops Mode.
+- [ ] Data persists until the user deletes the relevant browser or companion data.
+- [ ] Uninstalling the extension may remove browser-managed storage but does not necessarily remove companion data.
 - [ ] No automatic data expiration or deletion (user controls retention).
 - [ ] No backup or recovery mechanism (user is responsible for exports).
 
@@ -105,8 +105,8 @@ Use this checklist when drafting the public privacy policy. Each item must be ad
 
 ## 7. Security
 
-- [ ] **Local storage**: Data stored in browser's built-in storage mechanisms (IndexedDB, `chrome.storage.local`). Protected by the browser's own security model and OS user account.
-- [ ] **API keys**: Stored in `chrome.storage.local`. User is warned that keys are stored locally in plaintext. Keys are never exported, synced, or sent to developer.
+- [ ] **Local storage**: Standalone data uses IndexedDB/`chrome.storage.local`; Ops data uses local SQLite and OS keyring as applicable.
+- [ ] **API keys**: Standalone BYOK keys use `chrome.storage.local` with a plaintext/non-vault warning; companion provider/HH secrets use the OS keyring. Keys are never exported, synced, or sent to the developer.
 - [ ] **HMAC secret**: n8n HMAC secret is stored in `chrome.storage.local` and masked in UI. Excluded from exports.
 - [ ] **No remote code**: Extension does not load or execute remote code at runtime.
 - [ ] **CSP**: Content Security Policy restricts external connections to user-configured hosts only.

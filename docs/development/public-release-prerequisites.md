@@ -1,9 +1,10 @@
 # Public Release Prerequisites — VacancyPilot
 
-Status: ITER-064  
+Status: FUTURE BACKLOG / NOT IMMINENT
+Last reviewed: 2026-09-01
 Source: spec sections 26.1, 26.4, 26.5, 26.6; EPIC-10
 
-This document lists everything that must be completed or resolved before VacancyPilot can be published to the Chrome Web Store or distributed publicly. Most items are **not required** for private/personal use.
+This document lists everything that must be completed or resolved before VacancyPilot can be published to the Chrome Web Store or distributed publicly. Most items are **not required** for private/personal use. Current product operation is a local extension plus optional loopback FastAPI companion; public packaging must decide how that companion is installed, paired and supported.
 
 ---
 
@@ -40,7 +41,9 @@ Optional permissions (requested at runtime):
 | Optional | Justification |
 |----------|---------------|
 | AI provider host | Users configure their own AI provider. The host is requested only when the user enters an API key and initiates an AI request. |
-| n8n webhook host | Users configure their own n8n instance. The host is requested only when the user enables the n8n integration in Labs settings. |
+| Loopback companion host | Ops Mode is explicitly paired to the user’s local companion at `127.0.0.1:8765`; no broad host access is requested. |
+
+n8n remains deferred and is not an optional host permission in the current build.
 
 Store-facing draft text is prepared in `docs/development/store-listing-draft.md`.
 
@@ -53,7 +56,7 @@ Store-facing draft text is prepared in `docs/development/store-listing-draft.md`
 A public privacy policy is **mandatory** for Chrome Web Store submission. The policy must cover:
 
 - [ ] **Data collected**: What data the extension accesses and stores.
-- [ ] **Data storage**: All data stored locally (IndexedDB, `chrome.storage.local`). No cloud storage, no sync.
+- [ ] **Data storage**: Data may be stored in Standalone browser storage (IndexedDB, `chrome.storage.local`) or Ops Mode local SQLite/keyring/engine storage. No developer cloud storage or sync.
 - [ ] **Data sent externally**: AI payloads (to user-configured AI provider), n8n webhooks (to user-configured webhook URL). Both are opt-in.
 - [ ] **Data minimization**: Redaction of PII before external requests. Payload preview for user transparency.
 - [ ] **No telemetry**: No analytics, no crash reporting, no usage tracking sent to developer.
@@ -121,9 +124,9 @@ See `docs/development/privacy-policy-checklist.md` for detailed coverage.
 ### 6.2 Release Gate (spec 22.7)
 - [ ] `pnpm typecheck` passes.
 - [ ] `pnpm lint` passes.
-- [ ] `pnpm test` passes (currently 1615 tests).
+- [ ] `pnpm test` passes (use the fresh dated validation report; do not hardcode an old count).
 - [ ] `pnpm build` succeeds without warnings.
-- [ ] `pnpm test:release` passes (currently 373 release-safety tests).
+- [ ] `pnpm test:release` passes (use the fresh dated validation report; do not hardcode an old count).
 - [ ] All P0/P1 risks (`docs/development/known-risks.md`) are resolved or explicitly accepted.
 
 ### 6.3 Privacy/Safety Tests (spec 22.6)
@@ -179,4 +182,4 @@ See `docs/development/privacy-policy-checklist.md` for detailed coverage.
 | 10 | Root README | **P2** | Present — may need update before public store listing |
 | 11 | Open source license | **P1** | Not chosen |
 
-**Current state**: ready for private/personal use. Public release requires resolving all P0 blockers. The private release readiness pack (EPIC-32, ITER-063/064) provides the install/docs/QA baseline. Public release work belongs to EPIC-26 (backlog).
+**Current state**: ready for private/personal dogfood, not a public release candidate. Public release requires resolving the blockers above, including the local-companion packaging/pairing question, current dependency findings, legal/privacy hosting and broader QA. The private release readiness pack remains historical baseline evidence; public release work belongs to the backlog.
