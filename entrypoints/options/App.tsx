@@ -12,7 +12,7 @@ import { OnboardingSection } from "@/components/OnboardingSection";
 import { PermissionsSection } from "@/components/PermissionsSection";
 import { PrivacyDisclosureSection } from "@/components/PrivacyDisclosureSection";
 import { CompanionSettings } from "@/components/CompanionSettings";
-import { CommandCenter, Inbox, ApplicationWorkspace } from "@/components/ApplicationOpsWorkspace";
+import { CommandCenter, ApplicationWorkspace } from "@/components/ApplicationOpsWorkspace";
 import { PerformanceSection } from "@/components/PerformanceSection";
 import { useState, useCallback, useEffect, type ReactNode } from "react";
 import {
@@ -420,12 +420,12 @@ export function formatShortDate(iso: string): string {
   }
 }
 
-function SectionContent({ section }: { section: SectionId }): ReactNode {
+export function SectionContent({ section }: { section: SectionId }): ReactNode {
   switch (section) {
     case "command":
       return <CommandCenter onNavigate={(target) => window.dispatchEvent(new CustomEvent("vacancypilot:navigate", { detail: target }))} />;
     case "inbox":
-      return <Inbox />;
+      return <ApplicationWorkspace />;
     case "vacancies":
       return <KanbanBoard />;
     case "summary":
