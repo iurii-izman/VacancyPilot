@@ -150,8 +150,7 @@ See `docs/development/private-install-guide.md` for detailed instructions.
 | Document | Location |
 |----------|----------|
 | Specification | `docs/Техническое заданиеV.1.md` |
-| Development plan | `docs/development/00-product-development-plan.md` |
-| Iteration map | `docs/development/02-iteration-map.md` |
+| Historical plan and iteration map | [`docs/HISTORY.md`](HISTORY.md) and Git history |
 | QA checklist | `docs/development/qa-checklist.md` |
 | Known risks | `docs/development/known-risks.md` |
 | Install guide | `docs/development/private-install-guide.md` |

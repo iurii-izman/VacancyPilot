@@ -132,7 +132,10 @@ unknown changes.
 - `CODEX_REVIEW_GATE.md` — review checklist and verdict rules.
 - `MICROPROMPT_TEMPLATES.md` — bounded remediation templates.
 - `BASELINE_READY.md` — exact prepared Git state and executed test evidence.
-- `prompts/AOPS-00.md` through `prompts/AOPS-18.md` — one prompt per epic.
+- Executor prompts for completed/deferred AOPS runs were retired from the
+  current tree during the 2026-09-01 release-hygiene pass. Retrieve an old
+  prompt from Git history through [`../../HISTORY.md`](../../HISTORY.md) when
+  historical reconstruction is required.
 
 ## Product/runtime distinction
 

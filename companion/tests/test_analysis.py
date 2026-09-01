@@ -553,7 +553,9 @@ class TestPromptCompiler:
 class TestCacheLogic:
     """Input-hash cache: hit, miss, force-bypass."""
 
-    def test_cache_hit_with_db_run(self, client_with_db: TestClient, db_session: Session) -> None:
+    def test_cache_hit_with_db_run(
+        self, client_with_db: TestClient, db_session: Session, valid_engine: Path
+    ) -> None:
         """A cached valid run should be returned instead of calling provider."""
         _register_token(TOKEN, db_session)
         ingested = _ingest_vacancy(client_with_db)

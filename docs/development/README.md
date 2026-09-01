@@ -21,12 +21,11 @@ Use the repo-native [Application Ops MVP](../mvp/VACANCYPILOT_APPLICATION_OPS_MV
 
 ## Historical Implementation Context
 
-The following remain useful when investigating history, but do not supersede current state:
+Accepted QA, audit and milestone reports remain available where they are still
+useful evidence. Superseded plans, prompts and epic/iteration decomposition
+were removed from the current tree during the 2026-09-01 hygiene pass; use
+[`../HISTORY.md`](../HISTORY.md) and Git history when an old artifact is needed.
 
-- [`00-product-development-plan.md`](00-product-development-plan.md)
-- [`01-epics.md`](01-epics.md) and [`02-iteration-map.md`](02-iteration-map.md)
-- [`03-autopilot-workflow.md`](03-autopilot-workflow.md) and [`04-zed-deepseek-workflow.md`](04-zed-deepseek-workflow.md)
-- [`epics/`](epics/), [`iterations/`](iterations/) and [`prompts/`](prompts/)
-- accepted QA, audit and milestone reports
-
-The master specification remains the authority for product boundaries, permissions, data model and external data flows. The current implementation and tests remain the final authority for behavior.
+The master specification remains the authority for product boundaries,
+permissions, data model and external data flows. The current implementation
+and tests remain the final authority for behavior.

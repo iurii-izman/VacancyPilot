@@ -37,7 +37,10 @@ VacancyPilot is a local-first, read-first HH.ru job-search copilot with two loca
 
 ## Historical Context
 
-The development plan, epic/iteration packs, acceptance reports, audits and release notes are retained as historical evidence or planning context. They may contain old counts and next-step language; current-facing indexes point to Project Memory Lite and the accepted R5 operational documents.
+Current acceptance reports, ADRs and release notes remain in the repository as
+evidence. Superseded prompts, epic/iteration packs and external model-dump
+archaeology were removed from the current tree during the 2026-09-01 hygiene
+pass; use [`HISTORY.md`](HISTORY.md) and Git history to retrieve them.
 
 ## How to Read This Repo
 
