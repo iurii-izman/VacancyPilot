@@ -93,7 +93,7 @@ Python module, CLI entrypoint or script was found. The two empty tracked
 Tests and fixtures are release protection. Current parser, search-card,
 security, release-safety, migration and companion coverage remains kept. No
 test was removed merely to reduce counts. Root verification passed 78 test
-files / 1,850 tests; release safety passed 10 files / 420 tests; companion
+files / 1,864 tests; release safety passed 10 files / 420 tests; companion
 verification passed 356 tests. The fixture inventory remains 19 vacancy
 fixtures and 3 search fixtures.
 
@@ -118,7 +118,9 @@ The retained `node_modules`, `companion/.venv`, `companion/data` and `.claude`
 paths were verified present. Python cache directories inside the retained
 `.venv` were removed as regenerable caches; the environment itself was not
 removed. Final gates may regenerate ignored caches, which are safe to remove
-again without affecting tracked state.
+again without affecting tracked state. After the post-merge gates, the exact
+same cleanup targets reclaimed an additional 35,436,536 bytes and were absent
+again.
 
 ## AUXILIARY WORKSPACE TABLE
 
@@ -213,8 +215,8 @@ review because their local checkouts are dirty.
 The hygiene branch was merged into `main` with a non-fast-forward merge after
 the full gates, the post-merge gates passed, the local hygiene branch was
 deleted, and `main` was pushed without force. The final handoff verifies a
-clean `main` tracking `origin/main` at the merge result. No history rewrite or
-force push was used.
+clean `main` tracking `origin/main` at `8020566ec3d7e2cd50dde7aa9c6636d2bbe74601`.
+No history rewrite or force push was used.
 
 ## FINAL C:\Dev ACTIVE WORKSPACE
 
