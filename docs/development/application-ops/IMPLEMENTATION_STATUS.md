@@ -1,15 +1,19 @@
 # Application Ops — Implementation Status
 
-Status: R4 complete; next product milestone pending prioritization
-Date: 2026-08-30
+Status: R5 PASS; feature development frozen for real daily use / dogfood
+Date: 2026-09-01
 
-## R5 Local Closure (2026-08-31)
+## R5 Closure (2026-09-01)
 
 R5 is implemented locally as a bounded Application Factory and lightweight
 conversion read model. R5-A and R5-B were developed on separate feature
 branches and accepted with local no-ff merges. The implementation preserves
 the existing V4, cover-letter and AOPS-13 transition boundaries. AOPS-14 is
 still not started; canonical AOPS-15 is not complete.
+
+Manual Browser QA is PASS with synthetic local data. Feature development is
+frozen while real daily-use evidence is collected. AOPS-14 remains deferred
+and not started; full canonical AOPS-15 remains incomplete.
 
 ## Baseline Snapshot
 
@@ -371,7 +375,7 @@ does not authorize product integration.
 | AOPS-12 | Command Center, Inbox and Application Card | complete |
 | AOPS-13 | Pipeline, events and follow-ups | complete |
 | AOPS-14 | Interview Pack | not started |
-| AOPS-15 | Analytics and production pilot | not started |
+| AOPS-15 | Analytics and production pilot | incomplete — bounded R5 slice accepted |
 | AOPS-16 | Backup, restore, privacy and debug bundle | not started |
 | AOPS-17 | E2E, browser QA and release 0.2.0 | not started |
 | AOPS-18 | Conditional P1 enhancements | not started |
@@ -379,7 +383,9 @@ does not authorize product integration.
 ## R4 Closure Status
 
 R4 is complete on `main`. AOPS-12 and AOPS-13 are accepted; AOPS-14 remains
-not started. The next product milestone is pending prioritization.
+not started. R5 is accepted as a bounded local Application Factory and
+descriptive conversion read model; no new product feature work is planned
+during dogfood.
 
 ## Acceptance Traceability: §25 MVP Criteria → AOPS Epic
 
