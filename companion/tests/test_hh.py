@@ -7,6 +7,7 @@ import pytest
 
 from app.hh.client import HHApiClient
 from app.hh.errors import HHApiError
+from app.hh.models import HHSearchQuery
 from app.hh.normalize import normalize_vacancy
 from app.security.keyring import FakeKeyring, SecretSlot
 
@@ -64,6 +65,12 @@ def test_client_maps_http_errors_without_body_or_token() -> None:
 def test_client_rejects_unbounded_pagination() -> None:
     with pytest.raises(HHApiError, match='HH_PAGINATION_LIMIT'):
         _client(lambda _: httpx.Response(200, json={})).search_vacancies({}, page=20, per_page=101)
+
+
+def test_schema_version_is_not_serialized_for_hh() -> None:
+    query = HHSearchQuery(schema_version=1, text='analyst', period=14)
+    assert query.to_api_params() == {'text': 'analyst', 'period': 14}
+    assert 'schema_version' not in query.to_api_params()
 
 
 def test_normalization_sanitizes_html_and_preserves_identity() -> None:

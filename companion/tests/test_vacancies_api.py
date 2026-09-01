@@ -17,6 +17,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.db.models import SearchProfile, Vacancy, VacancySearchProfileHit
 from app.security.pairing import (
     generate_client_token,
     hash_client_token,
@@ -84,6 +85,34 @@ def _base_vacancy() -> dict[str, object]:
         'capture_source': 'extension:0.3.1',
         'parser_version': '0.3.1',
     }
+
+
+def test_vacancy_list_filters_by_many_to_many_search_profile_provenance(
+    client_with_db: TestClient, db_session: Session
+) -> None:
+    token = generate_client_token()
+    _register_token(token, db_session)
+    first = Vacancy(source='hh', source_vacancy_id='shared', title='Shared')
+    second = Vacancy(source='hh', source_vacancy_id='only-second', title='Second')
+    profile_a = SearchProfile(name='A', query_json='{"schema_version":1}')
+    profile_b = SearchProfile(name='B', query_json='{"schema_version":1}')
+    db_session.add_all([first, second, profile_a, profile_b])
+    db_session.flush()
+    db_session.add_all(
+        [
+            VacancySearchProfileHit(vacancy_id=first.id, search_profile_id=profile_a.id),
+            VacancySearchProfileHit(vacancy_id=first.id, search_profile_id=profile_b.id),
+            VacancySearchProfileHit(vacancy_id=second.id, search_profile_id=profile_b.id),
+        ]
+    )
+    db_session.commit()
+    headers = _authenticated_headers(token)
+    response = client_with_db.get(
+        '/api/v1/vacancies?source=hh&search_profile_id=' + profile_a.id, headers=headers
+    )
+    assert response.status_code == 200
+    assert response.json()['meta']['total'] == 1
+    assert [row['source_vacancy_id'] for row in response.json()['data']] == ['shared']
 
 
 def _intake(

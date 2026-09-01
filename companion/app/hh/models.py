@@ -31,6 +31,18 @@ class HHSearchQuery(BaseModel):
     period: int | None = Field(default=None, ge=1, le=30)
     order_by: str | None = Field(default=None, max_length=50)
 
+    def to_api_params(self) -> dict[str, Any]:
+        """Serialize only fields accepted by the official public HH API.
+
+        ``schema_version`` is an internal storage contract and must never
+        cross the provider boundary.
+        """
+        return self.model_dump(
+            exclude={'schema_version'},
+            exclude_none=True,
+            exclude_defaults=True,
+        )
+
 
 class HHSearchProfileInput(BaseModel):
     model_config = ConfigDict(extra='forbid')

@@ -78,6 +78,11 @@ class SyncResponse(BaseModel):
     meta: dict[str, str]
 
 
+class PreviewResponse(BaseModel):
+    data: dict[str, Any]
+    meta: dict[str, str]
+
+
 @router.get('/integrations/hh/status', response_model=dict[str, Any])
 def hh_status(request: Request, client_identity: ClientTokenDep) -> dict[str, Any]:
     del client_identity
@@ -303,6 +308,53 @@ def update_profile(
     return ProfileResponse(data=_profile_out(row), meta=_meta(request))
 
 
+def _hh_query(row: SearchProfile) -> dict[str, Any]:
+    """Load a stored query and strip storage-only metadata at the boundary."""
+    return HHSearchQuery.model_validate(json.loads(row.query_json)).to_api_params()
+
+
+def _preview_result(profile: SearchProfile, client: HHApiClient) -> dict[str, Any]:
+    response = client.search_vacancies(_hh_query(profile), page=0, per_page=1)
+    found = response.found
+    classification = 'GOOD' if found <= 150 else ('ACCEPTABLE' if found <= 500 else 'TOO_BROAD')
+    return {
+        'profile_id': profile.id,
+        'name': profile.name,
+        'found': found,
+        'classification': classification,
+        'sync_allowed': found <= 500,
+    }
+
+
+@router.post('/hh/search-profiles/{profile_id}/preview', response_model=PreviewResponse)
+def preview_profile(
+    request: Request,
+    profile_id: str,
+    client_identity: ClientTokenDep,
+    db: Session | None = Depends(get_db_session_long),  # noqa: B008
+) -> PreviewResponse:
+    """Read-only HH search-size preview; it never touches the database."""
+    del client_identity
+    session = _db(db)
+    profile = session.get(SearchProfile, profile_id)
+    if profile is None:
+        raise HTTPException(status_code=404, detail='Profile not found')
+    try:
+        data = _preview_result(profile, HHApiClient())
+    except HHApiError as exc:
+        data = {
+            'profile_id': profile.id,
+            'name': profile.name,
+            'found': None,
+            'classification': 'ERROR',
+            'sync_allowed': False,
+            'error_code': exc.code,
+        }
+    except (ValueError, TypeError, json.JSONDecodeError) as exc:
+        raise HTTPException(status_code=422, detail='HH_PROFILE_OR_PAYLOAD_INVALID') from exc
+    return PreviewResponse(data=data, meta=_meta(request))
+
+
 def _triage_if_requested(normalized: Any, config: dict[str, Any] | None) -> bool:
     if not config:
         return False
@@ -362,24 +414,41 @@ def sync_vacancies(
         'started_at': _now(),
         'finished_at': None,
         'status': 'running',
+        'profiles': [],
+        'too_broad': 0,
     }
     result['sync_run_id'] = new_uuid()
     touched_hits: list[VacancySearchProfileHit] = []
     client = HHApiClient()
     for profile in profiles:
+        profile_result: dict[str, Any] = {
+            'profile_id': profile.id,
+            'name': profile.name,
+            'found': None,
+            'seen': 0,
+            'created': 0,
+            'updated': 0,
+            'unchanged': 0,
+            'error': None,
+        }
+        result['profiles'].append(profile_result)
         try:
-            # ``schema_version`` is storage metadata, not an HH API query
-            # parameter.  Re-validate at this boundary and serialize only
-            # the allowlisted query fields before calling the client.
-            query = HHSearchQuery.model_validate(json.loads(profile.query_json)).model_dump(
-                exclude_none=True, exclude_defaults=True
-            )
-            max_pages = 2000 // PER_PAGE
+            query = _hh_query(profile)
+            preview = client.search_vacancies(query, page=0, per_page=1)
+            found = preview.found
+            profile_result['found'] = found
+            if found > 500:
+                profile_result['error'] = 'HH_QUERY_TOO_BROAD'
+                result['too_broad'] += 1
+                result['errors'].append({'profile_id': profile.id, 'code': 'HH_QUERY_TOO_BROAD'})
+                continue
+            max_pages = min(2000 // PER_PAGE, (found + PER_PAGE - 1) // PER_PAGE)
             for page, _ in enumerate(range(max_pages)):
                 response = client.search_vacancies(query, page=page, per_page=PER_PAGE)
                 result['pages_fetched'] += 1
                 items = response.items
                 result['items_seen'] += len(items)
+                profile_result['seen'] += len(items)
                 for item in items:
                     normalized = normalize_vacancy(item)
                     intake = VacancyIntakeService(session).intake(
@@ -411,6 +480,7 @@ def sync_vacancies(
                     touched_hits.append(hit)
                     result_key = f'vacancies_{intake.result}'
                     result[result_key] += 1
+                    profile_result[intake.result] += 1
                     if intake.snapshot_id and intake.result in ('created', 'updated'):
                         result['snapshots_created'] += 1
                     if _triage_if_requested(normalized, body.triage):
@@ -423,10 +493,12 @@ def sync_vacancies(
             if exc.code == 'HH_RATE_LIMITED':
                 result['rate_limited'] += 1
             result['errors'].append({'profile_id': profile.id, 'code': exc.code})
+            profile_result['error'] = exc.code
         except (ValueError, TypeError, json.JSONDecodeError):
             result['errors'].append(
                 {'profile_id': profile.id, 'code': 'HH_PROFILE_OR_PAYLOAD_INVALID'}
             )
+            profile_result['error'] = 'HH_PROFILE_OR_PAYLOAD_INVALID'
     result['finished_at'] = _now()
     result['status'] = (
         'error'

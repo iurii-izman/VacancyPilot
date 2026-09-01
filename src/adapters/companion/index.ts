@@ -19,6 +19,7 @@ export type {
   HHSearchProfile,
   HHSearchProfilesResponse,
   HHSearchProfileResponse,
+  HHSearchPreviewResponse,
   HHVacancySyncResponse,
   CompanionErrorData,
   CompanionErrorResponse,

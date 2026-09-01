@@ -78,7 +78,7 @@ def test_vacancy_sync_reuses_intake_and_records_safe_audit(
         def search_vacancies(self, query, *, page, per_page):
             assert query == {'text': 'backend'}
             assert page == 0
-            assert per_page == 100
+            assert per_page in (1, 100)
             return HHPage.model_validate(
                 {
                     'items': [
@@ -102,6 +102,7 @@ def test_vacancy_sync_reuses_intake_and_records_safe_audit(
                     'page': 0,
                     'pages': 1,
                     'per_page': 100,
+                    'found': 2,
                 }
             )
 
@@ -123,3 +124,83 @@ def test_vacancy_sync_reuses_intake_and_records_safe_audit(
     audit = db_session.execute(text('SELECT result_json FROM hh_sync_runs')).scalars().all()
     assert len(audit) == 2
     assert all('Bearer' not in (item or '') for item in audit)
+
+
+def test_preview_returns_found_without_persistence(
+    client_with_db: TestClient, db_session: Session, monkeypatch
+) -> None:
+    headers = _auth(db_session)
+    created = client_with_db.post(
+        '/api/v1/hh/search-profiles',
+        headers=headers,
+        json={
+            'name': 'Title only',
+            'query': {
+                'text': 'аналитик',
+                'search_field': ['name'],
+                'period': 14,
+                'schedule': ['remote'],
+            },
+        },
+    )
+    profile_id = created.json()['data']['id']
+    calls = []
+
+    class FakeHHClient:
+        def search_vacancies(self, query, *, page, per_page):
+            calls.append((query, page, per_page))
+            return HHPage.model_validate(
+                {'found': 84, 'items': [], 'page': 0, 'pages': 1, 'per_page': 1}
+            )
+
+    monkeypatch.setattr('app.api.hh.HHApiClient', FakeHHClient)
+    before = db_session.execute(text('SELECT COUNT(*) FROM vacancies')).scalar_one()
+    response = client_with_db.post(
+        f'/api/v1/hh/search-profiles/{profile_id}/preview', headers=headers, json={}
+    )
+    assert response.status_code == 200
+    assert response.json()['data']['found'] == 84
+    assert response.json()['data']['classification'] == 'GOOD'
+    assert calls == [
+        ({'text': 'аналитик', 'schedule': ['remote'], 'search_field': ['name'], 'period': 14}, 0, 1)
+    ]
+    assert db_session.execute(text('SELECT COUNT(*) FROM vacancies')).scalar_one() == before
+    assert db_session.execute(text('SELECT COUNT(*) FROM hh_sync_runs')).scalar_one() == 0
+
+
+def test_too_broad_profile_is_not_ingested(
+    client_with_db: TestClient, db_session: Session, monkeypatch
+) -> None:
+    headers = _auth(db_session)
+    created = client_with_db.post(
+        '/api/v1/hh/search-profiles',
+        headers=headers,
+        json={'name': 'Broad', 'query': {'text': 'ai'}},
+    )
+    profile_id = created.json()['data']['id']
+    calls = []
+
+    class FakeHHClient:
+        def search_vacancies(self, query, *, page, per_page):
+            calls.append((page, per_page))
+            return HHPage.model_validate(
+                {
+                    'found': 2000,
+                    'items': [{'id': 'must-not-persist'}],
+                    'page': 0,
+                    'pages': 20,
+                    'per_page': per_page,
+                }
+            )
+
+    monkeypatch.setattr('app.api.hh.HHApiClient', FakeHHClient)
+    response = client_with_db.post(
+        '/api/v1/hh/sync/vacancies', headers=headers, json={'profile_ids': [profile_id]}
+    )
+    data = response.json()['data']
+    assert response.status_code == 200
+    assert data['too_broad'] == 1
+    assert data['profiles'][0]['error'] == 'HH_QUERY_TOO_BROAD'
+    assert data['items_seen'] == 0
+    assert calls == [(0, 1)]
+    assert db_session.execute(text('SELECT COUNT(*) FROM vacancies')).scalar_one() == 0

@@ -16,7 +16,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.db.models import Vacancy, VacancySnapshot
+from app.db.models import Vacancy, VacancySearchProfileHit, VacancySnapshot
 from app.db.session import get_db_session_long
 from app.domain.triage import (
     TriageConfig,
@@ -346,6 +346,7 @@ def vacancy_list(
     work_mode: Literal['remote', 'hybrid', 'office', 'unknown'] | None = None,
     archived: bool | None = None,
     updated_after: str | None = Query(default=None, max_length=64),
+    search_profile_id: str | None = Query(default=None, max_length=128),
 ) -> VacancyListResponse:
     """List vacancies with bounded server-side filters and stable pagination."""
     del client_identity
@@ -360,14 +361,18 @@ def vacancy_list(
             filters.append(Vacancy.archived == archived)
         if updated_after is not None:
             filters.append(Vacancy.updated_at > updated_after)
+        vacancy_query = select(Vacancy).where(*filters)
+        if search_profile_id is not None:
+            vacancy_query = vacancy_query.join(
+                VacancySearchProfileHit,
+                VacancySearchProfileHit.vacancy_id == Vacancy.id,
+            ).where(VacancySearchProfileHit.search_profile_id == search_profile_id)
         total = session.execute(
-            select(func.count()).select_from(Vacancy).where(*filters)
+            select(func.count()).select_from(vacancy_query.subquery())
         ).scalar_one()
         rows = (
             session.execute(
-                select(Vacancy)
-                .where(*filters)
-                .order_by(Vacancy.last_seen_at.desc(), Vacancy.id.desc())
+                vacancy_query.order_by(Vacancy.last_seen_at.desc(), Vacancy.id.desc())
                 .limit(limit)
                 .offset(offset)
             )

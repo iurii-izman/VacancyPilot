@@ -4,6 +4,7 @@ import { jobRepo } from "@/db/repositories";
 import { detectCompanionStatus, getOpsClient } from "@/services/companion-service";
 import type { Job } from "@/models/job";
 import type { FollowUpItem } from "@/adapters/companion/application-types";
+import type { HHSearchProfile } from "@/adapters/companion/types";
 function formatShortDate(iso: string): string {
   const date = new Date(iso);
   return Number.isNaN(date.getTime()) ? iso : date.toLocaleDateString();
@@ -23,7 +24,7 @@ const cardStyle: React.CSSProperties = {
   background: "#fff",
 };
 
-function useJobs(): { jobs: Job[]; loading: boolean; error: string | null } {
+function useJobs(searchProfileId?: string): { jobs: Job[]; loading: boolean; error: string | null } {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +38,7 @@ function useJobs(): { jobs: Job[]; loading: boolean; error: string | null } {
         try {
           const connection = await detectCompanionStatus();
           if (connection.status === "connected") {
-            const response = await getOpsClient().listVacancies({ archived: false });
+            const response = await getOpsClient().listVacancies({ archived: false, ...(searchProfileId ? { search_profile_id: searchProfileId } : {}) });
             items = response.data.filter((item) => item.source === "hh").map((item) => ({
               id: item.id, source: "hh", sourceVacancyId: item.source_vacancy_id,
               sourceUrl: item.url ?? "", title: item.title, companyId: item.company_id ?? "",
@@ -59,7 +60,7 @@ function useJobs(): { jobs: Job[]; loading: boolean; error: string | null } {
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [searchProfileId]);
   return { jobs, loading, error };
 }
 
@@ -118,7 +119,9 @@ export function CommandCenter({ onNavigate }: { onNavigate?: (section: "inbox" |
 }
 
 export function Inbox({ onSelect }: { onSelect?: (job: Job) => void }): ReactNode {
-  const { jobs, loading, error } = useJobs();
+  const [profileFilter, setProfileFilter] = useState("all");
+  const [searchProfiles, setSearchProfiles] = useState<HHSearchProfile[]>([]);
+  const { jobs, loading, error } = useJobs(profileFilter === "all" ? undefined : profileFilter);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("all");
   const [workMode, setWorkMode] = useState("all");
@@ -130,6 +133,11 @@ export function Inbox({ onSelect }: { onSelect?: (job: Job) => void }): ReactNod
   const [preview, setPreview] = useState<{ selected: number; expected_provider_calls: number; cached_v4: number; archived_or_ineligible: number } | null>(null);
   const [sessionMessage, setSessionMessage] = useState<string | null>(null);
   const [sessionItems, setSessionItems] = useState<Array<{ title: string; company_name: string | null; queue_state: string }>>([]);
+  useEffect(() => {
+    void detectCompanionStatus().then(async (connection) => {
+      if (connection.status === "connected") setSearchProfiles((await getOpsClient().listHHSearchProfiles()).data);
+    }).catch(() => setSearchProfiles([]));
+  }, []);
   const filtered = useMemo(() => jobs.filter((job) => {
     const matchesQuery = !query || `${job.title} ${job.companyName}`.toLowerCase().includes(query.toLowerCase());
     const score = job.ruleScore?.total;
@@ -180,6 +188,7 @@ export function Inbox({ onSelect }: { onSelect?: (job: Job) => void }): ReactNod
       <label style={{ fontSize: 12 }}>Decision<select aria-label="Filter by decision" value={decision} onChange={(event) => setDecision(event.target.value)} style={{ display: "block", padding: 7, marginTop: 3 }}><option value="all">All</option><option value="apply">Apply</option><option value="consider">Consider</option><option value="skip">Skip</option></select></label>
       <label style={{ fontSize: 12 }}>Analysis<select aria-label="Filter by analysis status" value={analysisStatus} onChange={(event) => setAnalysisStatus(event.target.value)} style={{ display: "block", padding: 7, marginTop: 3 }}><option value="all">All</option><option value="available">Available</option><option value="not_run">Not run</option></select></label>
       <label style={{ fontSize: 12 }}>Updated after<input aria-label="Filter by updated date" type="date" value={updatedAfter} onChange={(event) => setUpdatedAfter(event.target.value)} style={{ display: "block", padding: 7, marginTop: 3 }} /></label>
+      <label style={{ fontSize: 12 }}>Search profile<select aria-label="Filter by search profile" value={profileFilter} onChange={(event) => setProfileFilter(event.target.value)} style={{ display: "block", padding: 7, marginTop: 3 }}><option value="all">All profiles</option>{searchProfiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.name}</option>)}</select></label>
     </div>
     {filtered.length === 0 ? <div style={cardStyle}>No vacancies match these filters. No automatic analysis was requested.</div> : <div style={{ display: "grid", gap: 8 }}>
       {filtered.map((job) => <article key={job.id} style={cardStyle}>
