@@ -106,6 +106,23 @@ def _check_five_sections(letter: str, language: str) -> list[str]:
     return errors
 
 
+def _check_required_markers(letter: str, language: str) -> list[str]:
+    """Require literal interest and employer-value wording in a letter."""
+    text = letter.lower()
+    if language == 'en':
+        interest = bool('interested' in text or re.search(r'writing\b.*\bapply', text))
+        value = bool(any(marker in text for marker in ('value', 'contribute', 'bring')))
+    else:
+        interest = bool('заинтересовал' in text or re.search(r'пишу\b.*\bотклик', text))
+        value = bool('ценност' in text or re.search(r'почему\b.*\bкомпани', text))
+    errors: list[str] = []
+    if not interest:
+        errors.append('INTEREST_MARKER_MISSING: required literal interest marker not found')
+    if not value:
+        errors.append('VALUE_MARKER_MISSING: required literal value marker not found')
+    return errors
+
+
 # ── Word count ──────────────────────────────────────────────────────────────
 
 _WORD_RE = re.compile(r'\b\w+\b', re.UNICODE)
@@ -408,6 +425,10 @@ def _vfive_sections(ctx: ValidatorContext) -> list[str]:
     return _check_five_sections(str(ctx.get('letter', '')), str(ctx.get('language', 'ru')))
 
 
+def _vrequired_markers(ctx: ValidatorContext) -> list[str]:
+    return _check_required_markers(str(ctx.get('letter', '')), str(ctx.get('language', 'ru')))
+
+
 def _vword_count(ctx: ValidatorContext) -> list[str]:
     return _check_word_count(str(ctx.get('letter', '')), str(ctx.get('recommendation', 'skip')))
 
@@ -449,6 +470,7 @@ def _venglish_mode(ctx: ValidatorContext) -> list[str]:
 _LETTER_VALIDATORS: list[tuple[str, Callable[..., list[str]]]] = [
     ('h1', _vh1),
     ('five_sections', _vfive_sections),
+    ('required_markers', _vrequired_markers),
     ('word_count', _vword_count),
     ('vacancy_anchors', _vvacancy_anchors),
     ('micro_proof', _vmicro_proof),
@@ -474,6 +496,9 @@ def validate_letter(
 
     An empty list means the letter passed all checks.
     """
+    if recommendation == 'skip' and not letter.strip():
+        return []
+
     ctx: ValidatorContext = {
         'letter': letter,
         'recommendation': recommendation,
@@ -515,26 +540,28 @@ def validate_structured_result(
     errors.extend(_check_evidence_whitelist(evidence_dicts))
     errors.extend(_check_portfolio_boundary(evidence_dicts, index))
 
-    # A successful Full V4 result must include a letter that passes every
-    # literal validator. Skipping an empty string would permit a false PASS.
-    errors.extend(
-        validate_letter(
-            result.cover_letter,
-            recommendation=result.score.decision,
-            language='en' if english_required else 'ru',
-            title=result.vacancy_identity.role,
-            english_required=english_required,
-            require_quantitative_micro_proof=False,
+    if result.score.decision == 'skip' and result.cover_letter.strip():
+        errors.append('SKIP_LETTER_FORBIDDEN: SKIP results must not generate a letter')
+    else:
+        errors.extend(
+            validate_letter(
+                result.cover_letter,
+                recommendation=result.score.decision,
+                language='en' if english_required else 'ru',
+                title=result.vacancy_identity.role,
+                english_required=english_required,
+                require_quantitative_micro_proof=False,
+            )
         )
-    )
-    errors.extend(
-        _check_evidence_backed_micro_proof(
-            result.cover_letter,
-            evidence_dicts,
-            index,
-            english_required=english_required,
+    if result.cover_letter.strip():
+        errors.extend(
+            _check_evidence_backed_micro_proof(
+                result.cover_letter,
+                evidence_dicts,
+                index,
+                english_required=english_required,
+            )
         )
-    )
 
     return errors
 

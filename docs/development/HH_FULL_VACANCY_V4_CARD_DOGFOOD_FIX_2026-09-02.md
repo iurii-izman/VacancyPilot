@@ -1,12 +1,36 @@
 # HH Full Vacancy + Full V4 Application Card Hotfix
 
-## Verdict
+## Final offline contract status
 
-HH_FULL_DETAIL_UPSTREAM_BLOCKED. Implementation and offline acceptance are complete; live MV3 Application Card smoke reached the explicit Full V4 confirmation and hydration passed. With the corrected 5-minute timeout, the provider call completed and the persisted run was refreshed in the card. The provider output is locally `invalid`/`ready=false` because letter invariants failed; the card now marks that output as not ready and does not present its letter/evidence as usable. No additional provider retry was performed.
+V4_PRIVATE_ENGINE_FIX_REQUIRED. HH hydration PASS and card V4 preview/execute
+wiring PASS. Public offline contract hardening is complete, but the requested
+`SKIP => no letter` behavior conflicts with the read-only private V4 contract,
+which currently requires a 90–130 word fallback letter for SKIP.
 
-## Root cause
+The persisted invalid corpus contains four runs: two initial provider outputs
+and two repair outputs. The latest run is
+`b4f1ce02-00af-4fbc-8b45-7d068daa46f6`; its remaining failures were a missing
+value marker, 130 words instead of 150–220, and trailing signature content.
+No third live attempt was performed and this task made zero provider calls.
 
-HH search results are lightweight projections. The sync path passed each search item directly to `normalize_vacancy()`, so `description` could be empty or incomplete. The Application Card rendered the initial listing Job and had no single-item Full V4 action.
+Generation and repair now share a compact literal invariant block. Repair
+receives all validator failures and must return the complete structured object;
+invalid repaired responses remain `ready=false`. A local prompt preflight runs
+before any future provider call. Synthetic public-safe fixtures cover the
+persisted failure shapes and boundary cases.
+
+## Rule alignment
+
+| Rule | Canonical source | Generation | Repair | Validator |
+|---|---|---:|---:|---:|
+| value marker | private V4 contract + public literal rules | PASS | PASS | PASS |
+| APPLY/CONSIDER 150–220 | private `active/11_letter_regression_suite.md` | PASS | PASS | PASS |
+| target 165–185 | public hardening contract | PASS | PASS | PASS |
+| exact signature / no trailing text | private `active/11_letter_regression_suite.md` | PASS | PASS | PASS |
+| decision-dependent letter | private requires SKIP fallback; request says SKIP empty | MISMATCH | MISMATCH | public PASS / private mismatch |
+| sections / evidence IDs | private source + public validators | PASS | PASS | PASS |
+
+Private V4 was read-only and was not changed.
 
 ## Fix
 
@@ -18,6 +42,7 @@ HH search results are lightweight projections. The sync path passed each search 
 - Application Factory uses the same hydration/readiness helper before Full V4 execution.
 - Full V4 requests now use a dedicated 5-minute client timeout, covering the provider's bounded request and one repair attempt; ordinary companion calls retain the 10-second timeout.
 - Invalid persisted runs remain inspectable as safe diagnostics (score 75, `consider`, `medium` confidence) but are not represented as a ready letter/evidence result.
+- Public contract hardening added deterministic marker, word-range, signature-tail, SKIP, and repair replay guards.
 
 ## Safety
 
@@ -25,7 +50,13 @@ No HH writes, form interaction, auto-apply, application creation, APPLIED mutati
 
 ## Live read evidence
 
-Official HH documentation describes `GET https://api.hh.ru/vacancies/{vacancy_id}` and its full vacancy response. The configured local client read `136022615` successfully with sanitized output: description length 3461, 6 key skills, experience `От 3 до 6 лет`, source URL preserved. Browser inspection showed the same vacancy page with full description and six key skills. The live card showed `Vacancy details: Full`; Preview Full V4 reported no provider call and a 2858-character persisted description. The one authorized Confirm and run attempt timed out after 10 seconds; no `engine_runs` row was persisted and no retry was made.
+Official HH documentation describes `GET https://api.hh.ru/vacancies/{vacancy_id}`
+and its full vacancy response. The configured local client read `136022615`
+successfully with sanitized output: description length 3461, six key skills,
+experience `От 3 до 6 лет`, source URL preserved. The card showed `Vacancy
+details: Full`; Preview Full V4 made zero provider calls and showed the persisted
+full description. The details above are the complete sanitized persisted-run
+summary; no raw candidate evidence or private prompt was exported.
 
 ## Tests
 
@@ -34,9 +65,14 @@ Official HH documentation describes `GET https://api.hh.ru/vacancies/{vacancy_id
 - Frontend typecheck/lint: PASS; post-smoke persisted-run refresh path typechecks; dedicated Full V4 timeout regression: PASS; invalid-run UI gating typechecks.
 - Fresh hermetic frontend suite after stopping the manually running Companion: 80 files, 1869 tests PASS. The earlier `unpaired` vs `unavailable` result was confirmed as the documented port-conflict/environment condition.
 - MV3 build: PASS; release safety: 10 files, 422 tests PASS; workflow verifier: PASS; diff-check: PASS.
+- Offline replay tests: PASS, including all listed failure shapes, boundaries,
+  SKIP gating, unknown evidence IDs, score/decision stability, and prompt preflight.
+- This task made zero real provider calls.
 
 ## Git
 
 Branch: `hotfix/hh-vacancy-hydration-v4-card`.
 
-Latest implementation commit: `fix: allow Full V4 provider latency` plus invalid-run UI gating (this commit). The branch is intentionally not merged or pushed because the single live provider output failed local letter invariants. No provider retry was performed.
+Starting HEAD: `589bef52790f72385040a50a76b64a53989d1a76`.
+The branch remains intentionally unmerged and unpushed. Private V4 files remain
+separate and were not edited.

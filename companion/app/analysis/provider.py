@@ -268,9 +268,15 @@ class OpenAIProvider(LLMProvider):
             'Here is the original output:\n\n'
             f'```json\n{json.dumps(original_result, indent=2, ensure_ascii=False)}\n```\n\n'
             'Validation errors:\n' + '\n'.join(f'- {e}' for e in validation_errors) + '\n\n'
-            'Please correct ALL validation errors while preserving the original '
-            'evidence map, claims, and score where they are valid. '
-            'Return ONLY the corrected JSON matching the output schema.'
+            'Correct EVERY listed validation error in this single repair pass. '
+            'Use the same JSON/schema output mode and return the complete corrected '
+            'structured object. Preserve score, decision, confidence, claims and '
+            'evidence IDs unless a listed canonical rule requires a change; never '
+            'add new evidence IDs, placeholders, invented factual claims, or filler. '
+            'For APPLY/CONSIDER, target 165–185 words (allowed 150–220), include '
+            'the exact interest and value markers, use the exact signature, and put '
+            'no text after the signature. For SKIP, set cover_letter to an empty '
+            'string. Return ONLY corrected JSON matching the supplied schema.'
         )
 
         messages: list[dict[str, str]] = [
@@ -293,6 +299,10 @@ class OpenAIProvider(LLMProvider):
                         'model': model,
                         'messages': messages,
                         'temperature': 0.3,  # Lower temperature for repairs
+                        # Keep repair in the same structured-output mode as the
+                        # initial request; otherwise the bounded repair path is
+                        # needlessly exposed to JSON/schema drift.
+                        'response_format': {'type': 'json_object'},
                         **token_param,
                     },
                 )

@@ -20,6 +20,31 @@ from app.engine.models import LoadedEnginePackage
 
 PROMPT_VERSION = 'v4.0.0-ao8-4'
 
+
+def assert_prompt_contract(system_prompt: str, user_prompt: str) -> None:
+    """Developer preflight for hard invariants required by the V4 contract."""
+    payload = f'{system_prompt}\n{user_prompt}'.lower()
+    requirements = {
+        'value marker': ('value', 'ценност'),
+        '150–220 words': ('150–220', '150-220'),
+        'target 165–185 words': ('165–185', '165-185'),
+        'exact signature': ('exact signature', 'точн'),
+        'no text after the signature': (
+            'no text after the signature',
+            'whitespace only after',
+            'после подписи',
+        ),
+        'SKIP => no letter': ('skip => no letter', 'skip: no letter', 'skip => без письма'),
+    }
+    missing = [
+        name
+        for name, alternatives in requirements.items()
+        if not any(a in payload for a in alternatives)
+    ]
+    if missing:
+        raise ValueError(f'PROMPT_CONTRACT_PREFLIGHT_FAILED: missing {missing}')
+
+
 OUTPUT_JSON_SCHEMA = {
     'type': 'object',
     'required': [
@@ -137,7 +162,8 @@ OUTPUT_JSON_SCHEMA = {
                 },
             },
         },
-        'cover_letter': {'type': 'string', 'minLength': 400, 'maxLength': 5000},
+        # SKIP has no generated letter; APPLY/CONSIDER length is literal-validated.
+        'cover_letter': {'type': 'string', 'minLength': 0, 'maxLength': 5000},
         'recruiter_risks': {
             'type': 'array',
             'minItems': 2,
@@ -322,6 +348,7 @@ def compile_prompt(
     sections.append(_build_output_format_section())
 
     user_prompt = '\n\n---\n\n'.join(s for s in sections if s)
+    assert_prompt_contract(system_prompt, user_prompt)
 
     # ── Compute input hash ───────────────────────────────────────────────
     engine_version = package.identity.engine_version if package else 'none'
@@ -628,6 +655,16 @@ def _build_rules_section(language: str) -> str:
     """Build the rules/constraints section."""
     if language == 'en':
         header = '## Rules'
+        invariants = (
+            'LETTER CONTRACT (machine-checked; literal constraints):\n'
+            '- APPLY or CONSIDER: cover_letter is required and MUST contain the literal interest marker '  # noqa: E501
+            '"interested" or "writing ... apply", and the literal value marker "value", "contribute", or "bring".\n'  # noqa: E501
+            '- APPLY or CONSIDER: 150–220 words; target 165–185 words.\n'
+            '- SKIP => no letter: set cover_letter to the empty string.\n'
+            '- Use the exact signature format: `Best regards,` on its own line, then the exact candidate name.\n'  # noqa: E501
+            '- No text after the signature; whitespace only. No placeholders, invented claims, or new evidence IDs.\n'  # noqa: E501
+            '- Preserve evidence grounding and decision/score unless a listed validator failure requires correction.'  # noqa: E501
+        )
         forbid = (
             'Forbidden overclaims (do NOT use these phrases or their equivalents):\n'
             + '\n'.join(f'- {p}' for p in FORBIDDEN_OVERCLAIMS[:10])
@@ -639,9 +676,21 @@ def _build_rules_section(language: str) -> str:
         forbidden_phrases = 'Forbidden placeholder phrases (do NOT use):\n' + '\n'.join(
             f'- {p}' for p in FORBIDDEN_PHRASES[:8]
         )
-        return '\n'.join([header, '', forbid, '', evidence_rule, '', forbidden_phrases])
+        return '\n'.join(
+            [header, '', invariants, '', forbid, '', evidence_rule, '', forbidden_phrases]
+        )
     else:
         header = '## Правила'
+        invariants = (
+            'КОНТРАК ПИСЬМА (проверяется машинно; буквальные ограничения):\n'
+            '- APPLY или CONSIDER: cover_letter обязателен и ДОЛЖЕН содержать буквальный маркер интереса '  # noqa: E501
+            '«заинтересовала» или «пишу ... отклик» и буквальный маркер ценности «ценность» или «почему ... компании».\n'  # noqa: E501
+            '- APPLY или CONSIDER: 150–220 слов; цель 165–185 слов.\n'
+            '- SKIP => без письма: установите cover_letter в пустую строку.\n'
+            '- Используйте точный формат подписи: «С уважением,» отдельной строкой, затем точное имя кандидата.\n'  # noqa: E501
+            '- После подписи не должно быть текста, только пробелы. Без placeholders, выдуманных утверждений и новых evidence ID.\n'  # noqa: E501
+            '- Сохраняйте evidence grounding и decision/score, если исправление не требует иного.'
+        )
         forbid = (
             'Запрещённые утверждения (НЕ используйте эти фразы или их эквиваленты):\n'
             + '\n'.join(f'- {p}' for p in FORBIDDEN_OVERCLAIMS[:10])
@@ -653,7 +702,9 @@ def _build_rules_section(language: str) -> str:
         forbidden_phrases = 'Запрещённые фразы-заполнители (НЕ используйте):\n' + '\n'.join(
             f'- {p}' for p in FORBIDDEN_PHRASES[:8]
         )
-        return '\n'.join([header, '', forbid, '', evidence_rule, '', forbidden_phrases])
+        return '\n'.join(
+            [header, '', invariants, '', forbid, '', evidence_rule, '', forbidden_phrases]
+        )
 
 
 def _build_output_format_section() -> str:
@@ -681,14 +732,18 @@ def _build_system_prompt_ru() -> str:
         '6. Верни строго валидный JSON без markdown-обёртки.\n'
         '7. Если информации недостаточно для трёх требований — '
         'верни пустой массив central_requirements.\n'
-        '8. `cover_letter` обязателен: пять абзацев в порядке приветствие, '
+        '8. Для `apply`/`consider` `cover_letter` обязателен: пять абзацев в порядке приветствие, '
         'интерес к вакансии, опыт с конкретным количественным proof, ценность '
         'для компании, закрытие с благодарностью и подписью. Для decision '
-        '`apply`/`consider` — 150–220 слов; для `skip` — 90–130. Используй '
+        '`apply`/`consider` — 150–220 слов, цель 165–185; для `skip` верни пустой `cover_letter`. Используй '  # noqa: E501
         'минимум два термина из названия вакансии и только разрешённые факты.\n'
-        '9. Если выбранный кейс содержит `micro_proof_ru`, вставь его дословно '
+        '9. Для `apply`/`consider`, если выбранный кейс содержит `micro_proof_ru`, вставь его дословно '  # noqa: E501
         'один раз в абзац об опыте. Закрой письмо отдельными последними строками '
-        '«С уважением,» и только именем кандидата.\n'
+        '«С уважением,» и только точным именем кандидата из Project Instructions; '
+        'не используй placeholder и не выдумывай имя. Перед отправкой проверь, что '
+        'в письме явно присутствуют маркеры интереса (`заинтересовала` или '
+        '`пишу ... отклик`) и ценности (`ценность` или `почему ... компании`), '
+        'поскольку это обязательные literal-проверки.\n'
         '10. Если используешь selected case в письме, добавь его `case_id` в '
         '`evidence_map`, чтобы proof можно было детерминированно проверить.\n'
     )
@@ -707,14 +762,18 @@ def _build_system_prompt_en() -> str:
         '6. Return strictly valid JSON without markdown fences.\n'
         '7. If insufficient information for three requirements — '
         'return empty central_requirements array.\n'
-        '8. `cover_letter` is mandatory: write five paragraphs in this order: '
+        '8. For `apply`/`consider`, `cover_letter` is mandatory: write five paragraphs in this order: '  # noqa: E501
         'greeting, vacancy interest, experience with a concrete quantitative '
         'proof, value for the company, and a thankful closing with signature. '
-        'For `apply`/`consider`, use 150–220 words; for `skip`, use 90–130. '
+        'For `apply`/`consider`, use 150–220 words with a 165–185 target; for `skip`, return an empty `cover_letter`. '  # noqa: E501
         'Include at least two terms from the vacancy title and use only allowed facts.\n'
-        '9. When a selected case supplies `micro_proof_en`, include that exact '
+        '9. For `apply`/`consider`, when a selected case supplies `micro_proof_en`, include that exact '  # noqa: E501
         'wording once in the experience paragraph. End the letter with separate '
-        'final lines: `Best regards,` followed only by the candidate name.\n'
+        'final lines: `Best regards,` followed only by the exact candidate name from '
+        'Project Instructions; never use a placeholder or invent a name. Before '
+        'returning, verify that the letter explicitly contains interest wording '
+        '(`interested` or `writing ... apply`) and value wording (`value`, '
+        '`contribute`, or `bring`), because these are mandatory literal checks.\n'
         '10. When a selected case is used in the letter, include its `case_id` '
         'in `evidence_map` so the proof can be deterministically verified.\n'
     )
