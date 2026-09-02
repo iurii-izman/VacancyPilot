@@ -208,7 +208,7 @@ export function ApplicationCard({ job, onBack }: { job: Job; onBack?: () => void
   const [tab, setTab] = useState("Overview");
   const [currentJob, setCurrentJob] = useState(job);
   const [preview, setPreview] = useState<{ provider: string; model: string; token_estimate: number | null; cache_hit: boolean; what_is_sent: string[]; what_is_not_sent: string[] } | null>(null);
-  const [run, setRun] = useState<{ run_id: string; status: string; score: number | null; decision: string | null; confidence: string | null; cover_letter: string | null; recruiter_risks: Array<{ risk: string; severity: string; mitigation: string }>; cached: boolean; token_input: number | null; token_output: number | null; estimated_cost_usd: number | null } | null>(null);
+  const [run, setRun] = useState<{ run_id: string; status: string; ready: boolean; score: number | null; decision: string | null; confidence: string | null; cover_letter: string | null; recruiter_risks: Array<{ risk: string; severity: string; mitigation: string }>; cached: boolean; token_input: number | null; token_output: number | null; estimated_cost_usd: number | null } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const tabs = ["Overview", "Vacancy", "Evidence", "Score", "Letter", "Timeline", "Follow-up", "Interview", "Debug"];
@@ -236,7 +236,7 @@ export function ApplicationCard({ job, onBack }: { job: Job; onBack?: () => void
     try {
       const response = await getOpsClient().analyzeFullV4(currentJob.id);
       const persisted = await getOpsClient().getFullV4Run(response.data.run_id);
-      setRun({ ...response.data, status: persisted.data.status, score: persisted.data.score, decision: persisted.data.decision });
+      setRun({ ...response.data, status: persisted.data.status, ready: persisted.data.ready, score: persisted.data.score, decision: persisted.data.decision });
       setTab("Score");
     }
     catch (err) { setError(err instanceof Error ? err.message : "Full V4 analysis failed"); }
@@ -251,11 +251,11 @@ export function ApplicationCard({ job, onBack }: { job: Job; onBack?: () => void
     {preview && <div style={{ ...cardStyle, margin: "12px 0", background: "#f7f9fb" }}><strong>Preview only — no provider call was made.</strong><p>Target: {preview.provider}/{preview.model}. Expected provider call: {preview.cache_hit ? 0 : 1} (cache hit: {preview.cache_hit ? "yes" : "no"}).</p><p>Payload readiness: full vacancy text loaded; privacy disclosure applies. Sent: {preview.what_is_sent.join(", ") || "none"}.</p></div>}
     <div role="tablist" aria-label="Application card sections" style={{ display: "flex", gap: 4, flexWrap: "wrap", borderBottom: "1px solid #dce2e8", marginBottom: 14 }}>{tabs.map((item) => <button key={item} type="button" role="tab" aria-selected={tab === item} onClick={() => setTab(item)}>{item}</button>)}</div>
     <div role="tabpanel" style={cardStyle}>
-      {tab === "Overview" && <><h3>Overview</h3><p>Source: {currentJob.source}. Work mode: {currentJob.workMode}. Last seen: {formatShortDate(currentJob.lastSeenAt)}.</p><p>Full V4: {run ? `persisted (${run.status})` : "not run"}. Viewing this card does not create an application or mark it Applied.</p></>}
+      {tab === "Overview" && <><h3>Overview</h3><p>Source: {currentJob.source}. Work mode: {currentJob.workMode}. Last seen: {formatShortDate(currentJob.lastSeenAt)}.</p><p>Full V4: {run ? `persisted (${run.status}${run.ready ? ", ready" : ", not ready"})` : "not run"}. Viewing this card does not create an application or mark it Applied.</p></>}
       {tab === "Vacancy" && <><h3>Vacancy</h3><p style={{ whiteSpace: "pre-wrap" }}>{currentJob.descriptionClean || "Full vacancy description is not available."}</p><button type="button" onClick={() => window.open(currentJob.sourceUrl, "_blank", "noopener,noreferrer")}>Open source vacancy</button></>}
-      {tab === "Evidence" && <><h3>Evidence</h3><p>Only persisted safe evidence references are shown here. Generated letters and provider output are not evidence.</p><p>Evidence trace: {run ? "available in the persisted Full V4 run" : "not available"}.</p></>}
+      {tab === "Evidence" && <><h3>Evidence</h3><p>Only persisted safe evidence references are shown here. Generated letters and provider output are not evidence.</p><p>Evidence trace: {run?.ready ? "available in the persisted Full V4 run" : run ? "not available: Full V4 result is invalid" : "not available"}.</p></>}
       {tab === "Score" && <><h3>Score</h3><p>Stage A deterministic score: <strong>{currentJob.ruleScore?.total ?? "not run/not available"}</strong>. Decision: {currentJob.ruleScore?.recommendation ?? "not run/not available"}.</p><p>Full V4 final score: <strong>{run?.score ?? "not run"}</strong>. Decision: {run?.decision ?? "not run"}; confidence: {run?.confidence ?? "not run"}.</p></>}
-      {tab === "Letter" && <><h3>Letter</h3><p>Copying is not sending; a final letter is not an application sent.</p><p>{run?.decision === "skip" ? "SKIP: no letter was generated." : `Full V4 letter: ${run?.cover_letter ? "available in persisted result" : "not created"}.`}</p></>}
+      {tab === "Letter" && <><h3>Letter</h3><p>Copying is not sending; a final letter is not an application sent.</p><p>{run?.decision === "skip" ? "SKIP: no letter was generated." : run && !run.ready ? "Full V4 letter is not ready: persisted validation failed." : `Full V4 letter: ${run?.cover_letter ? "available in persisted result" : "not created"}.`}</p></>}
       {tab === "Timeline" && <><h3>Timeline</h3><p>Existing local status history only.</p>{currentJob.statusHistory.map((event, index) => <p key={`${event.at}-${index}`}>{formatShortDate(event.at)} · {event.from ?? "—"} → {event.to} · {event.source}</p>)}</>}
       {tab === "Follow-up" && <FollowUpPanel job={currentJob} />}
       {tab === "Interview" && <><h3>Interview</h3><p>Not-yet-active in AOPS-12. Interview Pack is deferred.</p></>}
