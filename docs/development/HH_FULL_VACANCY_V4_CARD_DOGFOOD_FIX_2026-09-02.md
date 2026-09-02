@@ -2,7 +2,7 @@
 
 ## Verdict
 
-HH_FULL_DETAIL_UPSTREAM_BLOCKED. Implementation and offline acceptance are complete; live MV3 Application Card smoke reached the explicit Full V4 confirmation and hydration passed. The single authorized provider execution timed out upstream before a persisted run was created, so the branch is not claimed as pushed.
+HH_FULL_DETAIL_UPSTREAM_BLOCKED. Implementation and offline acceptance are complete; live MV3 Application Card smoke reached the explicit Full V4 confirmation and hydration passed. The single authorized provider execution was cancelled by the original 10-second frontend timeout before a persisted run was created. The timeout mismatch is now fixed; a new real provider run was not attempted because the acceptance authorization allowed at most one.
 
 ## Root cause
 
@@ -16,6 +16,7 @@ HH search results are lightweight projections. The sync path passed each search 
 - Application Card now shows Search preview vs Full, supports Refresh full vacancy details, Preview Full V4, and an explicit Confirm and run Full V4 action. Preview is provider-free; execute is disabled until preview and while running.
 - Card labels distinguish Stage A deterministic values from Full V4 score/decision/confidence and render the persisted execution result. SKIP explicitly shows that no letter was generated.
 - Application Factory uses the same hydration/readiness helper before Full V4 execution.
+- Full V4 requests now use a dedicated 5-minute client timeout, covering the provider's bounded request and one repair attempt; ordinary companion calls retain the 10-second timeout.
 
 ## Safety
 
@@ -29,7 +30,7 @@ Official HH documentation describes `GET https://api.hh.ru/vacancies/{vacancy_id
 
 - HH client GET/ID validation and hydration/idempotency regressions: PASS.
 - Companion format, Ruff, strict mypy, full pytest and OpenAPI drift: PASS after snapshot regeneration.
-- Frontend typecheck/lint: PASS; post-smoke persisted-run refresh path typechecks.
+- Frontend typecheck/lint: PASS; post-smoke persisted-run refresh path typechecks; dedicated Full V4 timeout regression: PASS.
 - Fresh hermetic frontend suite after stopping the manually running Companion: 80 files, 1869 tests PASS. The earlier `unpaired` vs `unavailable` result was confirmed as the documented port-conflict/environment condition.
 - MV3 build: PASS; release safety: 10 files, 422 tests PASS; workflow verifier: PASS; diff-check: PASS.
 
@@ -37,4 +38,4 @@ Official HH documentation describes `GET https://api.hh.ru/vacancies/{vacancy_id
 
 Branch: `hotfix/hh-vacancy-hydration-v4-card`.
 
-Latest implementation commit: `fix: finalize Full V4 card smoke path` (this commit). The branch is intentionally not merged or pushed because the only authorized provider execution was upstream-timeout blocked. No provider retry was performed.
+Latest implementation commit: `fix: finalize Full V4 card smoke path` plus the timeout follow-up (this commit). The branch is intentionally not merged or pushed because the only authorized provider execution was cancelled by the former client timeout. No provider retry was performed.

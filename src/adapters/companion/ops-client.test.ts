@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { OpsClient, CompanionError } from './ops-client';
+import { FULL_V4_TIMEOUT_MS, OpsClient, CompanionError } from './ops-client';
 import type {
   HealthResponse,
   PairStartResponse,
@@ -352,6 +352,29 @@ describe('OpsClient', () => {
     expect(headers['X-VacancyPilot-Idempotency-Key']).toBe('stable-key');
     expect(headers['X-VacancyPilot-Client']).toBe('paired-token');
     expect(headers['X-VacancyPilot-Request-ID']).toBeTruthy();
+  });
+
+  it('gives Full V4 enough time for a provider response and repair', async () => {
+    vi.useFakeTimers();
+    client.setClientToken('test-token-123');
+    vi.spyOn(globalThis, 'fetch').mockImplementationOnce((_input, init) =>
+      new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => {
+          const error = new Error('The operation was aborted.') as Error & { name: string };
+          error.name = 'AbortError';
+          reject(error);
+        });
+      }),
+    );
+
+    const pending = client.analyzeFullV4('vacancy-id').catch((error: unknown) => error);
+    await vi.advanceTimersByTimeAsync(FULL_V4_TIMEOUT_MS);
+    const error = await pending;
+
+    expect(error).toBeInstanceOf(CompanionError);
+    expect((error as CompanionError).code).toBe('TIMEOUT');
+    expect((error as CompanionError).message).toContain(String(FULL_V4_TIMEOUT_MS));
+    vi.useRealTimers();
   });
 });
 

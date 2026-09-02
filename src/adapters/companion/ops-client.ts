@@ -44,6 +44,7 @@ import { isCompatibleApiVersion } from './types';
 
 export const COMPANION_BASE_URL = 'http://127.0.0.1:8765/api/v1';
 const DEFAULT_TIMEOUT_MS = 10_000;
+export const FULL_V4_TIMEOUT_MS = 300_000;
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -130,7 +131,7 @@ export class OpsClient {
     path: string,
     body: unknown,
     signal?: AbortSignal,
-    options?: { idempotencyKey?: string },
+    options?: { idempotencyKey?: string; timeoutMs?: number },
   ): Promise<T> {
     this._requireClientToken();
     return this._request<T>('POST', path, body, signal, true, options);
@@ -155,7 +156,7 @@ export class OpsClient {
     body?: unknown,
     signal?: AbortSignal,
     authenticated = false,
-    options?: { idempotencyKey?: string },
+    options?: { idempotencyKey?: string; timeoutMs?: number },
   ): Promise<T> {
     const requestId = generateRequestId();
     const url = `${this._baseUrl}${path}`;
@@ -180,7 +181,8 @@ export class OpsClient {
 
     // Timeout via AbortController
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this._timeoutMs);
+    const requestTimeoutMs = options?.timeoutMs ?? this._timeoutMs;
+    const timeoutId = setTimeout(() => controller.abort(), requestTimeoutMs);
 
     // Merge external signal
     const mergedSignal = signal
@@ -234,7 +236,7 @@ export class OpsClient {
         throw new CompanionError(
           isTimeout ? 'TIMEOUT' : 'ABORTED',
           isTimeout
-            ? `Request timed out after ${this._timeoutMs}ms`
+            ? `Request timed out after ${requestTimeoutMs}ms`
             : 'Request was aborted',
           requestId,
         );
@@ -338,7 +340,7 @@ export class OpsClient {
   }
 
   async analyzeFullV4(id: string, signal?: AbortSignal): Promise<FullV4AnalyzeResponse> {
-    return this.authenticatedPost<FullV4AnalyzeResponse>(`/vacancies/${encodeURIComponent(id)}/analyze`, {}, signal);
+    return this.authenticatedPost<FullV4AnalyzeResponse>(`/vacancies/${encodeURIComponent(id)}/analyze`, {}, signal, { timeoutMs: FULL_V4_TIMEOUT_MS });
   }
 
   async getFullV4Run(id: string, signal?: AbortSignal): Promise<FullV4PersistedRunResponse> {
