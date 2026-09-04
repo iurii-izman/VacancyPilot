@@ -186,8 +186,8 @@ function SidePanelContent(): ReactNode {
     setActiveTab(tab);
   }, []);
 
-  // Detect current vacancy from explicit background-managed context.
-  // Falls back to active-tab guessing only when no context is available.
+  // Background resolves the active tab through the live content-script bridge
+  // first, then a fresh tab-scoped session context during reload races.
   // Retries context fetch to handle the short timing race between
   // the popup storing context and the side panel loading.
   useEffect(() => {

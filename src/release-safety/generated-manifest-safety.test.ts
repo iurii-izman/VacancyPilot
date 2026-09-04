@@ -234,6 +234,19 @@ describe("generated manifest audit", () => {
         }
       }
     });
+
+    it("declares both exact and subdomain HH vacancy matches with the emitted asset", () => {
+      if (!hasManifest) return;
+      const manifest = readManifest();
+      const contentScripts = manifest.content_scripts as Array<{ matches?: string[]; js?: string[] }>;
+      const vacancyScript = contentScripts.find((cs) => cs.js?.includes("content-scripts/vacancy.js"));
+      expect(vacancyScript).toBeDefined();
+      expect(vacancyScript?.matches).toEqual(expect.arrayContaining([
+        "https://hh.ru/vacancy/*",
+        "https://*.hh.ru/vacancy/*",
+      ]));
+      expect(existsSync(join(__dirname, "..", "..", ".output", "chrome-mv3", "content-scripts", "vacancy.js"))).toBe(true);
+    });
   });
 
   describe("icons and metadata (generated)", () => {

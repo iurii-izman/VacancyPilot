@@ -1,5 +1,6 @@
 import { defineContentScript } from "wxt/utils/define-content-script";
 import { HHAdapter } from "@/adapters/hh/hh-adapter";
+import { extractVacancyIdFromUrl as extractVacancyIdFromPageUrl } from "@/services/vacancy-context";
 
 export default defineContentScript({
   // Covers vacancy pages plus read-only HR workflow pages.
@@ -18,6 +19,7 @@ export default defineContentScript({
 
     const adapter = new HHAdapter();
     if (adapter.matchUrl(document.location.href) === "vacancy") {
+      void registerVacancyContext();
       void recordVacancyVisit();
       void createBadge();
     }
@@ -35,6 +37,16 @@ function setupRuntimeBridge(): void {
     if (message.type === "UPDATE_BADGE" && badgeContainer) {
       updateBadgeContent(badgeContainer, message.payload);
       sendResponse({ success: true });
+      return false;
+    }
+
+    if (message.type === "GET_PAGE_VACANCY_CONTEXT") {
+      const vacancyId = extractVacancyIdFromPageUrl(document.location.href);
+      sendResponse(
+        vacancyId
+          ? { success: true, vacancyId, pageKind: "vacancy" }
+          : { success: false },
+      );
       return false;
     }
 
@@ -80,6 +92,26 @@ function setupRuntimeBridge(): void {
 
     return false;
   });
+}
+
+async function registerVacancyContext(): Promise<void> {
+  const vacancyId = extractVacancyIdFromPageUrl(document.location.href);
+  if (!vacancyId) {
+    console.debug("[VacancyPilot] vacancy context registration skipped: unsupported page");
+    return;
+  }
+  try {
+    const response = await chrome.runtime.sendMessage({
+      type: "REGISTER_VACANCY_CONTEXT",
+      vacancyId,
+      pageKind: "vacancy",
+    });
+    if (!response?.success) {
+      console.warn("[VacancyPilot] vacancy context registration rejected");
+    }
+  } catch {
+    console.warn("[VacancyPilot] vacancy context registration failed");
+  }
 }
 
 async function recordVacancyVisit(): Promise<void> {
@@ -274,8 +306,7 @@ interface BadgePayload {
  * Returns null if not on a vacancy page.
  */
 function extractVacancyIdFromUrl(): string | null {
-  const match = document.location.href.match(/\/vacancy\/(\d+)/);
-  return match ? match[1] : null;
+  return extractVacancyIdFromPageUrl(document.location.href);
 }
 
 /**

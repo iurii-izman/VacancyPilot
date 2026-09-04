@@ -23,6 +23,12 @@ import {
   getSearchHighlightStates,
   resolveSearchHighlightControls,
 } from "@/services/search-highlights";
+import {
+  contextMatchesTab,
+  contextStorageKey,
+  extractVacancyIdFromUrl,
+  type VacancyContext,
+} from "@/services/vacancy-context";
 
 interface SidePanelContext {
   tabId: number;
@@ -98,6 +104,86 @@ export default defineBackground(() => {
 
   let activeContext: SidePanelContext | null = null;
 
+  async function clearTabContext(tabId: number): Promise<void> {
+    await chrome.storage.session.remove(contextStorageKey(tabId));
+    if (activeContext?.tabId === tabId) activeContext = null;
+  }
+
+  chrome.tabs.onRemoved.addListener((tabId) => {
+    void clearTabContext(tabId).catch(() => undefined);
+  });
+
+  chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+    if (changeInfo.url) {
+      const nextVacancyId = extractVacancyIdFromUrl(changeInfo.url);
+      void chrome.storage.session.get(contextStorageKey(tabId)).then((stored) => {
+        const context = stored[contextStorageKey(tabId)] as VacancyContext | undefined;
+        if (!nextVacancyId || context?.vacancyId !== nextVacancyId) {
+          return clearTabContext(tabId);
+        }
+      }).catch(() => undefined);
+    }
+  });
+
+  async function registerVacancyContext(
+    message: { vacancyId?: unknown; pageKind?: unknown },
+    sender: chrome.runtime.MessageSender,
+  ): Promise<boolean> {
+    const tab = sender.tab;
+    const vacancyId = typeof message.vacancyId === "string" ? message.vacancyId : "";
+    const senderVacancyId = extractVacancyIdFromUrl(tab?.url);
+    if (!tab?.id || tab.id <= 0 || !tab.windowId || tab.windowId <= 0) return false;
+    if (
+      message.pageKind !== "vacancy" ||
+      !vacancyId ||
+      (senderVacancyId !== null && vacancyId !== senderVacancyId)
+    ) {
+      return false;
+    }
+    const context: VacancyContext = {
+      tabId: tab.id,
+      windowId: tab.windowId,
+      vacancyId,
+      pageKind: "vacancy",
+      timestamp: Date.now(),
+    };
+    await chrome.storage.session.set({ [contextStorageKey(tab.id)]: context });
+    activeContext = { tabId: tab.id, vacancyId };
+    return true;
+  }
+
+  async function resolveSidePanelContext(): Promise<SidePanelContext | null> {
+    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    if (!tab?.id || tab.id <= 0 || !tab.windowId || tab.windowId <= 0) return null;
+
+    try {
+      const live = await chrome.tabs.sendMessage(tab.id, { type: "GET_PAGE_VACANCY_CONTEXT" });
+      if (live?.success && typeof live.vacancyId === "string" && live.pageKind === "vacancy") {
+        const context: VacancyContext = {
+          tabId: tab.id,
+          windowId: tab.windowId,
+          vacancyId: live.vacancyId,
+          pageKind: "vacancy",
+          timestamp: Date.now(),
+        };
+        await chrome.storage.session.set({ [contextStorageKey(tab.id)]: context });
+        activeContext = { tabId: tab.id, vacancyId: live.vacancyId };
+        return activeContext;
+      }
+    } catch {
+      // A short reload race can leave the content script unavailable.
+    }
+
+    const stored = await chrome.storage.session.get(contextStorageKey(tab.id));
+    const context = stored[contextStorageKey(tab.id)] as VacancyContext | undefined;
+    if (contextMatchesTab(context, tab.id, tab.windowId)) {
+      activeContext = { tabId: tab.id, vacancyId: context.vacancyId };
+      return activeContext;
+    }
+    await clearTabContext(tab.id);
+    return null;
+  }
+
   /** Persist the context without opening the side panel (used by popup). */
   function persistContext(
     message: { tabId?: number; vacancyId?: string },
@@ -155,6 +241,14 @@ export default defineBackground(() => {
       return false; // sync
     }
 
+    if (message.type === "REGISTER_VACANCY_CONTEXT") {
+      void registerVacancyContext(message, sender).then(
+        (success) => sendResponse({ success }),
+        () => sendResponse({ success: false }),
+      );
+      return true;
+    }
+
     // ── OPEN_SIDE_PANEL (from content badge) ──
     // Badge click path: store context AND open the side panel from background.
     if (message.type === "OPEN_SIDE_PANEL") {
@@ -168,24 +262,10 @@ export default defineBackground(() => {
 
     // ── GET_SIDE_PANEL_CONTEXT ──
     if (message.type === "GET_SIDE_PANEL_CONTEXT") {
-      // The service worker may have been restarted after the popup/badge set
-      // the context. Recover it from the currently focused tab so opening the
-      // browser side panel directly still follows the HH vacancy in view.
-      void chrome.tabs
-        .query({ active: true, lastFocusedWindow: true })
-        .then(([tab]) => {
-          const tabId = tab?.id ?? -1;
-          const currentVacancyId = extractVacancyIdFromUrl(tab?.url);
-          if (tabId > 0 && currentVacancyId) {
-            activeContext = { tabId, vacancyId: currentVacancyId };
-          } else if (!activeContext?.tabId || activeContext.tabId <= 0) {
-            activeContext = { tabId, vacancyId: currentVacancyId };
-          }
-          sendResponse(activeContext);
-        })
+      void resolveSidePanelContext()
+        .then((context) => sendResponse(context))
         .catch(() => sendResponse(null));
       return true;
-      // Don't clear — the side panel may re-read on refresh.
     }
 
     // ── Search quick actions (ITER-035) ──
@@ -335,14 +415,3 @@ export default defineBackground(() => {
     return false;
   });
 });
-
-/** Extract vacancy ID from an hh.ru vacancy URL. */
-function extractVacancyIdFromUrl(url: string | undefined): string | null {
-  if (!url) return null;
-  try {
-    const match = url.match(/\/vacancy\/(\d+)/i);
-    return match ? match[1] : null;
-  } catch {
-    return null;
-  }
-}
