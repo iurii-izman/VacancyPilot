@@ -197,41 +197,6 @@ export default defineBackground(() => {
     activeContext = { tabId: nextTabId, vacancyId };
   }
 
-  /** Open the side panel in the given window. Returns true on success. */
-  async function openPanelInWindow(
-    windowId: number | undefined,
-  ): Promise<boolean> {
-    if (windowId === undefined) {
-      console.error("[VacancyPilot] Could not determine target window");
-      return false;
-    }
-    try {
-      await chrome.sidePanel.open({ windowId });
-      return true;
-    } catch (err: unknown) {
-      console.error("[VacancyPilot] Failed to open side panel:", err);
-      return false;
-    }
-  }
-
-  async function resolveWindowId(
-    sender: chrome.runtime.MessageSender,
-  ): Promise<number | undefined> {
-    if (sender.tab?.windowId !== undefined) {
-      return sender.tab.windowId;
-    }
-    try {
-      const [activeTab] = await chrome.tabs.query({
-        active: true,
-        lastFocusedWindow: true,
-      });
-      return activeTab?.windowId;
-    } catch (error) {
-      console.error("[VacancyPilot] Failed to resolve active window:", error);
-      return undefined;
-    }
-  }
-
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // ── SET_SIDE_PANEL_CONTEXT (from popup) ──
     // Popup persists context here and opens the side panel directly.
@@ -250,14 +215,32 @@ export default defineBackground(() => {
     }
 
     // ── OPEN_SIDE_PANEL (from content badge) ──
-    // Badge click path: store context AND open the side panel from background.
+    // Badge click path: call open synchronously while Chrome still associates
+    // this message with the user's click. Do not await tab/window lookup.
     if (message.type === "OPEN_SIDE_PANEL") {
       persistContext(message, sender);
-
-      void resolveWindowId(sender).then((windowId) => {
-        void openPanelInWindow(windowId).finally(() => sendResponse());
-      });
-      return true; // async response
+      const tabId = sender.tab?.id;
+      if (!tabId || tabId <= 0 || sender.tab?.windowId === undefined) {
+        console.warn("[VacancyPilot] side panel open skipped: sender tab unavailable");
+        sendResponse({ success: false, error: "Explicit vacancy tab gesture required" });
+        return false;
+      }
+      let openPromise: Promise<void>;
+      try {
+        openPromise = chrome.sidePanel.open({ tabId });
+      } catch (error: unknown) {
+        console.error("[VacancyPilot] Failed to open side panel:", error);
+        sendResponse({ success: false, error: "Could not open side panel" });
+        return false;
+      }
+      void openPromise.then(
+        () => sendResponse({ success: true }),
+        (error: unknown) => {
+          console.error("[VacancyPilot] Failed to open side panel:", error);
+          sendResponse({ success: false, error: "Could not open side panel" });
+        },
+      );
+      return true;
     }
 
     // ── GET_SIDE_PANEL_CONTEXT ──

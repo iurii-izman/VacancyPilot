@@ -325,13 +325,16 @@ function FollowUpPanel({ job }: { job: Job }): ReactNode {
 export function ApplicationWorkspace(): ReactNode {
   const { loading } = useJobs();
   const [selected, setSelected] = useState<Job | null>(null);
+  const [directLookup, setDirectLookup] = useState<"idle" | "loading" | "not-found">("idle");
   useEffect(() => {
     const vacancyId = new URLSearchParams(window.location.search).get("vacancyId");
     if (!vacancyId) return;
+    setDirectLookup("loading");
     void (async () => {
       const localJob = await jobRepo.getById(`hh_${vacancyId}`);
       if (localJob) {
         setSelected(localJob);
+        setDirectLookup("idle");
         return;
       }
 
@@ -345,13 +348,21 @@ export function ApplicationWorkspace(): ReactNode {
         const remote = response.data.find(
           (item) => item.source === "hh" && item.source_vacancy_id === vacancyId,
         );
-        if (remote) setSelected(companionVacancyToJob(remote));
+        if (remote) {
+          setSelected(companionVacancyToJob(remote));
+          setDirectLookup("idle");
+        } else {
+          setDirectLookup("not-found");
+        }
       } catch {
         // Inbox remains the safe fallback when Companion is unavailable.
+        setDirectLookup("not-found");
       }
     })();
   }, []);
   if (loading) return <p role="status">Loading applications…</p>;
+  if (directLookup === "loading") return <p role="status">Loading application card…</p>;
   if (selected) return <ApplicationCard job={selected} onBack={() => setSelected(null)} />;
+  if (directLookup === "not-found") return <section aria-labelledby="inbox-title"><h2 id="inbox-title">Inbox</h2><p role="alert">Application card vacancy was not found.</p></section>;
   return <Inbox onSelect={setSelected} />;
 }

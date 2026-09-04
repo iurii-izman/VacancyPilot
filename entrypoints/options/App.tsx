@@ -125,6 +125,17 @@ const SECTION_GROUPS: SectionGroup[] = [
   },
 ];
 
+export function getInitialSectionFromHash(hash: string): SectionId {
+  const hashRoute = hash.replace(/^#/, "").split("?")[0];
+  if (hashRoute === "onboarding") return "onboarding";
+  const supportedRoutes = new Set(
+    SECTION_GROUPS.flatMap((group) => group.sections.map((section) => section.id)),
+  );
+  return supportedRoutes.has(hashRoute as SectionId)
+    ? (hashRoute as SectionId)
+    : "command";
+}
+
 // Flattened navigation structure with group labels
 
 function useWindowWidth(): number {
@@ -141,16 +152,12 @@ function useWindowWidth(): number {
 
 function DashboardContent(): ReactNode {
   const [activeSection, setActiveSection] = useState<SectionId>(() => {
-    // If opened via onInstalled or with #onboarding hash, show onboarding first.
-    if (
-      typeof window !== "undefined" &&
-      window.location.hash === "#onboarding"
-    ) {
-      // Clear the hash so back/forward navigation works normally.
+    if (typeof window === "undefined") return "command";
+    const initialSection = getInitialSectionFromHash(window.location.hash);
+    if (initialSection === "onboarding") {
       window.history.replaceState(null, "", window.location.pathname);
-      return "onboarding";
     }
-    return "command";
+    return initialSection;
   });
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const windowWidth = useWindowWidth();
