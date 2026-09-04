@@ -21,7 +21,9 @@ export default defineContentScript({
     if (adapter.matchUrl(document.location.href) === "vacancy") {
       void registerVacancyContext();
       void recordVacancyVisit();
-      void createBadge();
+      void createBadge().catch(() => {
+        console.warn("[VacancyPilot] badge creation skipped: exception");
+      });
     }
   },
 });
@@ -181,6 +183,12 @@ async function createBadge(): Promise<void> {
     // On read failure, show badge by default.
   }
 
+  const body = await waitForDocumentBody();
+  if (!body) {
+    console.debug("[VacancyPilot] badge creation skipped: document body unavailable");
+    return;
+  }
+
   // Prevent duplicate injection.
   if (document.getElementById("vp-badge-host")) return;
 
@@ -289,11 +297,20 @@ async function createBadge(): Promise<void> {
 
   shadow.appendChild(style);
   shadow.appendChild(container);
-  document.body.appendChild(host);
+  body.appendChild(host);
   badgeContainer = container;
 
   // Try to restore badge state from chrome.storage.local (set by popup on save).
   await restoreBadgeState(container);
+}
+
+/** Content scripts can run before the document body exists during a reload. */
+async function waitForDocumentBody(): Promise<HTMLElement | null> {
+  if (document.body) return document.body;
+  await new Promise<void>((resolve) => {
+    document.addEventListener("DOMContentLoaded", () => resolve(), { once: true });
+  });
+  return document.body;
 }
 
 interface BadgePayload {

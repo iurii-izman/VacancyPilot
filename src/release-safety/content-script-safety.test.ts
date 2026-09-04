@@ -161,6 +161,8 @@ describe("content script safety — structure", () => {
     expect(content).toMatch(/REGISTER_VACANCY_CONTEXT/);
     expect(content).toMatch(/GET_PAGE_VACANCY_CONTEXT/);
     expect(content).toMatch(/registerVacancyContext\(\)/);
+    expect(content).toMatch(/waitForDocumentBody/);
+    expect(content).toMatch(/badge creation skipped/);
     expect(content).not.toMatch(/provider|analy[sz]eFullV4|OPENAI/i);
   });
 });
