@@ -8,6 +8,7 @@ import { HrWorkspace } from "@/components/HrWorkspace";
 import { ProfileTab } from "@/components/ProfileTab";
 import { OpsStatusDot } from "@/components/OpsStatusIndicator";
 import { jobRepo } from "@/db/repositories";
+import { tracker } from "@/services/tracker";
 import { ensureMigrationsBootstrapped } from "@/db";
 import type { Job } from "@/models/job";
 import type { RiskFlag } from "@/models/risk";
@@ -246,15 +247,22 @@ function SidePanelContent(): ReactNode {
 
           const vacancyId = match[1];
           const jobId = `hh_${vacancyId}`;
-          const job = await jobRepo.getById(jobId);
+          let job = await jobRepo.getById(jobId);
 
           try {
             const response: {
               success: boolean;
+              dto?: import("@/adapters/hh/types").RawVacancyDTO;
               passiveStatus?: Partial<ApplicationStatusSync> | null;
             } = await chrome.tabs.sendMessage(tab.id, {
               type: "EXTRACT_VACANCY",
             });
+            // A vacancy opened directly on HH is a valid card entry point.
+            // Persist only the sanitized, user-visible DTO locally; this is
+            // not an application creation and does not call any provider.
+            if (!job && response?.success && response.dto) {
+              job = await tracker.saveFromDTO(response.dto);
+            }
             if (!cancelled) {
               setCtx({
                 jobId,
@@ -564,6 +572,11 @@ function OverviewTab({ ctx }: { ctx: VacancyContext }): ReactNode {
   const badge = statusBadgeStyle(job.status);
 
   const sourceVacancyId = job.sourceVacancyId || job.id.replace(/^hh_/, "");
+  const openApplicationCard = () => {
+    void chrome.tabs.create({
+      url: `${chrome.runtime.getURL("options.html")}?vacancyId=${encodeURIComponent(sourceVacancyId)}#inbox`,
+    });
+  };
 
   return (
     <div>
@@ -590,6 +603,9 @@ function OverviewTab({ ctx }: { ctx: VacancyContext }): ReactNode {
         >
           {job.companyName || "—"}
         </p>
+        <button type="button" onClick={openApplicationCard} style={{ marginTop: 8 }}>
+          Open application card
+        </button>
       </div>
 
       {/* Passive HH status hint (informational, read-only) */}

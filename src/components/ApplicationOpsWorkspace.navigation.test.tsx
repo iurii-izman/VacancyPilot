@@ -27,20 +27,26 @@ const job = vi.hoisted(() => ({
 }));
 
 vi.mock("@/db/repositories", () => ({
-  jobRepo: { list: vi.fn().mockResolvedValue([job]) },
+  jobRepo: {
+    list: vi.fn().mockResolvedValue([job]),
+    getById: vi.fn().mockImplementation((id: string) => Promise.resolve(id === job.id ? job : undefined)),
+  },
 }));
 
 vi.mock("@/services/companion-service", () => ({
   detectCompanionStatus: vi.fn().mockResolvedValue({ status: "unavailable" }),
+  getOpsClient: vi.fn(),
 }));
 
 import { ApplicationWorkspace } from "./ApplicationOpsWorkspace";
+import { detectCompanionStatus, getOpsClient } from "@/services/companion-service";
 
 describe("Application Workspace navigation", () => {
   let container: HTMLDivElement;
   let root: Root;
 
   beforeEach(() => {
+    window.history.replaceState({}, "", "/");
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -88,5 +94,49 @@ describe("Application Workspace navigation", () => {
     expect(container.querySelector("#inbox-title")?.textContent).toBe("Inbox");
     expect(container.textContent).toContain(job.title);
     expect(container.textContent).toContain("Status: New");
+  });
+
+  it("opens a direct link for a Companion-only vacancy without creating an application", async () => {
+    window.history.replaceState({}, "", "?vacancyId=remote-001");
+    vi.mocked(detectCompanionStatus).mockResolvedValue({ status: "connected" });
+    vi.mocked(getOpsClient).mockReturnValue({
+      listVacancies: vi.fn().mockResolvedValue({
+        data: [{
+          id: "companion-vacancy-001",
+          source: "hh",
+          source_vacancy_id: "remote-001",
+          url: "https://hh.ru/vacancy/remote-001",
+          title: "Companion-only Vacancy",
+          company_id: "company-remote",
+          company_name: "Remote Company",
+          salary_min: null,
+          salary_max: null,
+          currency: null,
+          work_mode: "remote",
+          experience: null,
+          description: "Full remote vacancy description",
+          skills: ["TypeScript"],
+          first_seen_at: "2026-09-01T00:00:00.000Z",
+          last_seen_at: "2026-09-01T00:00:00.000Z",
+          updated_at: "2026-09-01T00:00:00.000Z",
+          archived: false,
+          revision: 1,
+          description_hash: "remote-hash",
+        }],
+        meta: { request_id: "test", total: 1, limit: 100, offset: 0 },
+      }),
+    } as never);
+
+    await act(async () => {
+      root.render(createElement(ApplicationWorkspace));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(container.querySelector("#application-card-title")?.textContent).toBe("Companion-only Vacancy");
+    expect(container.textContent).toContain("Remote Company");
+    expect(container.textContent).toContain("Viewing this card does not create an application or mark it Applied.");
   });
 });

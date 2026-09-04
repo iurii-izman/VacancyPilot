@@ -168,9 +168,24 @@ export default defineBackground(() => {
 
     // ── GET_SIDE_PANEL_CONTEXT ──
     if (message.type === "GET_SIDE_PANEL_CONTEXT") {
-      sendResponse(activeContext);
+      // The service worker may have been restarted after the popup/badge set
+      // the context. Recover it from the currently focused tab so opening the
+      // browser side panel directly still follows the HH vacancy in view.
+      void chrome.tabs
+        .query({ active: true, lastFocusedWindow: true })
+        .then(([tab]) => {
+          const tabId = tab?.id ?? -1;
+          const currentVacancyId = extractVacancyIdFromUrl(tab?.url);
+          if (tabId > 0 && currentVacancyId) {
+            activeContext = { tabId, vacancyId: currentVacancyId };
+          } else if (!activeContext?.tabId || activeContext.tabId <= 0) {
+            activeContext = { tabId, vacancyId: currentVacancyId };
+          }
+          sendResponse(activeContext);
+        })
+        .catch(() => sendResponse(null));
+      return true;
       // Don't clear — the side panel may re-read on refresh.
-      return false;
     }
 
     // ── Search quick actions (ITER-035) ──

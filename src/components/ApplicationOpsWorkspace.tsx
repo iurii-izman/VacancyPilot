@@ -5,6 +5,7 @@ import { detectCompanionStatus, getOpsClient } from "@/services/companion-servic
 import type { Job } from "@/models/job";
 import type { FollowUpItem } from "@/adapters/companion/application-types";
 import type { HHSearchProfile } from "@/adapters/companion/types";
+import type { VacancyListItem } from "@/adapters/companion/vacancy-types";
 function formatShortDate(iso: string): string {
   const date = new Date(iso);
   return Number.isNaN(date.getTime()) ? iso : date.toLocaleDateString();
@@ -15,6 +16,32 @@ function scoreColor(total: number | undefined): string {
 }
 function statusLabel(status: Job["status"]): string {
   return status.replaceAll("_", " ").replace(/^./, (char) => char.toUpperCase());
+}
+
+function companionVacancyToJob(item: VacancyListItem): Job {
+  return {
+    id: item.id,
+    source: "hh",
+    sourceVacancyId: item.source_vacancy_id,
+    sourceUrl: item.url ?? `https://hh.ru/vacancy/${item.source_vacancy_id}`,
+    title: item.title,
+    companyId: item.company_id ?? "",
+    companyName: item.company_name ?? "",
+    salaryMin: item.salary_min ?? undefined,
+    salaryMax: item.salary_max ?? undefined,
+    salaryCurrency: item.currency ?? undefined,
+    city: undefined,
+    workMode: (item.work_mode ?? "unknown") as Job["workMode"],
+    experienceRaw: item.experience ?? undefined,
+    descriptionClean: item.description ?? "",
+    descriptionHash: item.description_hash ?? "",
+    skills: item.skills,
+    status: "new",
+    statusHistory: [],
+    firstSeenAt: item.first_seen_at,
+    lastSeenAt: item.last_seen_at,
+    updatedAt: item.updated_at,
+  };
 }
 
 const cardStyle: React.CSSProperties = {
@@ -39,14 +66,7 @@ function useJobs(searchProfileId?: string): { jobs: Job[]; loading: boolean; err
           const connection = await detectCompanionStatus();
           if (connection.status === "connected") {
             const response = await getOpsClient().listVacancies({ archived: false, ...(searchProfileId ? { search_profile_id: searchProfileId } : {}) });
-            items = response.data.filter((item) => item.source === "hh").map((item) => ({
-              id: item.id, source: "hh", sourceVacancyId: item.source_vacancy_id,
-              sourceUrl: item.url ?? "", title: item.title, companyId: item.company_id ?? "",
-              companyName: item.company_name ?? "", workMode: (item.work_mode ?? "unknown") as Job["workMode"],
-              descriptionClean: item.description ?? "", descriptionHash: item.description_hash ?? "",
-              skills: item.skills, status: "new", statusHistory: [], firstSeenAt: item.first_seen_at,
-              lastSeenAt: item.last_seen_at, updatedAt: item.updated_at,
-            } satisfies Job));
+            items = response.data.filter((item) => item.source === "hh").map(companionVacancyToJob);
             if (!cancelled) setJobs(items);
           }
         } catch {
@@ -305,6 +325,32 @@ function FollowUpPanel({ job }: { job: Job }): ReactNode {
 export function ApplicationWorkspace(): ReactNode {
   const { loading } = useJobs();
   const [selected, setSelected] = useState<Job | null>(null);
+  useEffect(() => {
+    const vacancyId = new URLSearchParams(window.location.search).get("vacancyId");
+    if (!vacancyId) return;
+    void (async () => {
+      const localJob = await jobRepo.getById(`hh_${vacancyId}`);
+      if (localJob) {
+        setSelected(localJob);
+        return;
+      }
+
+      // A direct card link may target a vacancy mirrored in Companion but not
+      // present in local Dexie. Read the safe list projection only; this does
+      // not create an Application and does not invoke Full V4/provider work.
+      try {
+        const connection = await detectCompanionStatus();
+        if (connection.status !== "connected") return;
+        const response = await getOpsClient().listVacancies({ archived: false });
+        const remote = response.data.find(
+          (item) => item.source === "hh" && item.source_vacancy_id === vacancyId,
+        );
+        if (remote) setSelected(companionVacancyToJob(remote));
+      } catch {
+        // Inbox remains the safe fallback when Companion is unavailable.
+      }
+    })();
+  }, []);
   if (loading) return <p role="status">Loading applications…</p>;
   if (selected) return <ApplicationCard job={selected} onBack={() => setSelected(null)} />;
   return <Inbox onSelect={setSelected} />;
