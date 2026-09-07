@@ -38,7 +38,7 @@ vi.mock("@/services/companion-service", () => ({
   getOpsClient: vi.fn(),
 }));
 
-import { ApplicationWorkspace } from "./ApplicationOpsWorkspace";
+import { ApplicationCard, ApplicationWorkspace, needsFullVacancyHydration } from "./ApplicationOpsWorkspace";
 import { detectCompanionStatus, getOpsClient } from "@/services/companion-service";
 
 describe("Application Workspace navigation", () => {
@@ -55,6 +55,50 @@ describe("Application Workspace navigation", () => {
   afterEach(async () => {
     await act(async () => root.unmount());
     container.remove();
+  });
+
+  it("does not hydrate an already-full vacancy before the provider-free preview", () => {
+    expect(needsFullVacancyHydration({ descriptionClean: "x".repeat(200) })).toBe(false);
+    expect(needsFullVacancyHydration({ descriptionClean: "x".repeat(199) })).toBe(true);
+  });
+
+  it("previews an already-full vacancy without an upstream hydration call", async () => {
+    const hydrateVacancy = vi.fn();
+    const previewFullV4 = vi.fn().mockResolvedValue({
+      data: {
+        provider: "preview-only",
+        model: "local-preview",
+        token_estimate: null,
+        estimated_cost_usd: null,
+        prompt_version: "test",
+        input_hash: "test-hash",
+        cache_hit: true,
+        privacy_mode: "strict",
+        language: "en",
+        what_is_sent: [],
+        what_is_not_sent: [],
+      },
+      meta: {},
+    });
+    vi.mocked(getOpsClient).mockReturnValue({ hydrateVacancy, previewFullV4 } as never);
+
+    const fullJob = { ...job, descriptionClean: "x".repeat(200) };
+    await act(async () => {
+      root.render(createElement(ApplicationCard, { job: fullJob }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    const previewButton = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Preview Full V4",
+    );
+    await act(async () => {
+      previewButton?.click();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(hydrateVacancy).not.toHaveBeenCalled();
+    expect(previewFullV4).toHaveBeenCalledWith(job.id);
+    expect(container.textContent).toContain("Preview only — no provider call was made.");
   });
 
   it("opens the clicked vacancy card and returns to Inbox without mutating the job", async () => {

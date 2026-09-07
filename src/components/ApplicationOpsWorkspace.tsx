@@ -18,6 +18,10 @@ function statusLabel(status: Job["status"]): string {
   return status.replaceAll("_", " ").replace(/^./, (char) => char.toUpperCase());
 }
 
+export function needsFullVacancyHydration(job: Pick<Job, "descriptionClean">): boolean {
+  return job.descriptionClean.trim().length < 200;
+}
+
 function companionVacancyToJob(item: VacancyListItem): Job {
   return {
     id: item.id,
@@ -232,7 +236,7 @@ export function ApplicationCard({ job, onBack }: { job: Job; onBack?: () => void
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const tabs = ["Overview", "Vacancy", "Evidence", "Score", "Letter", "Timeline", "Follow-up", "Interview", "Debug"];
-  const isFull = currentJob.descriptionClean.trim().length >= 200;
+  const isFull = !needsFullVacancyHydration(currentJob);
   const hydrate = async () => {
     const hydrated = await getOpsClient().hydrateVacancy(currentJob.id);
     const item = hydrated.data;
@@ -240,7 +244,14 @@ export function ApplicationCard({ job, onBack }: { job: Job; onBack?: () => void
   };
   const previewFullV4 = async () => {
     setBusy(true); setError(null); setPreview(null);
-    try { await hydrate(); const response = await getOpsClient().previewFullV4(currentJob.id); setPreview(response.data); }
+    try {
+      // A migrated/full local projection is already sufficient for the
+      // provider-free preview. Hydration is an explicit HH API read and must
+      // only run when the stored vacancy is actually incomplete.
+      if (needsFullVacancyHydration(currentJob)) await hydrate();
+      const response = await getOpsClient().previewFullV4(currentJob.id);
+      setPreview(response.data);
+    }
     catch (err) { setError(err instanceof Error ? err.message : "Full vacancy preview failed"); }
     finally { setBusy(false); }
   };
