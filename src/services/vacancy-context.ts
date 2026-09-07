@@ -34,6 +34,15 @@ export function contextStorageKey(tabId: number): string {
   return `vp_context_tab_${tabId}`;
 }
 
+/**
+ * The side panel itself does not have a tab sender. Keep the exact tab that
+ * opened it, scoped by browser window, so a worker restart cannot turn one
+ * tab's vacancy into another tab's context.
+ */
+export function sidePanelBindingStorageKey(windowId: number): string {
+  return `vp_side_panel_binding_window_${windowId}`;
+}
+
 export function contextMatchesTab(
   context: VacancyContext | undefined,
   tabId: number,

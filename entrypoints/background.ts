@@ -27,12 +27,21 @@ import {
   contextMatchesTab,
   contextStorageKey,
   extractVacancyIdFromUrl,
+  sidePanelBindingStorageKey,
   type VacancyContext,
 } from "@/services/vacancy-context";
 
 interface SidePanelContext {
   tabId: number;
+  windowId: number;
   vacancyId: string | null;
+  pageKind: "vacancy" | "applications" | "messages" | "other";
+}
+
+interface PageContext {
+  success: boolean;
+  pageKind?: SidePanelContext["pageKind"];
+  vacancyId?: string;
 }
 
 async function bootBackground(): Promise<void> {
@@ -102,11 +111,8 @@ export default defineBackground(() => {
   // Side panel reads it via GET_SIDE_PANEL_CONTEXT.
   // Popup opens the side panel directly to preserve the user-gesture path.
 
-  let activeContext: SidePanelContext | null = null;
-
   async function clearTabContext(tabId: number): Promise<void> {
     await chrome.storage.session.remove(contextStorageKey(tabId));
-    if (activeContext?.tabId === tabId) activeContext = null;
   }
 
   chrome.tabs.onRemoved.addListener((tabId) => {
@@ -131,12 +137,10 @@ export default defineBackground(() => {
   ): Promise<boolean> {
     const tab = sender.tab;
     const vacancyId = typeof message.vacancyId === "string" ? message.vacancyId : "";
-    const senderVacancyId = extractVacancyIdFromUrl(tab?.url);
     if (!tab?.id || tab.id <= 0 || !tab.windowId || tab.windowId <= 0) return false;
     if (
       message.pageKind !== "vacancy" ||
-      !vacancyId ||
-      (senderVacancyId !== null && vacancyId !== senderVacancyId)
+      !vacancyId
     ) {
       return false;
     }
@@ -148,53 +152,109 @@ export default defineBackground(() => {
       timestamp: Date.now(),
     };
     await chrome.storage.session.set({ [contextStorageKey(tab.id)]: context });
-    activeContext = { tabId: tab.id, vacancyId };
     return true;
   }
 
-  async function resolveSidePanelContext(): Promise<SidePanelContext | null> {
-    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-    if (!tab?.id || tab.id <= 0 || !tab.windowId || tab.windowId <= 0) return null;
+  async function resolveSidePanelContext(
+    requestedWindowId?: unknown,
+  ): Promise<SidePanelContext | null> {
+    const windowId =
+      typeof requestedWindowId === "number" && requestedWindowId > 0
+        ? requestedWindowId
+        : undefined;
+    const [tab] = await chrome.tabs.query(
+      windowId ? { active: true, windowId } : { active: true, lastFocusedWindow: true },
+    );
+
+    let targetTabId = tab?.id;
+    const targetWindowId = tab?.windowId ?? windowId;
+
+    if (
+      (!targetTabId || targetTabId <= 0 || !targetWindowId || targetWindowId <= 0) &&
+      targetWindowId
+    ) {
+      const bindingResult = await chrome.storage.session.get(
+        sidePanelBindingStorageKey(targetWindowId),
+      );
+      const binding = bindingResult[sidePanelBindingStorageKey(targetWindowId)] as
+        | { tabId?: unknown; windowId?: unknown }
+        | undefined;
+      if (
+        typeof binding?.tabId === "number" &&
+        binding.tabId > 0 &&
+        binding.windowId === targetWindowId
+      ) {
+        targetTabId = binding.tabId;
+      }
+    }
+
+    if (!targetTabId || targetTabId <= 0 || !targetWindowId || targetWindowId <= 0) {
+      return null;
+    }
 
     try {
-      const live = await chrome.tabs.sendMessage(tab.id, { type: "GET_PAGE_VACANCY_CONTEXT" });
-      if (live?.success && typeof live.vacancyId === "string" && live.pageKind === "vacancy") {
+      const live = (await chrome.tabs.sendMessage(targetTabId, {
+        type: "GET_PAGE_CONTEXT",
+      })) as PageContext | undefined;
+      if (live?.success && live.pageKind) {
+        const vacancyId =
+          typeof live.vacancyId === "string" ? live.vacancyId : null;
         const context: VacancyContext = {
-          tabId: tab.id,
-          windowId: tab.windowId,
-          vacancyId: live.vacancyId,
+          tabId: targetTabId,
+          windowId: targetWindowId,
+          vacancyId: vacancyId ?? "",
           pageKind: "vacancy",
           timestamp: Date.now(),
         };
-        await chrome.storage.session.set({ [contextStorageKey(tab.id)]: context });
-        activeContext = { tabId: tab.id, vacancyId: live.vacancyId };
-        return activeContext;
+        if (live.pageKind === "vacancy" && vacancyId) {
+          await chrome.storage.session.set({ [contextStorageKey(targetTabId)]: context });
+        }
+        return {
+          tabId: targetTabId,
+          windowId: targetWindowId,
+          vacancyId,
+          pageKind: live.pageKind,
+        };
       }
     } catch {
       // A short reload race can leave the content script unavailable.
     }
 
-    const stored = await chrome.storage.session.get(contextStorageKey(tab.id));
-    const context = stored[contextStorageKey(tab.id)] as VacancyContext | undefined;
-    if (contextMatchesTab(context, tab.id, tab.windowId)) {
-      activeContext = { tabId: tab.id, vacancyId: context.vacancyId };
-      return activeContext;
+    const stored = await chrome.storage.session.get(contextStorageKey(targetTabId));
+    const context = stored[contextStorageKey(targetTabId)] as VacancyContext | undefined;
+    if (contextMatchesTab(context, targetTabId, targetWindowId)) {
+      return {
+        tabId: targetTabId,
+        windowId: targetWindowId,
+        vacancyId: context.vacancyId,
+        pageKind: "vacancy",
+      };
     }
-    await clearTabContext(tab.id);
+    await clearTabContext(targetTabId);
     return null;
   }
 
   /** Persist the context without opening the side panel (used by popup). */
   function persistContext(
-    message: { tabId?: number; vacancyId?: string },
+    message: { tabId?: number; windowId?: number; vacancyId?: string },
     sender: chrome.runtime.MessageSender,
   ): void {
     const nextTabId = message.tabId ?? sender.tab?.id ?? -1;
-    const vacancyId =
-      message.vacancyId ??
-      extractVacancyIdFromUrl(sender.tab?.url) ??
-      (activeContext?.tabId === nextTabId ? activeContext?.vacancyId : null);
-    activeContext = { tabId: nextTabId, vacancyId };
+    const vacancyId = message.vacancyId ?? null;
+    if (nextTabId <= 0 || !vacancyId) return;
+    const windowId = message.windowId ?? sender.tab?.windowId;
+    if (!windowId || windowId <= 0) return;
+    const context: VacancyContext = {
+      tabId: nextTabId,
+      windowId,
+      vacancyId,
+      pageKind: "vacancy",
+      timestamp: Date.now(),
+    };
+    void chrome.storage.session.set({
+      [contextStorageKey(nextTabId)]: context,
+      [sidePanelBindingStorageKey(windowId)]: { tabId: nextTabId, windowId },
+    });
   }
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -220,11 +280,26 @@ export default defineBackground(() => {
     if (message.type === "OPEN_SIDE_PANEL") {
       persistContext(message, sender);
       const tabId = sender.tab?.id;
-      if (!tabId || tabId <= 0 || sender.tab?.windowId === undefined) {
+      const windowId = sender.tab?.windowId;
+      const vacancyId = typeof message.vacancyId === "string" ? message.vacancyId : null;
+      if (!tabId || tabId <= 0 || !windowId || windowId <= 0 || !vacancyId) {
         console.warn("[VacancyPilot] side panel open skipped: sender tab unavailable");
         sendResponse({ success: false, error: "Explicit vacancy tab gesture required" });
         return false;
       }
+      const context: VacancyContext = {
+        tabId,
+        windowId,
+        vacancyId,
+        pageKind: "vacancy",
+        timestamp: Date.now(),
+      };
+      // Keep storage persistence non-blocking so this handler retains the
+      // content-script click's user-gesture association.
+      void chrome.storage.session.set({
+        [contextStorageKey(tabId)]: context,
+        [sidePanelBindingStorageKey(windowId)]: { tabId, windowId },
+      });
       let openPromise: Promise<void>;
       try {
         openPromise = chrome.sidePanel.open({ tabId });
@@ -245,7 +320,7 @@ export default defineBackground(() => {
 
     // ── GET_SIDE_PANEL_CONTEXT ──
     if (message.type === "GET_SIDE_PANEL_CONTEXT") {
-      void resolveSidePanelContext()
+      void resolveSidePanelContext(message.windowId)
         .then((context) => sendResponse(context))
         .catch(() => sendResponse(null));
       return true;

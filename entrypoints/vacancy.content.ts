@@ -52,6 +52,22 @@ function setupRuntimeBridge(): void {
       return false;
     }
 
+    if (message.type === "GET_PAGE_CONTEXT") {
+      const url = document.location.href;
+      const vacancyId = extractVacancyIdFromPageUrl(url);
+      let pageKind: "vacancy" | "applications" | "messages" | "other" = "other";
+      try {
+        const parsed = new URL(url);
+        if (/^\/applicant\/responses/i.test(parsed.pathname)) pageKind = "applications";
+        else if (/^\/negotiations/i.test(parsed.pathname)) pageKind = "messages";
+        else if (vacancyId) pageKind = "vacancy";
+      } catch {
+        // Keep the safe "other" result for an unavailable/malformed URL.
+      }
+      sendResponse({ success: true, pageKind, vacancyId: vacancyId ?? undefined });
+      return false;
+    }
+
     if (message.type === "EXTRACT_VACANCY") {
       try {
         const adapter = new HHAdapter();

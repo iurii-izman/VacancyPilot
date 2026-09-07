@@ -83,13 +83,16 @@ const defaultSidePanelOpenDeps: SidePanelOpenDeps = {
     await chrome.sidePanel.open({ windowId });
   },
   sendContext(pageInfo: PageStatusInfo): void {
-    void chrome.runtime
-      .sendMessage(buildSetSidePanelContext(pageInfo))
+    void chrome.windows
+      .getCurrent({ populate: false })
+      .then((currentWindow) =>
+        chrome.runtime.sendMessage({
+          ...buildSetSidePanelContext(pageInfo),
+          windowId: currentWindow.id,
+        }),
+      )
       .catch((err: unknown) => {
-        console.error(
-          "[VacancyPilot] Failed to persist side panel context:",
-          err,
-        );
+        console.error("[VacancyPilot] Failed to persist side panel context:", err);
       });
   },
   closePopup(): void {
@@ -681,6 +684,7 @@ function PopupContent(): ReactNode {
 export function buildSetSidePanelContext(pageInfo: PageStatusInfo): {
   type: "SET_SIDE_PANEL_CONTEXT";
   tabId?: number;
+  windowId?: number;
   vacancyId?: string;
 } {
   if (pageInfo.kind === "vacancy") {

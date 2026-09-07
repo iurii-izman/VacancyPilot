@@ -4,6 +4,7 @@ import {
   contextStorageKey,
   extractVacancyIdFromUrl,
   isFreshVacancyContext,
+  sidePanelBindingStorageKey,
   type VacancyContext,
 } from "./vacancy-context";
 
@@ -25,6 +26,9 @@ describe("vacancy context lifecycle helpers", () => {
 
   it("keys context by tab and requires the matching window", () => {
     expect(contextStorageKey(10)).toBe("vp_context_tab_10");
+    expect(sidePanelBindingStorageKey(20)).toBe(
+      "vp_side_panel_binding_window_20",
+    );
     expect(contextMatchesTab(context, 10, 20, 10_001)).toBe(true);
     expect(contextMatchesTab(context, 11, 20, 10_001)).toBe(false);
     expect(contextMatchesTab(context, 10, 21, 10_001)).toBe(false);

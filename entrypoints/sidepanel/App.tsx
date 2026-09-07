@@ -155,26 +155,6 @@ function riskSeverityColor(severity: string): string {
   }
 }
 
-function detectSupportedPageKind(
-  url: string | undefined,
-): "vacancy" | "applications" | "messages" | "other" {
-  if (!url) return "other";
-
-  try {
-    const parsed = new URL(url);
-    if (parsed.hostname !== "hh.ru" && !parsed.hostname.endsWith(".hh.ru")) {
-      return "other";
-    }
-
-    if (/^\/vacancy\/\d+/i.test(parsed.pathname)) return "vacancy";
-    if (/^\/applicant\/responses/i.test(parsed.pathname)) return "applications";
-    if (/^\/negotiations/i.test(parsed.pathname)) return "messages";
-    return "other";
-  } catch {
-    return "other";
-  }
-}
-
 // ── Main Side Panel ────────────────────────────────────────────────────────
 
 function SidePanelContent(): ReactNode {
@@ -186,8 +166,9 @@ function SidePanelContent(): ReactNode {
     setActiveTab(tab);
   }, []);
 
-  // Background resolves the active tab through the live content-script bridge
-  // first, then a fresh tab-scoped session context during reload races.
+  // Background resolves the active tab by identity only, through the live
+  // content-script bridge first, then tab-scoped session context during reload
+  // races. No tab URL read is needed, so activeTab is not a precondition.
   // Retries context fetch to handle the short timing race between
   // the popup storing context and the side panel loading.
   useEffect(() => {
@@ -196,11 +177,30 @@ function SidePanelContent(): ReactNode {
     /** Retry GET_SIDE_PANEL_CONTEXT up to `maxRetries` times with 100ms delays. */
     async function fetchContextWithRetry(
       maxRetries: number,
-    ): Promise<{ tabId: number; vacancyId: string | null } | null> {
+    ): Promise<{
+      tabId: number;
+      windowId: number;
+      vacancyId: string | null;
+      pageKind: "vacancy" | "applications" | "messages" | "other";
+    } | null> {
       for (let attempt = 0; attempt <= maxRetries; attempt++) {
         if (cancelled) return null;
-        const context: { tabId: number; vacancyId: string | null } | null =
-          await chrome.runtime.sendMessage({ type: "GET_SIDE_PANEL_CONTEXT" });
+        let windowId: number | undefined;
+        try {
+          const window = await chrome.windows.getCurrent({ populate: false });
+          windowId = window.id;
+        } catch {
+          // Background can use lastFocusedWindow as a bounded fallback.
+        }
+        const context = (await chrome.runtime.sendMessage({
+          type: "GET_SIDE_PANEL_CONTEXT",
+          windowId,
+        })) as {
+          tabId: number;
+          windowId: number;
+          vacancyId: string | null;
+          pageKind: "vacancy" | "applications" | "messages" | "other";
+        } | null;
         // Valid context has a positive tabId.
         if (context?.tabId && context.tabId > 0) return context;
         if (attempt < maxRetries) {
@@ -214,38 +214,21 @@ function SidePanelContent(): ReactNode {
       try {
         const context = await fetchContextWithRetry(3);
 
-        let tab: chrome.tabs.Tab | undefined;
-        if (context?.tabId && context.tabId > 0) {
-          try {
-            tab = await chrome.tabs.get(context.tabId);
-          } catch {
-            tab = undefined;
-          }
-        }
-
-        if (!tab) {
-          const [activeTab] = await chrome.tabs.query({
-            active: true,
-            lastFocusedWindow: true,
-          });
-          tab = activeTab;
-        }
-
-        if (cancelled || !tab?.url || tab.id === undefined) {
+        const tabId = context?.tabId;
+        if (cancelled || !tabId || tabId <= 0) {
           if (!cancelled) setCtx({});
           return;
         }
 
-        const pageKind = detectSupportedPageKind(tab.url);
+        const pageKind = context.pageKind;
 
         if (pageKind === "vacancy") {
-          const match = tab.url.match(/\/vacancy\/(\d+)/);
-          if (!match) {
+          const vacancyId = context.vacancyId;
+          if (!vacancyId) {
             if (!cancelled) setCtx({});
             return;
           }
 
-          const vacancyId = match[1];
           const jobId = `hh_${vacancyId}`;
           let job = await jobRepo.getById(jobId);
 
@@ -254,7 +237,7 @@ function SidePanelContent(): ReactNode {
               success: boolean;
               dto?: import("@/adapters/hh/types").RawVacancyDTO;
               passiveStatus?: Partial<ApplicationStatusSync> | null;
-            } = await chrome.tabs.sendMessage(tab.id, {
+            } = await chrome.tabs.sendMessage(tabId, {
               type: "EXTRACT_VACANCY",
             });
             // A vacancy opened directly on HH is a valid card entry point.
@@ -286,11 +269,11 @@ function SidePanelContent(): ReactNode {
         }
 
         if (pageKind === "applications" || pageKind === "messages") {
-          let vacancyId = context?.tabId === tab.id ? context?.vacancyId : null;
+          let vacancyId = context.vacancyId;
 
           let hrResponse: HrExtractionResponse | null = null;
           try {
-            hrResponse = (await chrome.tabs.sendMessage(tab.id, {
+            hrResponse = (await chrome.tabs.sendMessage(tabId, {
               type: "EXTRACT_HR_TIMELINE",
             })) as HrExtractionResponse;
           } catch {
