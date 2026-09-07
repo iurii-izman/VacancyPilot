@@ -40,4 +40,17 @@ describe("toolbar-independent HH vacancy context", () => {
     expect(background).toContain("message.windowId");
     expect(background).not.toContain("activeContext");
   });
+
+  it("resolves the explicit panel binding before querying the active tab", () => {
+    const resolver = background.slice(
+      background.indexOf("async function resolveSidePanelContext"),
+      background.indexOf("/** Persist the context without opening the side panel")
+    );
+    const bindingIndex = resolver.indexOf("sidePanelBindingStorageKey(targetWindowId)");
+    const queryIndex = resolver.indexOf("chrome.tabs.query");
+
+    expect(bindingIndex).toBeGreaterThan(-1);
+    expect(queryIndex).toBeGreaterThan(-1);
+    expect(bindingIndex).toBeLessThan(queryIndex);
+  });
 });

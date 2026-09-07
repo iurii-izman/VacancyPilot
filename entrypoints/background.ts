@@ -162,17 +162,13 @@ export default defineBackground(() => {
       typeof requestedWindowId === "number" && requestedWindowId > 0
         ? requestedWindowId
         : undefined;
-    const [tab] = await chrome.tabs.query(
-      windowId ? { active: true, windowId } : { active: true, lastFocusedWindow: true },
-    );
-
-    let targetTabId = tab?.id;
-    const targetWindowId = tab?.windowId ?? windowId;
-
-    if (
-      (!targetTabId || targetTabId <= 0 || !targetWindowId || targetWindowId <= 0) &&
-      targetWindowId
-    ) {
+    // A badge click records the exact tab that opened the panel. Prefer this
+    // binding over an active-tab guess so a side-panel reload cannot drift to
+    // another tab in the same window. The active-tab query remains only the
+    // fallback for direct toolbar/popup opens that have no binding yet.
+    let targetTabId: number | undefined;
+    let targetWindowId = windowId;
+    if (targetWindowId) {
       const bindingResult = await chrome.storage.session.get(
         sidePanelBindingStorageKey(targetWindowId),
       );
@@ -186,6 +182,14 @@ export default defineBackground(() => {
       ) {
         targetTabId = binding.tabId;
       }
+    }
+
+    if (!targetTabId) {
+      const [tab] = await chrome.tabs.query(
+        windowId ? { active: true, windowId } : { active: true, lastFocusedWindow: true },
+      );
+      targetTabId = tab?.id;
+      targetWindowId = tab?.windowId ?? windowId;
     }
 
     if (!targetTabId || targetTabId <= 0 || !targetWindowId || targetWindowId <= 0) {
