@@ -12,6 +12,8 @@ import {
   detectCompanionStatus,
   startPairing,
   confirmPairing,
+  startPairingRecovery,
+  confirmPairingRecovery,
   disconnectCompanion,
   setOpsModeEnabled,
   requestLocalhostPermission,
@@ -125,6 +127,7 @@ export function CompanionSettings(): ReactNode {
   const [pairingForm, setPairingForm] = useState<{
     challengeId: string;
     expiresAt: number;
+    mode: 'pair' | 'recover';
   } | null>(null);
   const [pairingCode, setPairingCode] = useState('');
 
@@ -141,7 +144,7 @@ export function CompanionSettings(): ReactNode {
       const result = await detectCompanionStatus();
       setStatus(result.status);
       if (result.versionInfo) setVersionInfo(result.versionInfo);
-      if (result.error && result.status === 'error') {
+      if (result.error) {
         setActionError(result.error);
       }
     } catch {
@@ -213,15 +216,16 @@ export function CompanionSettings(): ReactNode {
 
   // ── Pair ──
 
-  const handlePair = useCallback(async () => {
+  const handleStartPairing = useCallback(async (mode: 'pair' | 'recover') => {
     setActionBusy(true);
     setActionError(null);
 
-    const result = await startPairing();
+    const result = mode === 'recover' ? await startPairingRecovery() : await startPairing();
     if (result.success && result.challengeId) {
       setPairingForm({
         challengeId: result.challengeId,
         expiresAt: Date.now() + (result.expiresInSeconds ?? 300) * 1000,
+        mode,
       });
       setPairingCode('');
       setStatus('pairing');
@@ -232,6 +236,9 @@ export function CompanionSettings(): ReactNode {
     setActionBusy(false);
   }, []);
 
+  const handlePair = useCallback(() => handleStartPairing('pair'), [handleStartPairing]);
+  const handleRecovery = useCallback(() => handleStartPairing('recover'), [handleStartPairing]);
+
   // ── Confirm pairing ──
 
   const handleConfirmPairing = useCallback(async () => {
@@ -240,13 +247,23 @@ export function CompanionSettings(): ReactNode {
     setActionBusy(true);
     setActionError(null);
 
-    const result = await confirmPairing(pairingForm.challengeId, pairingCode);
+    const result = pairingForm.mode === 'recover'
+      ? await confirmPairingRecovery(pairingForm.challengeId, pairingCode)
+      : await confirmPairing(pairingForm.challengeId, pairingCode);
     if (result.success) {
       setPairingForm(null);
       setPairingCode('');
       await refreshStatus();
     } else {
       setActionError(result.error ?? 'Pairing failed');
+      if (pairingForm.mode === 'pair') {
+        // A normal pairing challenge cannot replace an existing pairing. Move
+        // to the explicit recovery action so the user does not create a new
+        // database or edit SQLite by hand.
+        setPairingForm(null);
+        setPairingCode('');
+        setStatus('error');
+      }
     }
 
     setActionBusy(false);
@@ -496,24 +513,44 @@ export function CompanionSettings(): ReactNode {
           )}
 
           {(status === 'unpaired' || status === 'error') && (
-            <button
-              type="button"
-              onClick={() => void handlePair()}
-              disabled={actionBusy}
-              style={{
-                padding: '6px 14px',
-                fontSize: 12,
-                cursor: actionBusy ? 'not-allowed' : 'pointer',
-                border: '1px solid #4a90d9',
-                borderRadius: 4,
-                background: '#4a90d9',
-                color: '#fff',
-                fontWeight: 600,
-                opacity: actionBusy ? 0.6 : 1,
-              }}
-            >
-              {actionBusy ? 'Starting…' : 'Pair'}
-            </button>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={() => void handlePair()}
+                disabled={actionBusy}
+                style={{
+                  padding: '6px 14px',
+                  fontSize: 12,
+                  cursor: actionBusy ? 'not-allowed' : 'pointer',
+                  border: '1px solid #4a90d9',
+                  borderRadius: 4,
+                  background: '#4a90d9',
+                  color: '#fff',
+                  fontWeight: 600,
+                  opacity: actionBusy ? 0.6 : 1,
+                }}
+              >
+                {actionBusy ? 'Starting…' : 'Pair'}
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleRecovery()}
+                disabled={actionBusy}
+                style={{
+                  padding: '6px 14px',
+                  fontSize: 12,
+                  cursor: actionBusy ? 'not-allowed' : 'pointer',
+                  border: '1px solid #777',
+                  borderRadius: 4,
+                  background: '#fff',
+                  color: '#444',
+                  fontWeight: 600,
+                  opacity: actionBusy ? 0.6 : 1,
+                }}
+              >
+                Recover existing pairing
+              </button>
+            </div>
           )}
 
           {/* Pairing code entry form */}
@@ -527,10 +564,10 @@ export function CompanionSettings(): ReactNode {
               }}
             >
               <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: '#333' }}>
-                Enter Pairing Code
+                {pairingForm.mode === 'recover' ? 'Recover Pairing' : 'Enter Pairing Code'}
               </div>
               <div style={{ fontSize: 11, color: '#999', marginBottom: 10 }}>
-                Check the companion terminal for the six-digit code.
+                Check the companion terminal for the six-digit {pairingForm.mode === 'recover' ? 'recovery ' : ''}code.
                 Expires in {Math.max(0, Math.ceil((pairingForm.expiresAt - Date.now()) / 1000))}s.
               </div>
               <div style={{ display: 'flex', gap: 8 }}>

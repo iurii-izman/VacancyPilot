@@ -8,6 +8,7 @@ import type {
   HealthResponse,
   PairStartResponse,
   PairConfirmResponse,
+  PairStatusResponse,
   PairRevokeResponse,
 } from './types';
 
@@ -303,6 +304,33 @@ describe('OpsClient', () => {
       expect(headers['Content-Type']).toBe('application/json');
       expect(headers['X-VacancyPilot-Client']).toBe('my-secret-token');
       expect(init?.body).toBe('{}');
+    });
+
+    it('pairRecoveryStart uses the public recovery endpoint', async () => {
+      const body: PairStartResponse = {
+        data: { challenge_id: 'recovery-1', expires_in_seconds: 300 },
+        meta: {},
+      };
+      vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+        new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } }),
+      );
+
+      const result = await client.pairRecoveryStart();
+      expect(result.data.challenge_id).toBe('recovery-1');
+      expect(vi.mocked(globalThis.fetch).mock.calls[0][0]).toContain('/pair/recover/start');
+    });
+
+    it('pairStatus validates the client token on a protected endpoint', async () => {
+      client.setClientToken('paired-token');
+      const body: PairStatusResponse = { data: { paired: true }, meta: {} };
+      vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+        new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } }),
+      );
+
+      const result = await client.pairStatus();
+      expect(result.data.paired).toBe(true);
+      const [, init] = vi.mocked(globalThis.fetch).mock.calls[0];
+      expect((init as RequestInit).headers).toMatchObject({ 'X-VacancyPilot-Client': 'paired-token' });
     });
   });
 

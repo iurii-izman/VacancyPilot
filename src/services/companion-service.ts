@@ -4,8 +4,9 @@
  * Manages the pairing/connect/disconnect lifecycle:
  * 1. Check companion availability via /health.
  * 2. If unpaired: POST /pair/start → user enters code → POST /pair/confirm.
- * 3. Store client token via companion-auth-bridge.
- * 4. On disconnect: POST /pair/revoke (best-effort) → delete local token.
+ * 3. Validate stored tokens before declaring the connection healthy.
+ * 4. Store client token via companion-auth-bridge.
+ * 5. On disconnect: POST /pair/revoke (best-effort) → delete local token.
  *
  * Standalone Mode: when the companion is unreachable or Ops Mode is disabled,
  * all existing features continue to work against local Dexie storage.
@@ -60,7 +61,7 @@ export async function initCompanionClient(): Promise<void> {
  *    - Network error → ``unavailable``.
  *    - Incompatible API version → ``incompatible-api``.
  *    - Health OK, no stored token → ``unpaired``.
- *    - Health OK, stored token → ``connected`` (assumes token still valid).
+ *    - Health OK, stored token → validate ``/pair/status`` before connected.
  *    - Unexpected error → ``error``.
  */
 export async function detectCompanionStatus(): Promise<{
@@ -91,7 +92,29 @@ export async function detectCompanionStatus(): Promise<{
       return { status: 'incompatible-api', versionInfo };
     }
 
-    const status: CompanionStatus = hasToken ? 'connected' : 'unpaired';
+    if (!hasToken) {
+      return { status: 'unpaired', versionInfo };
+    }
+
+    try {
+      await client.pairStatus();
+    } catch (err) {
+      if (err instanceof CompanionError && err.httpStatus === 401) {
+        // The browser token may have been lost or the companion may have been
+        // paired from another extension install. Clear only the stale local
+        // copy; the server-side pairing remains recoverable via terminal code.
+        await deleteClientToken();
+        client.clearClientToken();
+        return {
+          status: 'unpaired',
+          versionInfo,
+          error: 'The stored pairing token is no longer valid. Pairing recovery is available.',
+        };
+      }
+      throw err;
+    }
+
+    const status: CompanionStatus = 'connected';
     return { status, versionInfo };
   } catch (err) {
     if (err instanceof CompanionError) {
@@ -168,6 +191,51 @@ export async function confirmPairing(
     return {
       success: false,
       error: err instanceof CompanionError ? err.message : 'Pairing confirmation failed',
+    };
+  }
+}
+
+/** Start a recovery challenge for an existing companion pairing. */
+export async function startPairingRecovery(): Promise<{
+  success: boolean;
+  challengeId?: string;
+  expiresInSeconds?: number;
+  error?: string;
+}> {
+  try {
+    const response = await getOpsClient().pairRecoveryStart();
+    return {
+      success: true,
+      challengeId: response.data.challenge_id,
+      expiresInSeconds: response.data.expires_in_seconds ?? 300,
+    };
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof CompanionError ? err.message : 'Failed to start pairing recovery',
+    };
+  }
+}
+
+/** Confirm recovery and store the newly issued client token. */
+export async function confirmPairingRecovery(
+  challengeId: string,
+  code: string,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const client = getOpsClient();
+    const response = await client.pairRecoveryConfirm(challengeId, code);
+    await saveClientToken(response.data.client_token);
+    client.setClientToken(response.data.client_token);
+
+    const settings = await loadSettings();
+    settings.companion.lastConnectedAt = new Date().toISOString();
+    await saveSettings(settings);
+    return { success: true };
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof CompanionError ? err.message : 'Pairing recovery failed',
     };
   }
 }

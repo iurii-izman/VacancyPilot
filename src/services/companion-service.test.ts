@@ -139,12 +139,19 @@ describe('companion service', () => {
     it('loads the stored token before deriving connected status', async () => {
       seedSettings({ companion: { ...defaultSettings.companion, opsModeEnabled: true } });
       await chrome.storage.local.set({ companion_client_token_v1: 'a'.repeat(64) });
-      vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      vi.spyOn(globalThis, 'fetch')
+        .mockResolvedValueOnce(
         new Response(JSON.stringify({
           data: { status: 'ok', service_version: '0.1.0', api_version: '1', db: 'ok' },
           meta: { request_id: 'request-1' },
         }), { status: 200, headers: { 'Content-Type': 'application/json' } }),
-      );
+        )
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({
+            data: { paired: true },
+            meta: { request_id: 'request-2' },
+          }), { status: 200, headers: { 'Content-Type': 'application/json' } }),
+        );
 
       const { detectCompanionStatus } = await import('./companion-service');
       const result = await detectCompanionStatus();

@@ -2543,6 +2543,37 @@
         "title": "PairStartResponse",
         "type": "object"
       },
+      "PairStatusData": {
+        "properties": {
+          "paired": {
+            "default": true,
+            "title": "Paired",
+            "type": "boolean"
+          }
+        },
+        "title": "PairStatusData",
+        "type": "object"
+      },
+      "PairStatusResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/PairStatusData"
+          },
+          "meta": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Meta",
+            "type": "object"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "PairStatusResponse",
+        "type": "object"
+      },
       "PayloadPreview": {
         "description": "Pre-execution payload preview for user review.",
         "properties": {
@@ -6149,6 +6180,130 @@
         ]
       }
     },
+    "/api/v1/pair/recover/confirm": {
+      "post": {
+        "description": "Replaces a lost local client token after validating the terminal code.",
+        "operationId": "pair_recover_confirm_api_v1_pair_recover_confirm_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PairConfirmRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PairConfirmResponse"
+                }
+              }
+            },
+            "description": "Pairing recovered"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid challenge or code"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many pairing attempts"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Database unavailable"
+          }
+        },
+        "summary": "Confirm pairing recovery challenge",
+        "tags": [
+          "pairing"
+        ]
+      }
+    },
+    "/api/v1/pair/recover/start": {
+      "post": {
+        "description": "Starts a short-lived recovery challenge for an already paired local companion. The code is displayed only in the companion terminal.",
+        "operationId": "pair_recover_start_api_v1_pair_recover_start_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PairStartResponse"
+                }
+              }
+            },
+            "description": "Recovery challenge created"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No existing pairing"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many pairing attempts"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Database unavailable"
+          }
+        },
+        "summary": "Start pairing recovery challenge",
+        "tags": [
+          "pairing"
+        ]
+      }
+    },
     "/api/v1/pair/revoke": {
       "post": {
         "description": "Invalidates the current paired client token.  After revocation, all protected endpoints require a new pairing.  Requires a valid client token.",
@@ -6233,6 +6388,53 @@
           }
         },
         "summary": "Start pairing challenge",
+        "tags": [
+          "pairing"
+        ]
+      }
+    },
+    "/api/v1/pair/status": {
+      "get": {
+        "description": "Protected lightweight endpoint used to detect stale extension tokens.",
+        "operationId": "pair_status_api_v1_pair_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PairStatusResponse"
+                }
+              }
+            },
+            "description": "Token is valid"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid or missing client token"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Database unavailable"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Validate the current client token",
         "tags": [
           "pairing"
         ]

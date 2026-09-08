@@ -76,6 +76,9 @@ export interface PairStartResponse {
   meta: Record<string, string>;
 }
 
+/** Recovery uses the same challenge envelope but replaces a lost token. */
+export type PairRecoveryStartResponse = PairStartResponse;
+
 export interface PairConfirmRequest {
   challenge_id: string;
   code: string;
@@ -88,6 +91,11 @@ export interface PairConfirmData {
 
 export interface PairConfirmResponse {
   data: PairConfirmData;
+  meta: Record<string, string>;
+}
+
+export interface PairStatusResponse {
+  data: { paired: boolean };
   meta: Record<string, string>;
 }
 

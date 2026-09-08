@@ -109,6 +109,8 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException) 
         exc.status_code,
         ('HTTP_ERROR', 'The request could not be completed'),
     )
+    if exc.detail == 'PAIRING_NOT_CONFIGURED':
+        error_code, message = ('PAIRING_NOT_CONFIGURED', 'No existing pairing is configured')
     # Letter import validation is a documented machine-readable outcome.  Do
     # not reflect user-provided provider text; expose only this fixed code.
     if exc.status_code == 422 and exc.detail == 'IMPORT_INVALID':

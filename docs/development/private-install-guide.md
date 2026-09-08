@@ -48,19 +48,23 @@ uv sync --project companion
 pnpm verify:companion
 ```
 
-Apply the local schema before using operational endpoints:
+Start the companion with the repository launcher. It anchors both the Python
+module path and the database path to this checkout, so an update cannot
+silently start another project's Companion or create a new random database:
 
 ```bash
-uv run --project companion alembic -c companion/alembic.ini upgrade head
+pnpm companion:start
 ```
 
-Start the loopback-only service:
+The launcher uses the stable local path `work/companion/vacancypilot.db` by
+default and applies Alembic migrations before starting Uvicorn. To keep an
+existing database from an earlier manual run, pass that exact path once:
 
 ```bash
-uv run --project companion uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8765
+pnpm companion:start -- -DbPath 'C:\path\to\your\existing\vacancypilot.db'
 ```
 
-The companion health endpoint is `http://127.0.0.1:8765/api/v1/health`. It does not silently migrate the database at startup.
+The companion health endpoint is `http://127.0.0.1:8765/api/v1/health`. Database migrations are explicit in the repository launcher and happen before Uvicorn starts.
 
 ## 4. Pair the extension locally
 
@@ -71,6 +75,14 @@ The companion health endpoint is `http://127.0.0.1:8765/api/v1/health`. It does 
 5. Confirm that the status is **Connected**.
 
 The extension stores its client token separately in browser local storage; the companion stores only a hash for verification. Disconnect/revoke pairing when the local relationship should end.
+
+If Chrome removes the extension's local token during an unpacked-extension
+update, do not delete the Companion database and do not create a new DB path.
+Click **Recover existing pairing** in Companion settings, then enter the
+short-lived recovery code printed by the same Companion terminal. This safely
+replaces only the lost browser token; the domain data and SQLite database stay
+in place. A normal **Pair** action intentionally refuses to overwrite an
+existing pairing.
 
 ## 5. Install and verify the private V4 engine
 
@@ -121,7 +133,7 @@ These commands cover extension typecheck, lint, tests, build, release-safety tes
 | --- | --- |
 | Badge absent | Use a user-opened `https://*.hh.ru/vacancy/*` or search page; verify the extension is enabled and page-badge setting is on. |
 | Companion unavailable | Confirm the Uvicorn process, `127.0.0.1:8765`, browser permission and the health endpoint. |
-| Not paired | Enable Ops Mode, grant loopback permission, start pairing and use the current terminal code before it expires. |
+| Not paired | Confirm the Companion was started with `pnpm companion:start` and the same stable DB path; use **Pair** for a new DB or **Recover existing pairing** when the DB was already paired. |
 | API incompatible | Run the repository and companion from matching accepted revisions; inspect the displayed API versions. |
 | Engine invalid | Run `vacancypilot-engine verify`; replace only through the validated private package install flow. |
 | Keyring failure | Check the OS credential-store integration and companion process user; never replace it with plaintext logs or command-line secrets. |

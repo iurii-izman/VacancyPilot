@@ -17,8 +17,10 @@
 import type {
   HealthResponse,
   PairStartResponse,
+  PairRecoveryStartResponse,
   PairConfirmRequest,
   PairConfirmResponse,
+  PairStatusResponse,
   PairRevokeResponse,
   CompanionErrorResponse,
   CompanionVersionInfo,
@@ -288,6 +290,26 @@ export class OpsClient {
   ): Promise<PairConfirmResponse> {
     const body: PairConfirmRequest = { challenge_id: challengeId, code };
     return this.post<PairConfirmResponse>('/pair/confirm', body, signal);
+  }
+
+  /** Start recovery for an existing pairing when the extension token was lost. */
+  async pairRecoveryStart(signal?: AbortSignal): Promise<PairRecoveryStartResponse> {
+    return this.post<PairRecoveryStartResponse>('/pair/recover/start', {}, signal);
+  }
+
+  /** Confirm recovery and replace the lost client token. */
+  async pairRecoveryConfirm(
+    challengeId: string,
+    code: string,
+    signal?: AbortSignal,
+  ): Promise<PairConfirmResponse> {
+    const body: PairConfirmRequest = { challenge_id: challengeId, code };
+    return this.post<PairConfirmResponse>('/pair/recover/confirm', body, signal);
+  }
+
+  /** Validate the current token without touching any domain data. */
+  async pairStatus(signal?: AbortSignal): Promise<PairStatusResponse> {
+    return this.authenticatedGet<PairStatusResponse>('/pair/status', signal);
   }
 
   /** Revoke the current client token. */

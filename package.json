@@ -9,6 +9,7 @@
     "dev:firefox": "wxt -b firefox",
     "build": "wxt build",
     "build:firefox": "wxt build -b firefox",
+    "companion:start": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-companion.ps1",
     "zip": "wxt zip",
     "zip:firefox": "wxt zip -b firefox",
     "typecheck": "tsc --noEmit",

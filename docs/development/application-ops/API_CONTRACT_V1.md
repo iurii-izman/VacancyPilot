@@ -70,8 +70,13 @@ Raw upstream credentials never cross the companion API boundary.
    random client token once.
 3. The extension stores only that client token through its local settings
    bridge.
-4. Every protected request includes `X-VacancyPilot-Client`.
-5. `POST /pair/revoke` invalidates the client token.
+4. `GET /pair/status` validates the stored token before the extension reports
+   `Connected`; a stale browser token is cleared locally.
+5. Every protected request includes `X-VacancyPilot-Client`.
+6. If the browser token is lost while the companion remains paired,
+   `POST /pair/recover/start` and `POST /pair/recover/confirm` replace it using
+   a short-lived code shown only in the companion terminal.
+7. `POST /pair/revoke` invalidates the client token.
 
 The final token hashing/persistence mechanism is implemented and tested in
 AOPS-03. Tokens and codes are redacted from responses other than the one-time
@@ -155,6 +160,9 @@ All paths below are relative to `/api/v1`.
 | --- | --- | --- | --- | --- | --- |
 | `POST` | `/pair/start` | pairing | none | key | Start a short-lived pairing challenge |
 | `POST` | `/pair/confirm` | pairing | none | key | Exchange challenge/code for a one-time client token |
+| `POST` | `/pair/recover/start` | pairing | none | key | Start terminal-code recovery for an existing pairing |
+| `POST` | `/pair/recover/confirm` | pairing | none | key | Replace a lost client token after recovery-code validation |
+| `GET` | `/pair/status` | client | none | none | Validate the current client token without domain side effects |
 | `POST` | `/pair/revoke` | client | none | natural+key | Revoke the current client token |
 
 ### HH official API integration
