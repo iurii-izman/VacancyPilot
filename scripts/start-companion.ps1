@@ -11,7 +11,11 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 Set-Location -LiteralPath $repoRoot
 
-$resolvedDbPath = [System.IO.Path]::GetFullPath($DbPath, $repoRoot)
+if ([System.IO.Path]::IsPathRooted($DbPath)) {
+    $resolvedDbPath = [System.IO.Path]::GetFullPath($DbPath)
+} else {
+    $resolvedDbPath = [System.IO.Path]::GetFullPath((Join-Path $repoRoot $DbPath))
+}
 $dbDirectory = Split-Path -Parent $resolvedDbPath
 New-Item -ItemType Directory -Force -Path $dbDirectory | Out-Null
 $env:VACANCYPILOT_DB_PATH = $resolvedDbPath
