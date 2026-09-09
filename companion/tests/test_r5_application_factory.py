@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from app.db.models import Vacancy
+from app.db.models import Application, ApplicationSession, ApplicationSessionItem, Vacancy
 from app.security.pairing import generate_client_token, hash_client_token
 
 
@@ -38,17 +38,28 @@ def vacancy(session: Session, source_id: str, archived: bool = False) -> Vacancy
     return row
 
 
-def test_preview_has_zero_provider_side_effects(
+def test_application_factory_preview_has_no_application_side_effects(
     client_with_db: TestClient, db_session: Session
 ) -> None:
     headers = auth(db_session)
     row = vacancy(db_session, 'r5-preview')
+    before = (
+        db_session.query(Application).count(),
+        db_session.query(ApplicationSession).count(),
+        db_session.query(ApplicationSessionItem).count(),
+    )
     response = client_with_db.post(
         '/api/v1/application-sessions/preview', json={'vacancy_ids': [row.id]}, headers=headers
     )
     assert response.status_code == 200
     assert response.json()['data']['expected_provider_calls'] == 1
     assert db_session.query(type(row)).count() == 1
+    assert (
+        db_session.query(Application).count(),
+        db_session.query(ApplicationSession).count(),
+        db_session.query(ApplicationSessionItem).count(),
+    ) == before
+    assert db_session.query(Application).filter(Application.status == 'applied').count() == 0
 
 
 def test_selection_rejects_duplicates_and_execute_requires_confirmation(

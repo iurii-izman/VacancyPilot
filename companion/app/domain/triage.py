@@ -11,7 +11,7 @@ Versioned parity note (reported in the AOPS-06 handoff):
   ``CAP_RULES`` and ``PENALTIES`` from the extension scorer.
 - Two deliberate differences exist because the data available differs:
   1. ``description_hash``: extension ``hashString`` is djb2 base-36; the
-     companion uses SHA-256 (mandated by DATA_MODEL_V1 ``[0-9a-f]{64}``).
+     companion uses SHA-256 (stored as a lowercase ``[0-9a-f]{64}`` digest).
   2. The company component is blocked/not-blocked only (companion has no
      ``companies`` table), whereas the extension can grey-list a company.
 

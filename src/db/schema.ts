@@ -1,8 +1,8 @@
 /**
  * Dexie schema v6 — single source of truth for IndexedDB stores and indexes.
  *
- * Schema follows the master spec section 10.15 and AOPS-05 (DATA_MODEL_V1.md
- * § Dexie schema extension).
+ * Schema follows the master specification and the current Dexie migration
+ * tests; the migration history below is executable authority.
  *
  * Changing this requires a new version() migration.
  *

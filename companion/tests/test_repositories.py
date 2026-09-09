@@ -1,6 +1,7 @@
 """Repository invariant tests.
 
-Verify the transactional and append-only guarantees from DATA_MODEL_V1.md.
+Verify the transactional and append-only guarantees of the migration-backed
+SQLite domain model.
 """
 
 from __future__ import annotations

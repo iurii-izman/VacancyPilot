@@ -17,8 +17,7 @@ import abc
 class SecretSlot:
     """Well-known secret names used by the companion.
 
-    The string value must match the keyring ``secret_name`` contract
-    documented in `API_CONTRACT_V1.md` §18.1.
+    The string value is part of the companion's internal keyring contract.
 
     Never log these names alongside their values.
     """

@@ -129,14 +129,14 @@ export function CommandCenter({ onNavigate }: { onNavigate?: (section: "inbox" |
     <p style={{ color: "#536273", fontSize: 13 }}>A daily, action-oriented view of the local job search.</p>
     <div style={{ display: "flex", gap: 10, flexWrap: "wrap", margin: "16px 0" }}>
       <ActionCard label="New to review" value={String(newJobs.length)} description="Open the Inbox" onClick={() => onNavigate?.("inbox")} />
-      <ActionCard label="Ready to send" value={String(ready.length)} description="Review manually" onClick={() => onNavigate?.("inbox")} />
+      <ActionCard label="Ready to review" value={String(ready.length)} description="Review manually" onClick={() => onNavigate?.("inbox")} />
       <ActionCard label="Applied" value={String(applied.length)} description="Tracked explicitly" onClick={() => onNavigate?.("vacancies")} />
       <ActionCard label="HH updates" value={String(updated.length)} description="Known local signals" onClick={() => onNavigate?.("inbox")} />
       <ActionCard label="Follow-ups due" value={followupCount === null ? "—" : String(followupCount)} description={followupCount === null ? "Unavailable" : "Open the Inbox"} onClick={() => onNavigate?.("inbox")} />
     </div>
     <div style={{ ...cardStyle, background: "#f7f9fb" }}>
       <h3 style={{ margin: "0 0 8px", fontSize: 14 }}>System status</h3>
-      <p style={{ margin: 0, fontSize: 12 }}>Companion: <strong>{companion}</strong>. Follow-ups, interviews and backup health are not active until supported by a real endpoint.</p>
+      <p style={{ margin: 0, fontSize: 12 }}>Companion: <strong>{companion}</strong>. Follow-ups use local/Companion endpoints when available; Interview Pack and backup health are not active.</p>
       <p style={{ margin: "8px 0 0", fontSize: 12 }}>HH negotiations: <strong>Unavailable when denied by HH</strong>; this is not shown as zero responses.</p>
     </div>
   </section>;

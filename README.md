@@ -12,7 +12,7 @@ No auto-apply. No hidden browser-side HH requests. No external recruiter or foll
 
 ## Status
 
-**Pre-release / personal dogfood.** R5 is accepted and pushed; R5.1 Project Memory Lite is accepted and pushed; dependency maintenance is merged. Feature development is frozen while real usage evidence is collected. VacancyPilot is not published as a Chrome Web Store release.
+**Pre-release / personal dogfood.** The bounded R5 Application Factory is accepted with synthetic local QA; the current hydration/card hotfix line has not received a new live-provider V4 acceptance. R5.1 Project Memory Lite and dependency maintenance are merged. Feature development is frozen while real usage evidence is collected. VacancyPilot is not published as a Chrome Web Store release.
 
 “Personal dogfood” describes current product use, not repository visibility: this GitHub repository is public, while the private V4 engine package and real candidate knowledge remain outside it.
 
@@ -102,10 +102,10 @@ Load `.output/chrome-mv3/` as an unpacked extension in a Chromium browser. Open 
 ```bash
 uv sync --project companion
 pnpm verify:companion
-uv run --project companion uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8765
+pnpm companion:start
 ```
 
-Pair the extension with the running loopback companion, install and verify the private engine package using the local CLI/docs, and configure OpenAI BYOK or HH official API/OAuth only if those optional flows are needed. The [private install guide](docs/development/private-install-guide.md) contains the current workflow and troubleshooting; do not put engine payloads or secret values in the repository.
+Pair the extension with the running loopback companion, install and verify the private engine package using the local CLI/docs, and configure OpenAI BYOK or HH official API/OAuth only if those optional flows are needed. See the [local setup guide](docs/development/LOCAL_SELF_CONTAINED_SETUP.md); do not put engine payloads or secret values in the repository.
 
 ## Development and Verification
 
@@ -137,9 +137,11 @@ See the [current roadmap](docs/ROADMAP.md).
 - [Project Memory Lite](docs/project-memory/README.md) — startup map for future agents and developers
 - [Current state](docs/project-memory/CURRENT_STATE.md) — accepted runtime baseline and operating mode
 - [Application Ops status](docs/development/application-ops/IMPLEMENTATION_STATUS.md) — current implementation and validation
+- [Architecture](docs/ARCHITECTURE.md) and [V4 engine boundary](docs/V4_ENGINE.md)
 - [Master specification](docs/Техническое%20заданиеV.1.md)
 - [Daily-use readiness](docs/development/application-ops/r5/R5_DAILY_USE_READINESS.md)
-- [Private install guide](docs/development/private-install-guide.md)
+- [Local self-contained setup](docs/development/LOCAL_SELF_CONTAINED_SETUP.md)
+- [Testing and verification](docs/TESTING.md)
 - [Privacy policy](PRIVACY.md) and [security policy](SECURITY.md)
 - [Public-release prerequisites](docs/development/public-release-prerequisites.md)
 

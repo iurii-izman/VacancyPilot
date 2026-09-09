@@ -24,10 +24,10 @@ Hand-maintained duplicate TypeScript interfaces are forbidden for companion
 API types. The generated types are the single source of truth for the
 extension client.
 
-Before the companion exists, `API_CONTRACT_V1.md` is the reviewed planning
-baseline. AOPS-01 must generate an OpenAPI snapshot conforming to it. After
-that point, OpenAPI becomes executable authority; changing the frozen surface
-requires a reviewed contract/ADR update rather than silent drift.
+Earlier planning baselines were used before the companion existed. The
+generated OpenAPI snapshot and the FastAPI route/schema implementation are now
+the executable authority; changing the surface requires a reviewed contract or
+ADR update rather than silent drift.
 
 ## Consequences
 

@@ -33,7 +33,7 @@ Next action:
 
 ## Required Evidence
 
-- updated browser results in `docs/development/release-checklist.md` and/or `docs/development/qa-checklist.md`
+- updated browser results in `docs/development/release-checklist.md`
 - explicit note on GitHub checks status
 - explicit go/no-go statement for opening Phase 2 implementation scope
 

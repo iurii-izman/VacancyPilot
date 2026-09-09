@@ -4,7 +4,8 @@
 
 `R5A_PASS`
 
-R5-A provides bounded explicit selection, side-effect-free preview, persisted
+R5-A provides bounded explicit selection and a side-effect-free Application
+Factory Preview, persisted
 resume state, V4/cache reuse, queue-safe partial failure, and existing
 canonical manual APPLIED confirmation. It does not submit to HH.
 

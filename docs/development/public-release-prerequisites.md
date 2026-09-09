@@ -117,7 +117,7 @@ See `docs/development/privacy-policy-checklist.md` for detailed coverage.
 ## 6. Testing & QA
 
 ### 6.1 Manual QA (spec 22.4)
-- [ ] Execute full manual QA checklist (`docs/development/qa-checklist.md`).
+- [ ] Execute the full manual QA matrix (`docs/development/release-checklist.md`).
 - [ ] Pass in Chrome + at least one additional Chromium browser.
 - [ ] Document results with dates and browser versions.
 
@@ -131,7 +131,8 @@ See `docs/development/privacy-policy-checklist.md` for detailed coverage.
 
 ### 6.3 Privacy/Safety Tests (spec 22.6)
 - [ ] All automated safety tests pass (manifest-safety, privacy-safety, content-script-safety, export-safety).
-- [ ] Manual verification of safety boundaries (see QA checklist section 11).
+- [ ] Manual verification of safety boundaries (see the release checklist and
+  [`../../SECURITY.md`](../../SECURITY.md)).
 
 ---
 

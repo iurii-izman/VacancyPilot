@@ -11,7 +11,8 @@ the ignored `.local/` directory at the repository root.
 - `.local/data/companion/engine/` — installed active engine package used by
   Companion.
 - `.local/data/companion/vacancypilot.db` — canonical Companion SQLite DB.
-- `.local/runtime/` and `.local/audit/` — local process state and audit output.
+- Other `.local/` subdirectories may contain local process state or audit
+  output; they are not public inputs and are not required by the launcher.
 
 The real candidate evidence is inside the private engine package's `active/`
 directory. It is never copied into public fixtures or tracked files.
@@ -35,7 +36,8 @@ deliberate local package change. There is no fallback to a sibling project.
 uses `.local/data/companion/vacancypilot.db`. `-DbPath` remains available for
 isolated tests or deliberate migrations. The launcher changes to the
 repository root before running Alembic and Uvicorn, so the caller's current
-directory does not affect the selected app or database.
+directory does not affect the selected app or database. It upgrades the schema
+to the current Alembic head before starting the server.
 
 ## Privacy boundary
 

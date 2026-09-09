@@ -1,8 +1,8 @@
 """SQLAlchemy 2 declarative models — canonical SQLite domain schema.
 
-Every table matches the frozen DATA_MODEL_V1.md contract (§ SQLite domain
-tables).  Additional technical columns (``revision``, ``created_at``,
-``updated_at``) are required by the same contract.
+Every table matches the migration-backed SQLite domain contract. Additional
+technical columns (``revision``, ``created_at``, ``updated_at``) support
+optimistic concurrency and auditability.
 """
 
 from __future__ import annotations

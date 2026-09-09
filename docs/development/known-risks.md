@@ -1,9 +1,11 @@
 # Known Risks — VacancyPilot
 
-Status: ITER-064  
-Source: EPIC-10, EPIC-11, release-checklist.md, spec sections 22, 26
+Status: CURRENT DOGFOOD / PUBLIC-RELEASE RISK REGISTER — reviewed 2026-09-09
+Source: release-checklist.md and spec sections 22, 26
 
-This document lists all known risks, open decisions, and unresolved gaps at Phase 1 release-candidate. Risks are classified and must be addressed or explicitly accepted before public release.
+This document lists known risks, open decisions and unresolved gaps for the
+current personal dogfood baseline. Risks must be addressed or explicitly
+accepted before public release; this is not a feature queue.
 
 ---
 
@@ -26,7 +28,8 @@ This document lists all known risks, open decisions, and unresolved gaps at Phas
 
 **Mitigation**:
 - Parser uses JSON-LD as primary source, DOM as fallback.
-- Fixture regression tests catch regressions for known page shapes (currently 22 fixtures across vacancy and search surfaces).
+- Fixture regression tests catch regressions for known page shapes (currently
+  19 vacancy fixtures and 3 search-card fixtures).
 - Fixture maintenance process is documented (spec 16.5).
 
 **Residual**: Only 22 fixtures (19 vacancy + 3 search). Spec target was 50+. Fixture coverage is adequate for private use but below public-release confidence.
@@ -142,21 +145,28 @@ This document lists all known risks, open decisions, and unresolved gaps at Phas
 
 ### R10 — Manual QA Partially Executed, Full Matrix Pending (P1)
 
-**Risk**: Core closeout rerun (Chrome + Edge) passed for Phase 1 scope. The wider public-release regression matrix in `release-checklist.md` and `qa-checklist.md` has not been fully re-run item-by-item. Phase 2 features (search triage, HR timeline, queue, reminders) have not been manually QA'd in live browsers.
+**Risk**: Core closeout rerun (Chrome + Edge) passed for the earlier Phase 1
+scope. The wider public-release regression matrix in `release-checklist.md`
+has not been fully re-run item-by-item. Several later surfaces have not been
+manually QA'd in live browsers.
 
 **Mitigation**: QA checklists are comprehensive and the current verification gates are rerun at the documentation sync/release gate. Counts are recorded from the dated run rather than hardcoded in this risk register.
 
 **Residual**: Full public-release regression QA not yet executed. Some Phase 2+ features untested in real browser runtime.
 
-**Action**: Execute full QA checklist across Chrome + Edge before public release. Keep the checklists as the definitive regression matrix.
+**Action**: Execute the full release checklist across Chrome + Edge before
+public release.
 
 ---
 
 ### R11 — Contributor Documentation Gaps (P2)
 
-**Risk**: A root README and private install guide exist, but contributor-facing onboarding remains thin. External contributors still lack a concise implementation walkthrough, architecture map, and troubleshooting guide.
+**Risk**: Contributor-facing onboarding remains intentionally small during
+personal dogfood; broader sharing will need a maintained implementation
+walkthrough and troubleshooting guide.
 
-**Mitigation**: Root README, private install guide, release notes, and development pack are in place. Onboarding UI exists in the extension.
+**Mitigation**: Root README, architecture map, local setup guide, Companion
+README and testing guide are current. Onboarding UI exists in the extension.
 
 **Residual**: New contributors may still need repo walkthrough support for implementation details and local debugging.
 
