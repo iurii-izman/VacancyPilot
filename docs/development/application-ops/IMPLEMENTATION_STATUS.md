@@ -30,11 +30,14 @@ dated acceptance reports.
 
 ## Options route truth
 
-`entrypoints/options/App.tsx` defines the sections. Inbox and Applications are
-compatibility routes to the same application workspace. Summary is a separate
-performance view. Companies, Letters and Events are placeholders; Interview
-Pack is deferred. Labs, Export, Settings, Privacy, Permissions, Companion,
-About, Onboarding and Debug are separate visible sections.
+`entrypoints/options/App.tsx` defines six normal primary routes: Today,
+Discovery, Inbox, Pipeline, Candidate and Settings. Legacy hashes map
+deterministically into those workspaces and subviews; navigation does not create
+applications or change status. Discovery owns Search Profile CRUD and preview;
+Companion owns pairing, recovery, migration, HH account/auth and capability
+configuration. Standalone Pipeline renders the existing Dexie Kanban board;
+Ops Pipeline renders Companion-backed performance summaries and never treats
+the local board as canonical. Onboarding is a hidden first-run/manual flow.
 
 ## Full V4 and application safety
 

@@ -73,11 +73,14 @@ export default defineBackground(() => {
   // ── First-install onboarding ──
   chrome.runtime.onInstalled.addListener(async (details) => {
     if (details.reason === "install") {
-      console.log("[VacancyPilot] first install detected — opening onboarding");
       try {
-        await chrome.tabs.create({
-          url: chrome.runtime.getURL("options.html#onboarding"),
-        });
+        const settings = await loadSettings();
+        if (!settings.onboardingCompleted) {
+          console.log("[VacancyPilot] first install detected — opening onboarding");
+          await chrome.tabs.create({
+            url: chrome.runtime.getURL("options.html#onboarding"),
+          });
+        }
       } catch (err) {
         console.error("[VacancyPilot] failed to open onboarding tab:", err);
       }

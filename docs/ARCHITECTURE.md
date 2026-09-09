@@ -21,10 +21,15 @@ small UI state, the standalone BYOK path, and the separately stored Companion
 client token. The current Dexie schema is v6 and its migration history is
 executable authority.
 
-The Options app has compatibility routes for Inbox and Applications; both map
-to the application workspace. Summary is a separate performance view.
-Companies, Letters and Events are visible placeholders, while Interview Pack
-is deferred. These surfaces must not be documented as active backend features.
+The Options app exposes exactly six primary routes: Today, Discovery, Inbox,
+Pipeline, Candidate and Settings. Legacy hashes remain compatibility aliases:
+application/vacancy/summary/profile/resume/system hashes resolve into the
+canonical workspace and subview without creating data. Onboarding is a hidden
+first-run/manual flow. Discovery owns HH Search Profiles; Companion owns
+pairing, recovery, migration, account/auth and capability configuration.
+Standalone Pipeline is the Dexie/Kanban source of truth; Ops Pipeline exposes
+Companion-backed performance summaries and does not present the local board as
+canonical.
 
 ## Companion
 

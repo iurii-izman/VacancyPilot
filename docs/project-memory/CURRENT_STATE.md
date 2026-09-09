@@ -1,7 +1,8 @@
 # Current State
 
 Reviewed checkout: branch `hotfix/hh-vacancy-hydration-v4-card`, commit
-`e6c27c859e3f8b92fdf7c586334a5b66d2682405` before this truth-audit change.
+`2595c145bc73f52a215b9632fae3daa14cbce2bf` before this Pass 1 UI structure
+change.
 The worktree was clean at audit preflight. This document is the current
 runtime/status snapshot; dated acceptance reports are historical evidence.
 
@@ -56,11 +57,14 @@ by default. Generated text is never evidence; `SKIP` generates no letter.
 
 ## Surface truth
 
-Options retains an Inbox/Applications compatibility pair mapped to the same
-application workspace. Summary is a separate performance view. Companies,
-Letters and Events are visible placeholders; Interview Pack is deferred; Labs,
-Export, Settings, Privacy, Permissions, Companion, About, Onboarding and Debug
-remain distinct sections.
+Options has six primary routes: Today, Discovery, Inbox, Pipeline, Candidate
+and Settings. Legacy hashes are compatibility aliases into these workspaces;
+they do not create applications or change status. Discovery owns HH Search
+Profiles, while Companion owns pairing/recovery/migration and HH capability
+configuration. Candidate contains Profile and Resume subviews. Settings
+contains General, Companion & HH, AI, Privacy & Data, Permissions, About and
+Advanced. Onboarding is hidden from normal navigation and is available on
+first run or by manual rerun from Settings.
 
 Settings are normalized and persisted under `app_settings_v1`; API keys and the
 Companion token use separate local storage slots. The current Dexie schema is

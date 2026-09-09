@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { isValidElement, type ReactElement } from "react";
 import { ApplicationWorkspace } from "@/components/ApplicationOpsWorkspace";
-import { getInitialSectionFromHash, SectionContent } from "./App";
+import { getInitialSectionFromHash, resolveHash, SECTION_GROUPS, SectionContent } from "./App";
 
 describe("Options route wiring", () => {
   it("uses the selection-aware application workspace for Inbox", () => {
@@ -18,8 +18,31 @@ describe("Options route wiring", () => {
     expect(getInitialSectionFromHash(deepLink.hash)).toBe("inbox");
   });
 
-  it("defaults unknown hashes to Command Center and preserves onboarding handling", () => {
-    expect(getInitialSectionFromHash("#unknown")).toBe("command");
+  it("defaults unknown hashes to Today and preserves onboarding handling", () => {
+    expect(getInitialSectionFromHash("#unknown")).toBe("today");
     expect(getInitialSectionFromHash("#onboarding")).toBe("onboarding");
+  });
+
+  it("exposes exactly six primary navigation entries", () => {
+    expect(SECTION_GROUPS.flatMap((group) => group.sections).map((item) => item.id)).toEqual([
+      "today",
+      "discovery",
+      "inbox",
+      "pipeline",
+      "candidate",
+      "settings",
+    ]);
+  });
+
+  it("maps legacy hashes to canonical workspaces and subviews", () => {
+    expect(resolveHash("#command").section).toBe("today");
+    expect(resolveHash("#applications").section).toBe("inbox");
+    expect(resolveHash("#vacancies")).toEqual({ section: "pipeline" });
+    expect(resolveHash("#summary")).toEqual({ section: "pipeline", pipelineTab: "performance" });
+    expect(resolveHash("#profiles")).toEqual({ section: "candidate", candidateTab: "profile" });
+    expect(resolveHash("#resumes")).toEqual({ section: "candidate", candidateTab: "resume" });
+    expect(resolveHash("#privacy")).toEqual({ section: "settings", settingsTab: "privacy" });
+    expect(resolveHash("#permissions")).toEqual({ section: "settings", settingsTab: "permissions" });
+    expect(resolveHash("#labs")).toEqual({ section: "settings", settingsTab: "advanced" });
   });
 });

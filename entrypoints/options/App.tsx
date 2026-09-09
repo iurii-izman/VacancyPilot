@@ -12,8 +12,10 @@ import { OnboardingSection } from "@/components/OnboardingSection";
 import { PermissionsSection } from "@/components/PermissionsSection";
 import { PrivacyDisclosureSection } from "@/components/PrivacyDisclosureSection";
 import { CompanionSettings } from "@/components/CompanionSettings";
+import { HHIntegrationSection } from "@/components/HHIntegrationSection";
 import { CommandCenter, ApplicationWorkspace } from "@/components/ApplicationOpsWorkspace";
 import { PerformanceSection } from "@/components/PerformanceSection";
+import { detectCompanionStatus } from "@/services/companion-service";
 import { useState, useCallback, useEffect, type ReactNode } from "react";
 import {
   colors,
@@ -51,26 +53,33 @@ import { db, ensureMigrationsBootstrapped } from "@/db";
 import type { JobStatus } from "@/models/job";
 import type { LabsActionLog } from "@/models/labs-action-log";
 
-type SectionId =
-  | "command"
+export type SectionId =
+  | "today"
+  | "discovery"
   | "inbox"
-  | "vacancies"
-  | "summary"
-  | "applications"
-  | "companies"
-  | "profiles"
-  | "resumes"
-  | "letters"
-  | "events"
-  | "labs"
-  | "export"
+  | "pipeline"
+  | "candidate"
   | "settings"
+  | "onboarding"
+  ;
+
+export type SettingsTab =
+  | "general"
+  | "companion"
+  | "ai"
   | "privacy"
   | "permissions"
-  | "companion"
   | "about"
-  | "onboarding"
-  | "debug";
+  | "advanced";
+
+export type CandidateTab = "profile" | "resume";
+
+export interface RouteState {
+  section: SectionId;
+  settingsTab?: SettingsTab;
+  candidateTab?: CandidateTab;
+  pipelineTab?: "board" | "performance";
+}
 
 interface SectionDef {
   id: SectionId;
@@ -83,57 +92,76 @@ interface SectionGroup {
   sections: SectionDef[];
 }
 
-const SECTION_GROUPS: SectionGroup[] = [
+export const SECTION_GROUPS: SectionGroup[] = [
   {
     label: "Work",
     sections: [
-      { id: "command", label: "Command Center", icon: "🎯" },
+      { id: "today", label: "Today", icon: "🎯" },
+      { id: "discovery", label: "Discovery", icon: "🔎" },
       { id: "inbox", label: "Inbox", icon: "📥" },
-      { id: "vacancies", label: "Vacancies", icon: "📋" },
-      { id: "summary", label: "Summary", icon: "📊" },
-      { id: "applications", label: "Applications", icon: "📨" },
-      { id: "companies", label: "Companies", icon: "🏢" },
+      { id: "pipeline", label: "Pipeline", icon: "📋" },
     ],
   },
   {
     label: "Profile",
-    sections: [
-      { id: "profiles", label: "Profiles", icon: "👤" },
-      { id: "resumes", label: "Resumes", icon: "📄" },
-      { id: "letters", label: "Letters", icon: "✉️" },
-    ],
+    sections: [{ id: "candidate", label: "Candidate", icon: "👤" }],
   },
   {
     label: "System",
-    sections: [
-      { id: "export", label: "Export", icon: "📦" },
-      { id: "settings", label: "Settings", icon: "⚙️" },
-      { id: "privacy", label: "Privacy", icon: "🔒" },
-      { id: "permissions", label: "Permissions", icon: "🔑" },
-      { id: "companion", label: "Companion", icon: "🖥️" },
-      { id: "about", label: "About", icon: "ℹ️" },
-    ],
-  },
-  {
-    label: "Advanced",
-    sections: [
-      { id: "labs", label: "Labs", icon: "🧪" },
-      { id: "events", label: "Events", icon: "📜" },
-      { id: "debug", label: "Debug", icon: "🛠️" },
-      { id: "onboarding", label: "Onboarding", icon: "🚀" },
-    ],
+    sections: [{ id: "settings", label: "Settings", icon: "⚙️" }],
   },
 ];
 
+const LEGACY_ROUTES: Record<string, RouteState> = {
+  command: { section: "today" },
+  applications: { section: "inbox" },
+  vacancies: { section: "pipeline" },
+  summary: { section: "pipeline", pipelineTab: "performance" },
+  profiles: { section: "candidate", candidateTab: "profile" },
+  resumes: { section: "candidate", candidateTab: "resume" },
+  letters: { section: "inbox" },
+  companies: { section: "inbox" },
+  export: { section: "settings", settingsTab: "privacy" },
+  privacy: { section: "settings", settingsTab: "privacy" },
+  permissions: { section: "settings", settingsTab: "permissions" },
+  companion: { section: "settings", settingsTab: "companion" },
+  about: { section: "settings", settingsTab: "about" },
+  labs: { section: "settings", settingsTab: "advanced" },
+  events: { section: "settings", settingsTab: "advanced" },
+  debug: { section: "settings", settingsTab: "advanced" },
+  onboarding: { section: "onboarding" },
+};
+
+export function resolveHash(hash: string): RouteState {
+  const raw = hash.replace(/^#/, "");
+  const [route, queryString = ""] = raw.split("?");
+  const legacy = LEGACY_ROUTES[route];
+  if (legacy) return legacy;
+  if (route === "pipeline" && new URLSearchParams(queryString).get("view") === "performance") {
+    return { section: "pipeline", pipelineTab: "performance" };
+  }
+  if (route === "candidate" && new URLSearchParams(queryString).get("view") === "resume") {
+    return { section: "candidate", candidateTab: "resume" };
+  }
+  if (route === "candidate") return { section: "candidate", candidateTab: "profile" };
+  if (route === "settings") {
+    const tab = new URLSearchParams(queryString).get("tab") as SettingsTab | null;
+    const validTabs: SettingsTab[] = ["general", "companion", "ai", "privacy", "permissions", "about", "advanced"];
+    return { section: "settings", settingsTab: tab && validTabs.includes(tab) ? tab : "general" };
+  }
+  const supportedRoutes = new Set(SECTION_GROUPS.flatMap((group) => group.sections.map((section) => section.id)));
+  return supportedRoutes.has(route as SectionId) ? { section: route as SectionId } : { section: "today" };
+}
+
 export function getInitialSectionFromHash(hash: string): SectionId {
-  const hashRoute = hash.replace(/^#/, "").split("?")[0];
-  if (hashRoute === "onboarding") return "onboarding";
-  const supportedRoutes = new Set(
-    SECTION_GROUPS.flatMap((group) => group.sections.map((section) => section.id)),
-  );
-  return supportedRoutes.has(hashRoute as SectionId)
-    ? (hashRoute as SectionId)
-    : "command";
+  return resolveHash(hash).section;
+}
+
+function routeToHash(route: RouteState): string {
+  if (route.section === "pipeline" && route.pipelineTab === "performance") return "#pipeline?view=performance";
+  if (route.section === "candidate" && route.candidateTab === "resume") return "#candidate?view=resume";
+  if (route.section === "settings" && route.settingsTab && route.settingsTab !== "general") return `#settings?tab=${route.settingsTab}`;
+  return `#${route.section}`;
 }
 
 // Flattened navigation structure with group labels
@@ -151,33 +179,56 @@ function useWindowWidth(): number {
 }
 
 function DashboardContent(): ReactNode {
-  const [activeSection, setActiveSection] = useState<SectionId>(() => {
-    if (typeof window === "undefined") return "command";
-    const initialSection = getInitialSectionFromHash(window.location.hash);
-    if (initialSection === "onboarding") {
-      window.history.replaceState(null, "", window.location.pathname);
-    }
-    return initialSection;
-  });
+  const [route, setRoute] = useState<RouteState>(() =>
+    typeof window === "undefined" ? { section: "today" } : resolveHash(window.location.hash),
+  );
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const windowWidth = useWindowWidth();
 
   useEffect(() => {
+    const syncRoute = () => setRoute(resolveHash(window.location.hash));
     const navigate = (event: Event) => {
       const target = (event as CustomEvent<SectionId>).detail;
-      if (target === "inbox" || target === "vacancies") setActiveSection(target);
+      if (target === "inbox" || target === "pipeline" || target === "today") {
+        navigateTo({ section: target });
+      }
     };
     window.addEventListener("vacancypilot:navigate", navigate);
-    return () => window.removeEventListener("vacancypilot:navigate", navigate);
+    window.addEventListener("hashchange", syncRoute);
+    window.addEventListener("popstate", syncRoute);
+    return () => {
+      window.removeEventListener("vacancypilot:navigate", navigate);
+      window.removeEventListener("hashchange", syncRoute);
+      window.removeEventListener("popstate", syncRoute);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || route.section === "onboarding") return;
+    const canonicalHash = routeToHash(route);
+    if (window.location.hash !== canonicalHash) {
+      const url = new URL(window.location.href);
+      url.hash = canonicalHash;
+      window.history.replaceState(null, "", url);
+    }
+  }, [route]);
+
+  const navigateTo = useCallback((nextRoute: RouteState) => {
+    setRoute(nextRoute);
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.hash = routeToHash(nextRoute);
+      window.history.pushState(null, "", url);
+    }
   }, []);
 
   const handleSectionClick = useCallback(
     (section: SectionId) => {
-      setActiveSection(section);
+      navigateTo({ section });
       // Auto-collapse sidebar on narrow widths after selection
       if (windowWidth < 760) setSidebarCollapsed(true);
     },
-    [windowWidth],
+    [navigateTo, windowWidth],
   );
 
   // Responsive breakpoints (per audit P0-04):
@@ -311,19 +362,19 @@ function DashboardContent(): ReactNode {
                         cursor: "pointer",
                         border: "none",
                         borderLeft:
-                          activeSection === section.id
+                          route.section === section.id
                             ? `3px solid ${colors.blue}`
                             : "3px solid transparent",
                         background:
-                          activeSection === section.id
+                          route.section === section.id
                             ? colors.activeBg
                             : "transparent",
                         color:
-                          activeSection === section.id
+                          route.section === section.id
                             ? colors.blue
                             : colors.textSecondary,
                         fontWeight:
-                          activeSection === section.id
+                          route.section === section.id
                             ? fontWeights.semibold
                             : fontWeights.normal,
                         textAlign: "left",
@@ -353,7 +404,11 @@ function DashboardContent(): ReactNode {
           background: colors.white,
         }}
       >
-        <SectionContent section={activeSection} />
+        <SectionContent
+          section={route.section}
+          route={route}
+          onNavigate={navigateTo}
+        />
       </main>
     </div>
   );
@@ -427,83 +482,147 @@ export function formatShortDate(iso: string): string {
   }
 }
 
-export function SectionContent({ section }: { section: SectionId }): ReactNode {
+export function SectionContent({
+  section,
+  route = { section },
+  onNavigate,
+}: {
+  section: SectionId;
+  route?: RouteState;
+  onNavigate?: (route: RouteState) => void;
+}): ReactNode {
   switch (section) {
-    case "command":
-      return <CommandCenter onNavigate={(target) => window.dispatchEvent(new CustomEvent("vacancypilot:navigate", { detail: target }))} />;
+    case "today":
+      return <CommandCenter onNavigate={(target) => onNavigate?.({ section: target })} />;
+    case "discovery":
+      return <DiscoveryWorkspace />;
     case "inbox":
       return <ApplicationWorkspace />;
-    case "vacancies":
-      return <KanbanBoard />;
-    case "summary":
-      return <PerformanceSection />;
-    case "applications":
-      return <ApplicationWorkspace />;
-    case "companies":
-      return (
-        <EmptyState
-          icon="🏢"
-          message="No companies yet"
-          description="Companies are created automatically from saved vacancies."
-        />
-      );
-    case "profiles":
-      return <ProfileManager />;
-    case "resumes":
-      return <ResumeManager />;
-    case "letters":
-      return (
-        <EmptyState
-          icon="✉️"
-          message="No cover letters yet"
-          description="Generate cover letters from the side panel on a vacancy page."
-        />
-      );
-    case "events":
-      return (
-        <EmptyState
-          icon="📜"
-          message="No events yet"
-          description="Activity log will appear as you use the extension."
-        />
-      );
-    case "labs":
-      return <LabsSection />;
-    case "export":
-      return <ExportSection />;
+    case "pipeline":
+      return <PipelineWorkspace initialTab={route.pipelineTab} onTabChange={(pipelineTab) => onNavigate?.({ section: "pipeline", pipelineTab })} />;
+    case "candidate":
+      return <CandidateWorkspace initialTab={route.candidateTab} onTabChange={(candidateTab) => onNavigate?.({ section: "candidate", candidateTab })} />;
     case "settings":
-      return (
-        <>
-          <AISettingsSection />
-          <div style={{ height: 24 }} />
-          <SearchHighlightsSection />
-        </>
-      );
-    case "privacy":
-      return (
-        <>
-          <PrivacyDisclosureSection />
-          <div style={{ height: 24 }} />
-          <PrivacySection />
-        </>
-      );
-    case "permissions":
-      return <PermissionsSection />;
-    case "companion":
-      return <CompanionSettings />;
-    case "about":
-      return <AboutSection />;
+      return <SettingsWorkspace initialTab={route.settingsTab} onOpenOnboarding={() => onNavigate?.({ section: "onboarding" })} onTabChange={(settingsTab) => onNavigate?.({ section: "settings", settingsTab })} />;
     case "onboarding":
-      return <OnboardingSection />;
-    case "debug":
-      return (
-        <EmptyState
-          icon="🛠️"
-          message="Debug tools"
-          description="Parser debug mode, raw HTML inspection, and local logs."
-        />
-      );
+      return <OnboardingSection onComplete={() => onNavigate?.({ section: "today" })} />;
   }
+}
+
+export function DiscoveryWorkspace(): ReactNode {
+  const [status, setStatus] = useState("Checking Companion…");
+  useEffect(() => {
+    void detectCompanionStatus()
+      .then((result) => setStatus(result.status))
+      .catch(() => setStatus("unavailable"));
+  }, []);
+  return (
+    <section aria-labelledby="discovery-title">
+      <h2 id="discovery-title" style={{ marginTop: 0 }}>Discovery</h2>
+      <p style={{ color: "#536273", fontSize: 13 }}>
+        Find and review HH.ru vacancies through the connected local Companion. Search and sync never submit applications or messages.
+      </p>
+      {status === "connected" ? (
+        <HHIntegrationSection />
+      ) : (
+        <EmptyState
+          icon="🔎"
+          message="Discovery requires a connected Companion"
+          description="Pair the local Companion in Settings → Companion & HH to manage Search Profiles and preview official vacancy search."
+        />
+      )}
+    </section>
+  );
+}
+
+export function PipelineWorkspace({
+  initialTab = "board",
+  onTabChange,
+}: {
+  initialTab?: "board" | "performance";
+  onTabChange?: (tab: "board" | "performance") => void;
+}): ReactNode {
+  const [opsMode, setOpsMode] = useState<boolean | null>(null);
+  useEffect(() => {
+    void loadSettings().then((settings) => setOpsMode(settings.companion.opsModeEnabled)).catch(() => setOpsMode(false));
+  }, []);
+  if (opsMode === null) return <LoadingState message="Loading Pipeline…" />;
+  return (
+    <section aria-labelledby="pipeline-title">
+      <h2 id="pipeline-title" style={{ marginTop: 0 }}>Pipeline</h2>
+      <div role="tablist" aria-label="Pipeline views" style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+        {(["board", "performance"] as const).map((tab) => (
+          <button key={tab} type="button" role="tab" aria-selected={(initialTab ?? "board") === tab} onClick={() => onTabChange?.(tab)}>
+            {tab === "board" ? "Board" : "Performance"}
+          </button>
+        ))}
+      </div>
+      {opsMode ? (
+        initialTab === "performance" ? <PerformanceSection /> : <EmptyState icon="📋" message="Pipeline is managed by the connected Companion" description="Open Performance for Ops summaries, or use Inbox for the canonical local application workflow." />
+      ) : (
+        initialTab === "performance" ? <PerformanceSection /> : <KanbanBoard />
+      )}
+    </section>
+  );
+}
+
+export function CandidateWorkspace({
+  initialTab = "profile",
+  onTabChange,
+}: {
+  initialTab?: CandidateTab;
+  onTabChange?: (tab: CandidateTab) => void;
+}): ReactNode {
+  return (
+    <section aria-labelledby="candidate-title">
+      <h2 id="candidate-title" style={{ marginTop: 0 }}>Candidate</h2>
+      <div role="tablist" aria-label="Candidate views" style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+        {(["profile", "resume"] as const).map((tab) => (
+          <button key={tab} type="button" role="tab" aria-selected={initialTab === tab} onClick={() => onTabChange?.(tab)}>
+            {tab === "profile" ? "Profile" : "Resume"}
+          </button>
+        ))}
+      </div>
+      {initialTab === "resume" ? <ResumeManager /> : <ProfileManager />}
+    </section>
+  );
+}
+
+export function SettingsWorkspace({
+  initialTab = "general",
+  onOpenOnboarding,
+  onTabChange,
+}: {
+  initialTab?: SettingsTab;
+  onOpenOnboarding?: () => void;
+  onTabChange?: (tab: SettingsTab) => void;
+}): ReactNode {
+  const tabs: Array<[SettingsTab, string]> = [
+    ["general", "General"],
+    ["companion", "Companion & HH"],
+    ["ai", "AI"],
+    ["privacy", "Privacy & Data"],
+    ["permissions", "Permissions"],
+    ["about", "About"],
+    ["advanced", "Advanced"],
+  ];
+  return (
+    <section aria-labelledby="settings-title">
+      <h2 id="settings-title" style={{ marginTop: 0 }}>Settings</h2>
+      <div role="tablist" aria-label="Settings views" style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 20 }}>
+        {tabs.map(([tab, label]) => (
+          <button key={tab} type="button" role="tab" aria-selected={initialTab === tab} onClick={() => onTabChange?.(tab)}>{label}</button>
+        ))}
+      </div>
+      {initialTab === "general" && <SearchHighlightsSection />}
+      {initialTab === "companion" && <CompanionSettings />}
+      {initialTab === "ai" && <AISettingsSection />}
+      {initialTab === "privacy" && <><PrivacyDisclosureSection /><div style={{ height: 24 }} /><ExportSection /><div style={{ height: 24 }} /><PrivacySection /></>}
+      {initialTab === "permissions" && <PermissionsSection />}
+      {initialTab === "about" && <><AboutSection /><div style={{ height: 16 }} /><button type="button" onClick={onOpenOnboarding}>Run setup guide again</button></>}
+      {initialTab === "advanced" && <><LabsSection /><div style={{ height: 16 }} /><button type="button" onClick={onOpenOnboarding}>Run setup guide again</button></>}
+    </section>
+  );
 }
 
 // ── Export Section ───────────────────────────────────────────────────────
@@ -1179,10 +1298,10 @@ const dangerPrimaryButtonStyle = {
   fontWeight: 700,
 } as const;
 
-// ── Summary Section ──
+// ── Legacy daily summary helper ──
 
-// Kept for backwards-compatible source-level deep links; the visible Summary
-// entry now intentionally renders the consolidated Command Center.
+// Kept as a non-visible compatibility helper; the visible Summary route now
+// resolves to Pipeline → Performance.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function SummarySection(): ReactNode {
   const [summary, setSummary] = useState<DailySummaryType | null>(null);

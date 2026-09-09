@@ -18,6 +18,8 @@ No auto-apply. No hidden browser-side HH requests. No external recruiter or foll
 
 ## What It Does Today
 
+- Presents six primary Options routes: Today, Discovery, Inbox, Pipeline,
+  Candidate and Settings; legacy hashes remain compatibility aliases.
 - Reads visible vacancy and search-card data from HH.ru pages the user opened.
 - Uses the official HH read-only API through the optional local companion in Ops Mode.
 - Manages Search Profiles and deterministic Stage A triage.

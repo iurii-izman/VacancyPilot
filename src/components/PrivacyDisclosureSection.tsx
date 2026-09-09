@@ -145,18 +145,13 @@ export function PrivacyDisclosureSection(): ReactNode {
             color: colors.navy,
           }}
         >
-          n8n Webhook (Labs, your n8n instance required)
+          Deferred integrations
         </h4>
-        <ul style={listStyle}>
-          <li>
-            <strong>Sent</strong>: event type, job ID, title, company, score,
-            status, URL, timestamp.
-          </li>
-          <li>
-            <strong>NOT sent</strong>: cover letter text, resume text, AI
-            analysis, profile details.
-          </li>
-        </ul>
+        <p style={{ fontSize: fontSizes.md, color: colors.textMuted, margin: 0 }}>
+          n8n and other outbound event integrations are deferred from the normal
+          workflow and are not active unless a future product decision enables
+          them.
+        </p>
       </div>
 
       {/* ── What is NEVER sent ── */}
@@ -211,10 +206,6 @@ export function PrivacyDisclosureSection(): ReactNode {
           <li>
             <strong>AI disable</strong> — AI can be fully disabled (no key = no
             requests)
-          </li>
-          <li>
-            <strong>n8n disable</strong> — n8n is off by default, toggled in
-            Labs
           </li>
           <li>
             <strong>Labs kill switch</strong> — disable all experimental

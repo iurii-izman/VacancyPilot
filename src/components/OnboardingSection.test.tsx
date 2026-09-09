@@ -24,9 +24,9 @@ describe("OnboardingSection — step wizard structure", () => {
     expect(source).toMatch(/Safety & Trust/);
     expect(source).toMatch(/Create Your Profile/);
     expect(source).toMatch(/Add Resume Highlights/);
-    expect(source).toMatch(/Save Your First Vacancy/);
+    expect(source).toMatch(/Review Your First Vacancy/);
     expect(source).toMatch(/Configure AI/);
-    expect(source).toMatch(/Enable Labs/);
+    expect(source).not.toMatch(/Enable Labs/);
   });
 
   it("has step state management (expanded/done)", () => {
@@ -65,10 +65,9 @@ describe("OnboardingSection — onboarding-specific disclosures", () => {
     expect(source).toMatch(/supports.*OpenAI and Mock/);
   });
 
-  it("explains how n8n works (spec §18.1.6)", () => {
-    expect(source).toMatch(/How n8n/);
-    expect(source).toMatch(/Labs/);
-    expect(source).toMatch(/off by default/);
+  it("does not present deferred n8n setup as part of onboarding", () => {
+    expect(source).not.toMatch(/How n8n/);
+    expect(source).not.toMatch(/n8n webhook/);
   });
 
   it("explains API key security warning (spec §18.1.8)", () => {
@@ -77,16 +76,16 @@ describe("OnboardingSection — onboarding-specific disclosures", () => {
     expect(source).toMatch(/not a secure vault/);
   });
 
-  it("explains that Labs are off by default (spec §18.1.10)", () => {
-    expect(source).toMatch(/off by default/);
-    expect(source).toMatch(/not required for core/);
+  it("keeps deferred Labs out of the first-run path", () => {
+    expect(source).not.toMatch(/Enable Labs/);
+    expect(source).not.toMatch(/Settings → n8n/);
   });
 
   it("includes setup action steps", () => {
     expect(source).toMatch(/Create Your Profile/);
     expect(source).toMatch(/Add Resume Highlights/);
     expect(source).toMatch(/Configure AI/);
-    expect(source).toMatch(/Enable Labs/);
+    expect(source).not.toMatch(/Enable Labs/);
   });
 
   it("has onboarding completion flow", () => {

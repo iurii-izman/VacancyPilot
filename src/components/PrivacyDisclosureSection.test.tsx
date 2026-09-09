@@ -39,10 +39,10 @@ describe("PrivacyDisclosureSection — content disclosure", () => {
     expect(source).toMatch(/Payload preview/);
   });
 
-  it("discloses what is sent to n8n webhook", () => {
-    expect(source).toMatch(/n8n Webhook/);
-    expect(source).toMatch(/event type/);
-    expect(source).toMatch(/NOT sent/);
+  it("discloses that deferred integrations are not active in the normal workflow", () => {
+    expect(source).toMatch(/Deferred integrations/);
+    expect(source).toMatch(/n8n/);
+    expect(source).toMatch(/not active/);
   });
 
   it("discloses no other external communication", () => {
@@ -65,7 +65,6 @@ describe("PrivacyDisclosureSection — content disclosure", () => {
     expect(source).toMatch(/Export/);
     expect(source).toMatch(/Delete all/);
     expect(source).toMatch(/AI disable/);
-    expect(source).toMatch(/n8n disable/);
     expect(source).toMatch(/Labs kill switch/);
     expect(source).toMatch(/Permission management/);
   });

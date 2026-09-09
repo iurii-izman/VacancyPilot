@@ -21,12 +21,6 @@ type AIProvider = NonNullable<AppSettings["ai"]["provider"]>;
 
 const PROVIDERS: { id: AIProvider; label: string; implemented: boolean }[] = [
   { id: "openai", label: "OpenAI", implemented: true },
-  { id: "deepseek", label: "DeepSeek (coming later)", implemented: false },
-  {
-    id: "openrouter",
-    label: "OpenRouter (coming later)",
-    implemented: false,
-  },
   { id: "mock", label: "Mock (no API key)", implemented: true },
 ];
 
@@ -487,7 +481,7 @@ export function AISettingsSection(): ReactNode {
 
       <div style={{ ...hintStyle, marginTop: -6, marginBottom: 12 }}>
         Current build supports <strong>OpenAI</strong> and <strong>Mock</strong>
-        . DeepSeek and OpenRouter stay visible as roadmap placeholders.
+        . Other providers are not exposed until their integration is implemented.
       </div>
 
       {/* ── Model ─────────────────────────────────────────────────────── */}
@@ -499,7 +493,7 @@ export function AISettingsSection(): ReactNode {
         >
           <div>
             <div style={labelStyle}>Model</div>
-            <div style={hintStyle}>Model name (e.g. gpt-4o, deepseek-chat)</div>
+            <div style={hintStyle}>Model name (for example, gpt-4o)</div>
           </div>
           <input
             type="text"

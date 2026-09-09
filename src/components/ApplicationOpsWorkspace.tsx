@@ -98,7 +98,7 @@ function ActionCard({ label, value, description, onClick }: {
   </button>;
 }
 
-export function CommandCenter({ onNavigate }: { onNavigate?: (section: "inbox" | "vacancies") => void }): ReactNode {
+export function CommandCenter({ onNavigate }: { onNavigate?: (section: "inbox" | "pipeline") => void }): ReactNode {
   const { jobs, loading, error } = useJobs();
   const [companion, setCompanion] = useState("Checking…");
   const [followupCount, setFollowupCount] = useState<number | null>(null);
@@ -118,19 +118,19 @@ export function CommandCenter({ onNavigate }: { onNavigate?: (section: "inbox" |
     })();
     return () => { cancelled = true; };
   }, []);
-  if (loading) return <p role="status">Loading Command Center…</p>;
-  if (error) return <div role="alert" style={cardStyle}>Command Center unavailable: {error}</div>;
+  if (loading) return <p role="status">Loading Today…</p>;
+  if (error) return <div role="alert" style={cardStyle}>Today unavailable: {error}</div>;
   const newJobs = jobs.filter((job) => job.status === "new" || job.status === "viewed");
   const ready = jobs.filter((job) => job.status === "letter_ready");
   const applied = jobs.filter((job) => job.status === "applied");
   const updated = jobs.filter((job) => job.passiveHHStatus && job.passiveHHStatus.detectedAt > job.updatedAt);
-  return <section aria-labelledby="command-center-title">
-    <h2 id="command-center-title" style={{ marginTop: 0 }}>Command Center</h2>
+  return <section aria-labelledby="today-title">
+    <h2 id="today-title" style={{ marginTop: 0 }}>Today</h2>
     <p style={{ color: "#536273", fontSize: 13 }}>A daily, action-oriented view of the local job search.</p>
     <div style={{ display: "flex", gap: 10, flexWrap: "wrap", margin: "16px 0" }}>
       <ActionCard label="New to review" value={String(newJobs.length)} description="Open the Inbox" onClick={() => onNavigate?.("inbox")} />
       <ActionCard label="Ready to review" value={String(ready.length)} description="Review manually" onClick={() => onNavigate?.("inbox")} />
-      <ActionCard label="Applied" value={String(applied.length)} description="Tracked explicitly" onClick={() => onNavigate?.("vacancies")} />
+      <ActionCard label="Applied" value={String(applied.length)} description="Tracked explicitly" onClick={() => onNavigate?.("pipeline")} />
       <ActionCard label="HH updates" value={String(updated.length)} description="Known local signals" onClick={() => onNavigate?.("inbox")} />
       <ActionCard label="Follow-ups due" value={followupCount === null ? "—" : String(followupCount)} description={followupCount === null ? "Unavailable" : "Open the Inbox"} onClick={() => onNavigate?.("inbox")} />
     </div>
