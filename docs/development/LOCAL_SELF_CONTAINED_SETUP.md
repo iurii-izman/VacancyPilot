@@ -35,9 +35,12 @@ deliberate local package change. There is no fallback to a sibling project.
 `pnpm companion:start` resolves its default DB from the repository root and
 uses `.local/data/companion/vacancypilot.db`. `-DbPath` remains available for
 isolated tests or deliberate migrations. The launcher changes to the
-repository root before running Alembic and Uvicorn, so the caller's current
-directory does not affect the selected app or database. It upgrades the schema
-to the current Alembic head before starting the server.
+repository root before running Alembic and then starts the project-owned
+`uv run --project companion --directory companion python -m app.server`
+entrypoint, so the caller's current directory does not affect the selected app
+or database. That entrypoint validates the loopback bind before starting and
+uses `127.0.0.1:8765` by default. It upgrades the schema to the current
+Alembic head before starting the server.
 
 ## Privacy boundary
 

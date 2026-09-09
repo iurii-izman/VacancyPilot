@@ -1,9 +1,11 @@
 """Application configuration with safe local-development defaults."""
 
 from pathlib import Path
-from typing import Literal
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
+
+from app.security.middleware import validate_loopback_bind
 
 
 class Settings(BaseSettings):
@@ -20,8 +22,14 @@ class Settings(BaseSettings):
     api_version: str = '1'
 
     # Binding — always loopback
-    host: Literal['127.0.0.1'] = '127.0.0.1'
+    host: str = '127.0.0.1'
     port: int = 8765
+
+    @field_validator('host')
+    @classmethod
+    def host_must_be_loopback(cls, value: str) -> str:
+        validate_loopback_bind(value)
+        return value
 
     # Database
     db_path: str = ''  # empty => default under .local/data/companion/

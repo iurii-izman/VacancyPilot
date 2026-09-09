@@ -1,7 +1,7 @@
 """VacancyPilot Ops Companion — FastAPI application factory.
 
 No side effects on import. The factory creates and returns a configured
-FastAPI application. Call ``create_app()`` and then start it with uvicorn.
+FastAPI application. The project-owned ``app.server`` module owns startup.
 """
 
 from __future__ import annotations

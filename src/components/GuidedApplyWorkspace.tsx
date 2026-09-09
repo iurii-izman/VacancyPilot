@@ -1,8 +1,10 @@
 import { useState, useCallback, useEffect, type ReactNode } from "react";
 import {
   checkGuidedApplyGate,
+  checkGuidedApplyMutationGate,
   recordLabsAction,
 } from "@/services/labs-control";
+import { NATIVE_HH_SUBMISSION_CONFIRMATION } from "@/services/applied-confirmation";
 import { profileRepo, resumeRepo, coverLetterRepo } from "@/db/repositories";
 import { EmptyState } from "@/components/EmptyState";
 import { LoadingState } from "@/components/LoadingState";
@@ -19,8 +21,7 @@ type StepId =
   | "copy-letter"
   | "paste-letter"
   | "select-resume"
-  | "click-submit"
-  | "mark-applied";
+  | "review-application";
 
 interface ApplyStep {
   id: StepId;
@@ -54,16 +55,10 @@ const APPLY_STEPS: ApplyStep[] = [
       "Choose the recommended resume from the HH resume selector dropdown.",
   },
   {
-    id: "click-submit",
-    label: '5. Click "Откликнуться"',
+    id: "review-application",
+    label: "5. Review the application on HH",
     description:
-      "Review your application and click the native HH submit button yourself.",
-  },
-  {
-    id: "mark-applied",
-    label: "6. Mark as applied in VacancyPilot",
-    description:
-      "After submitting on HH, click the button below to update your local tracker.",
+      'Review the completed form, then click the native HH "Откликнуться" button yourself. VacancyPilot cannot see or click it.',
   },
 ];
 
@@ -128,7 +123,7 @@ export function GuidedApplyWorkspace({
     async function init(): Promise<void> {
       try {
         // 1. Check Labs gate
-        const result = await checkGuidedApplyGate();
+        const result = await checkGuidedApplyMutationGate();
         if (cancelled) return;
         setLabsAllowed(result.allowed);
 
@@ -227,27 +222,36 @@ export function GuidedApplyWorkspace({
     }
   }, [letter?.bodyText, jobId]);
 
-  // ── Mark as applied ──
+  // ── Confirm native submission and mark as applied ──
 
   const handleMarkApplied = useCallback(async () => {
     if (!jobId || markingApplied || markedApplied) return;
+    if (!APPLY_STEPS.every((step) => completedSteps.has(step.id))) {
+      setError("Complete the preparation checklist before confirming Applied.");
+      return;
+    }
+    if (!window.confirm(`${NATIVE_HH_SUBMISSION_CONFIRMATION}. Confirm local tracking?`)) {
+      return;
+    }
 
     setMarkingApplied(true);
     try {
+      const mutationGate = await checkGuidedApplyMutationGate();
+      if (!mutationGate.allowed) {
+        setError(mutationGate.reason);
+        return;
+      }
       // Update status via background service worker
       const response: { success: boolean; error?: string } =
         await chrome.runtime.sendMessage({
           type: "MARK_APPLIED",
           jobId,
+          preparationComplete: true,
+          nativeSubmissionConfirmed: true,
         });
 
       if (response?.success) {
         setMarkedApplied(true);
-        setCompletedSteps((prev) => {
-          const next = new Set(prev);
-          next.add("mark-applied");
-          return next;
-        });
         // Refresh parent context
         setTimeout(onRefresh, 500);
       } else {
@@ -258,7 +262,7 @@ export function GuidedApplyWorkspace({
     } finally {
       setMarkingApplied(false);
     }
-  }, [jobId, markingApplied, markedApplied, job?.sourceUrl, onRefresh]);
+  }, [completedSteps, jobId, markingApplied, markedApplied, onRefresh]);
 
   // ── Render states ──
 
@@ -503,7 +507,6 @@ export function GuidedApplyWorkspace({
         <div style={{ marginTop: 8 }}>
           {APPLY_STEPS.map((step) => {
             const done = completedSteps.has(step.id);
-            const isMarkApplied = step.id === "mark-applied";
             return (
               <div
                 key={step.id}
@@ -513,11 +516,11 @@ export function GuidedApplyWorkspace({
                   gap: 10,
                   padding: "8px 0",
                   borderBottom: "1px solid #f5f5f5",
-                  cursor: isMarkApplied ? "default" : "pointer",
+                  cursor: "pointer",
                   opacity: done ? 0.7 : 1,
                 }}
                 onClick={() => {
-                  if (!isMarkApplied) handleToggleStep(step.id);
+                  handleToggleStep(step.id);
                 }}
               >
                 {/* Checkbox */}
@@ -561,30 +564,30 @@ export function GuidedApplyWorkspace({
         </div>
       </div>
 
-      {/* ── Mark as Applied Button ── */}
+      {/* ── Explicit native-submission confirmation ── */}
       <button
         type="button"
         onClick={handleMarkApplied}
-        disabled={markingApplied}
+        disabled={markingApplied || !allStepsDone}
         style={{
           width: "100%",
           padding: "10px 16px",
           fontSize: 13,
-          cursor: markingApplied ? "not-allowed" : "pointer",
+          cursor: markingApplied || !allStepsDone ? "not-allowed" : "pointer",
           border: "none",
           borderRadius: 6,
-          background: markingApplied ? "#ccc" : "#2a8",
+          background: markingApplied || !allStepsDone ? "#ccc" : "#2a8",
           color: "#fff",
           fontWeight: 700,
           marginTop: 8,
-          opacity: markingApplied ? 0.6 : 1,
+          opacity: markingApplied || !allStepsDone ? 0.6 : 1,
         }}
       >
         {markingApplied
           ? "Updating…"
           : markedApplied
             ? "✓ Marked as Applied"
-            : "✅ Mark as Applied in VacancyPilot"}
+            : "✅ I submitted this application on HH — mark Applied"}
       </button>
 
       <div
@@ -595,7 +598,7 @@ export function GuidedApplyWorkspace({
           marginTop: 6,
         }}
       >
-        Only updates your local tracker. Does not interact with HH.
+        This is a separate explicit confirmation. It only updates your local tracker and never interacts with HH.
       </div>
 
       {/* ── All done message ── */}
@@ -611,7 +614,7 @@ export function GuidedApplyWorkspace({
             color: "#2a8",
           }}
         >
-          🎉 All steps complete! Your application has been recorded.
+          Preparation complete. After you submit on HH, use the explicit confirmation above to record Applied locally.
         </div>
       )}
     </div>

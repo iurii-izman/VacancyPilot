@@ -34,6 +34,9 @@ vi.mock("@/services/labs-control", () => ({
   checkGuidedApplyGate: vi
     .fn()
     .mockResolvedValue({ allowed: false, reason: "Labs disabled" }),
+  checkGuidedApplyMutationGate: vi
+    .fn()
+    .mockResolvedValue({ allowed: false, reason: "Labs disabled" }),
   recordLabsAction: vi.fn().mockResolvedValue({ id: "mock-action" }),
   getActionLog: vi.fn().mockResolvedValue([]),
   getRemainingDailyBudget: vi.fn().mockResolvedValue(5),
@@ -103,7 +106,7 @@ describe("GuidedApplyWorkspace — safety boundaries", () => {
 
   it("does not trigger form submit actions", () => {
     // No code in the component calls .submit(), .requestSubmit(),
-    // or clicks submit buttons. The "click-submit" checklist step
+    // or clicks submit buttons. The review checklist step
     // is purely informational text — it instructs the user, it does not
     // perform any automated action.
     expect(true).toBe(true); // Validated by code review
@@ -141,7 +144,7 @@ describe("GuidedApplyWorkspace — MARK_APPLIED handler", () => {
   });
 
   it("MARK_APPLIED does not include any form data or DOM selectors", () => {
-    // The message only carries jobId. It does not contain:
+    // The message carries only the explicit confirmation flags and jobId. It does not contain:
     // - form field selectors
     // - form values
     // - DOM element references
@@ -150,8 +153,10 @@ describe("GuidedApplyWorkspace — MARK_APPLIED handler", () => {
     const message = {
       type: "MARK_APPLIED",
       jobId: "hh_12345",
+      preparationComplete: true,
+      nativeSubmissionConfirmed: true,
     };
     const keys = Object.keys(message);
-    expect(keys).toEqual(["type", "jobId"]);
+    expect(keys).toEqual(["type", "jobId", "preparationComplete", "nativeSubmissionConfirmed"]);
   });
 });

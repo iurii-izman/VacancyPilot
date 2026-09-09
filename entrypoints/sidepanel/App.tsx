@@ -8,7 +8,8 @@ import { HrWorkspace } from "@/components/HrWorkspace";
 import { ProfileTab } from "@/components/ProfileTab";
 import { OpsStatusDot } from "@/components/OpsStatusIndicator";
 import { jobRepo } from "@/db/repositories";
-import { tracker } from "@/services/tracker";
+import { buildJobFromDTO, tracker } from "@/services/tracker";
+import { getOperatingMode, type EffectiveOperatingMode } from "@/services/operating-mode";
 import { ensureMigrationsBootstrapped } from "@/db";
 import type { Job } from "@/models/job";
 import type { RiskFlag } from "@/models/risk";
@@ -64,6 +65,7 @@ interface VacancyContext {
   profileId?: string;
   resumeId?: string;
   passiveStatus?: Partial<ApplicationStatusSync> | null;
+  effectiveMode?: EffectiveOperatingMode;
 }
 
 interface HrExtractionResponse {
@@ -221,6 +223,12 @@ function SidePanelContent(): ReactNode {
         }
 
         const pageKind = context.pageKind;
+        let effectiveMode: EffectiveOperatingMode = "standalone";
+        try {
+          effectiveMode = (await getOperatingMode()).effectiveMode;
+        } catch {
+          // A mode read failure fails safe for local-only context discovery.
+        }
 
         if (pageKind === "vacancy") {
           const vacancyId = context.vacancyId;
@@ -244,7 +252,9 @@ function SidePanelContent(): ReactNode {
             // Persist only the sanitized, user-visible DTO locally; this is
             // not an application creation and does not call any provider.
             if (!job && response?.success && response.dto) {
-              job = await tracker.saveFromDTO(response.dto);
+              job = effectiveMode === "ops"
+                ? buildJobFromDTO(response.dto)
+                : await tracker.saveFromDTO(response.dto);
             }
             if (!cancelled) {
               setCtx({
@@ -253,6 +263,7 @@ function SidePanelContent(): ReactNode {
                 profileId: job?.selectedProfileId,
                 resumeId: job?.selectedResumeId,
                 passiveStatus: response?.passiveStatus ?? undefined,
+                effectiveMode,
               });
             }
           } catch {
@@ -262,6 +273,7 @@ function SidePanelContent(): ReactNode {
                 job: job ?? undefined,
                 profileId: job?.selectedProfileId,
                 resumeId: job?.selectedResumeId,
+                effectiveMode,
               });
             }
           }
@@ -289,7 +301,7 @@ function SidePanelContent(): ReactNode {
           const jobId = `hh_${vacancyId}`;
           const job = await jobRepo.getById(jobId);
 
-          if (job && hrResponse?.success && hrResponse.timeline) {
+          if (effectiveMode === "standalone" && job && hrResponse?.success && hrResponse.timeline) {
             await persistHrTimelineForJob(job, hrResponse.timeline);
           }
 
@@ -299,6 +311,7 @@ function SidePanelContent(): ReactNode {
               job: job ?? undefined,
               profileId: job?.selectedProfileId,
               resumeId: job?.selectedResumeId,
+              effectiveMode,
             });
           }
           return;
@@ -461,6 +474,7 @@ function TabContent({
         <HrWorkspace
           jobId={ctx.jobId ?? ""}
           job={ctx.job}
+          readOnly={ctx.effectiveMode === "ops"}
           onRefresh={onRefresh}
         />
       );
@@ -1272,6 +1286,7 @@ function ProfileTabWrapper({
       job={ctx.job}
       profileId={ctx.profileId}
       resumeId={ctx.resumeId}
+      readOnly={ctx.effectiveMode === "ops"}
       onProfileChange={onRefresh}
       onResumeChange={onRefresh}
     />

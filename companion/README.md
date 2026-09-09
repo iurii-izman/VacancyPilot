@@ -13,12 +13,19 @@ Local FastAPI companion for the VacancyPilot browser extension.
 # Install dependencies
 uv sync --project companion
 
-# Run the companion from the repository root (listens on 127.0.0.1:8765)
+# Run the project-owned loopback launcher from the repository root
 pnpm companion:start
 
 # Health check
 curl http://127.0.0.1:8765/api/v1/health
 ```
+
+The supported launcher starts `app.server` with the validated default bind
+`127.0.0.1:8765`. It accepts only the explicit loopback values
+`127.0.0.1`, `localhost`, and `::1`; project-supported launch paths never
+bind to `0.0.0.0` or a public interface. The extension sends the canonical
+`X-VacancyPilot-Idempotency-Key` header on retryable intake and application
+operations; it is intentionally the only idempotency header allowed by CORS.
 
 ## Development
 
@@ -48,6 +55,7 @@ pnpm companion:openapi-check
 ## Architecture
 
 - `app/main.py` — application factory (no import-time side effects)
+- `app/server.py` — project-owned validated loopback server entrypoint
 - `app/config.py` — typed settings with safe local defaults
 - `app/api/health.py` — public health endpoint
 - `app/api/errors.py` — stable JSON error envelopes

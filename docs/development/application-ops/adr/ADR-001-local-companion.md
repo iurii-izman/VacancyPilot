@@ -25,8 +25,11 @@ A Manifest V3 browser extension cannot:
 ## Decision
 
 Introduce a **local loopback companion** — a FastAPI Python process that runs
-on the user's machine, binds only to `127.0.0.1`, and communicates with the
-extension over HTTP.
+on the user's machine, is started through the project-owned `app.server`
+entrypoint, validates a loopback bind, and communicates with the extension over
+HTTP. The default supported bind is `127.0.0.1:8765`; `localhost` and `::1`
+are accepted explicit loopback alternatives, while wildcard/public binds are
+rejected by the supported server configuration.
 
 The companion is **not** a cloud backend. It runs on the same machine, stores
 data in a local SQLite file, and has no internet-facing port.
@@ -39,6 +42,7 @@ data in a local SQLite file, and has no internet-facing port.
 - SQLite enables rich queries, analytics, backup, and migration tooling
 - FastAPI auto-generates OpenAPI 3.x schema for typed TypeScript client generation
 - Security boundary is clear: loopback-only, no network exposure
+- Supported launch paths cannot silently drift to a public interface
 
 ### Negative
 - User must install Python 3.12+ and `uv` (documented prerequisite)

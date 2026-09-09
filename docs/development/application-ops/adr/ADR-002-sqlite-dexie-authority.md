@@ -34,6 +34,18 @@ In **Standalone Mode**:
 - All reads/writes go through Dexie
 - No companion communication attempted
 
+The extension derives an effective mode centrally. Ops is effective only when
+the persisted user intent is enabled and authority metadata is the committed
+`ops` state. Enabled intent with `standalone` or `migration` authority remains
+safe Standalone/pending migration. Disabling intent makes Standalone effective
+before stale authority metadata is normalized. UI capabilities and action-time
+guards use this effective mode together with Companion connectivity and pairing
+validity; they do not infer authority from a settings toggle alone.
+
+The extension uses `X-VacancyPilot-Idempotency-Key` as the canonical HTTP
+idempotency header. Outbox delivery is blocked without changing pending rows
+whenever effective mode is not Ops.
+
 ## Consequences
 
 ### Positive

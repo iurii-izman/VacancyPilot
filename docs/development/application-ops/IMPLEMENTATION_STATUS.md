@@ -28,6 +28,28 @@ dated acceptance reports.
 | Application Factory | `src/components/ApplicationOpsWorkspace.tsx`, route/tests | Preview is provider-free; execute is explicit; queue never creates `APPLIED` |
 | HH boundary | content scripts, Companion HH routes, release-safety tests | read-only DOM/API access; no HH form writes or hidden page requests |
 
+## Fix 1: transport and mode safety
+
+- `companion/app/server.py` is the project-owned server entrypoint used by
+  `scripts/start-companion.ps1`; it validates `127.0.0.1`, `localhost`, or
+  `::1` and rejects wildcard/public binds before Uvicorn starts.
+- `X-VacancyPilot-Idempotency-Key` is the single client/API/CORS contract;
+  preflight and authenticated intake coverage exercise the same header.
+- `src/services/operating-mode.ts` is the canonical effective-mode and
+  transition service. Setting Ops intent does not declare Ops authority before
+  migration commit; disabling intent blocks work first and repairs stale
+  metadata without a settings feedback loop.
+- `src/services/ops-capabilities.ts` gates Full V4, hydration, Search Profiles,
+  Ops analytics, Application Factory, and Ops follow-ups on effective Ops plus
+  connected/paired/compatible status. Safe Standalone actions remain visible.
+- Outbox delivery, vacancy intake mirroring, side-panel HR extraction, Guided
+  Apply final mutation, and status/application write paths have action-time
+  guards. HR extraction no longer synthesizes Applied from pre-application
+  statuses.
+- Guided Apply preparation is distinct from the explicit native-HH-submission
+  confirmation. Its final local mutation is unavailable in Ops until Fix 2;
+  this is an intentional read-only limitation, not a hidden fallback.
+
 ## Options route truth
 
 `entrypoints/options/App.tsx` defines six normal primary routes: Today,

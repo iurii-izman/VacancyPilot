@@ -4583,6 +4583,22 @@
               "title": "Application Id",
               "type": "string"
             }
+          },
+          {
+            "in": "header",
+            "name": "X-VacancyPilot-Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Vacancypilot-Idempotency-Key"
+            }
           }
         ],
         "requestBody": {
@@ -4686,6 +4702,22 @@
             "schema": {
               "title": "Application Id",
               "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-VacancyPilot-Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Vacancypilot-Idempotency-Key"
             }
           }
         ],
@@ -5364,6 +5396,24 @@
       },
       "post": {
         "operationId": "create_followup_api_v1_followups_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-VacancyPilot-Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Vacancypilot-Idempotency-Key"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -6596,6 +6646,24 @@
       "post": {
         "description": "Idempotently capture a normalized vacancy into the companion.",
         "operationId": "vacancy_intake_api_v1_vacancies_intake_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-VacancyPilot-Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Vacancypilot-Idempotency-Key"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {

@@ -1,6 +1,7 @@
 import { loadSettings } from "@/db/settings-bridge";
 import { labsActionRepo } from "@/db/labs-repository";
 import type { LabsActionType, LabsActionLog } from "@/models/labs-action-log";
+import { getOperatingMode } from "@/services/operating-mode";
 
 /**
  * Labs safety control plane.
@@ -99,6 +100,27 @@ export async function checkGuidedApplyGate(): Promise<
     return { allowed: false, reason: "Daily action budget exhausted" };
   }
 
+  return { allowed: true };
+}
+
+/**
+ * Gate the final Guided Apply local status/application mutation.
+ * Preparation remains manual and clipboard-only; Ops authority cannot be
+ * changed from this local mutation path.
+ */
+export async function checkGuidedApplyMutationGate(): Promise<
+  | { allowed: true }
+  | { allowed: false; reason: string }
+> {
+  const labsGate = await checkGuidedApplyGate();
+  if (!labsGate.allowed) return labsGate;
+  const mode = await getOperatingMode();
+  if (mode.effectiveMode === "ops") {
+    return {
+      allowed: false,
+      reason: "Guided Apply local mutation is unavailable in Ops Mode until Fix 2",
+    };
+  }
   return { allowed: true };
 }
 

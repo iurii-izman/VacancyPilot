@@ -3,6 +3,9 @@ import { db } from "@/db";
 import { EmptyState } from "@/components/EmptyState";
 import { jobRepo } from "@/db/repositories";
 import { detectCompanionStatus, getOpsClient } from "@/services/companion-service";
+import { capabilityMessage, getOpsCapabilities, type OpsCapabilities } from "@/services/ops-capabilities";
+import { NATIVE_HH_SUBMISSION_CONFIRMATION } from "@/services/applied-confirmation";
+import { tracker } from "@/services/tracker";
 import type { Job } from "@/models/job";
 import type { FollowUpItem } from "@/adapters/companion/application-types";
 import type { HHSearchProfile } from "@/adapters/companion/types";
@@ -32,6 +35,18 @@ function scoreColor(total: number | undefined): string {
 }
 function statusLabel(status: Job["status"]): string {
   return status.replaceAll("_", " ").replace(/^./, (char) => char.toUpperCase());
+}
+
+function useOpsCapabilities(): OpsCapabilities | null {
+  const [capabilities, setCapabilities] = useState<OpsCapabilities | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void getOpsCapabilities()
+      .then((next) => { if (!cancelled) setCapabilities(next); })
+      .catch(() => { if (!cancelled) setCapabilities(null); });
+    return () => { cancelled = true; };
+  }, []);
+  return capabilities;
 }
 
 export function needsFullVacancyHydration(job: Pick<Job, "descriptionClean">): boolean {
@@ -93,8 +108,8 @@ function useJobs(searchProfileId?: string): { jobs: Job[]; loading: boolean; err
         let items = localItems.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
         if (!cancelled) { setJobs(items); setLoading(false); }
         try {
-          const connection = await detectCompanionStatus();
-          if (connection.status === "connected") {
+          const capabilities = await getOpsCapabilities();
+          if (capabilities.canUseSearchProfiles) {
             const response = await getOpsClient().listVacancies({ archived: false, ...(searchProfileId ? { search_profile_id: searchProfileId } : {}) });
             items = response.data.filter((item) => item.source === "hh").map(companionVacancyToJob);
             if (!cancelled) setJobs(items);
@@ -135,8 +150,8 @@ export function TodayWorkspace({ onNavigate }: { onNavigate?: (section: "discove
       try {
         const localApps = await db.applications.toArray();
         const localDue = localApps.filter((item) => item.followUpAt && new Date(item.followUpAt) <= new Date()).length;
-        const connection = await detectCompanionStatus();
-        if (connection.status === "connected") {
+        const capabilities = await getOpsCapabilities();
+        if (capabilities.canUseOpsFollowups) {
           const remote = await getOpsClient().listFollowUps();
           if (!cancelled) setFollowupCount(remote.data.filter((item) => ["due", "overdue"].includes(item.derived_state)).length);
         } else if (!cancelled) setFollowupCount(localDue);
@@ -180,6 +195,7 @@ export function TodayWorkspace({ onNavigate }: { onNavigate?: (section: "discove
 }
 
 export function Inbox({ onSelect, onNavigate }: { onSelect?: (job: Job) => void; onNavigate?: (route: "discovery") => void }): ReactNode {
+  const capabilities = useOpsCapabilities();
   const [profileFilter, setProfileFilter] = useState("all");
   const [searchProfiles, setSearchProfiles] = useState<HHSearchProfile[]>([]);
   const { jobs, loading, error } = useJobs(profileFilter === "all" ? undefined : profileFilter);
@@ -196,10 +212,12 @@ export function Inbox({ onSelect, onNavigate }: { onSelect?: (job: Job) => void;
   const [sessionMessage, setSessionMessage] = useState<string | null>(null);
   const [sessionItems, setSessionItems] = useState<Array<{ title: string; company_name: string | null; queue_state: string }>>([]);
   useEffect(() => {
-    void detectCompanionStatus().then(async (connection) => {
-      if (connection.status === "connected") setSearchProfiles((await getOpsClient().listHHSearchProfiles()).data);
-    }).catch(() => setSearchProfiles([]));
-  }, []);
+    if (!capabilities?.canUseSearchProfiles) {
+      setSearchProfiles([]);
+      return;
+    }
+    void getOpsClient().listHHSearchProfiles().then((response) => setSearchProfiles(response.data)).catch(() => setSearchProfiles([]));
+  }, [capabilities]);
   const filtered = useMemo(() => jobs.filter((job) => {
     const matchesQuery = !query || `${job.title} ${job.companyName}`.toLowerCase().includes(query.toLowerCase());
     const score = job.ruleScore?.total;
@@ -213,8 +231,8 @@ export function Inbox({ onSelect, onNavigate }: { onSelect?: (job: Job) => void;
   const prepareSelected = async () => {
     if (selectedIds.length === 0) return;
     try {
-      const connection = await detectCompanionStatus();
-      if (connection.status !== "connected") { setSessionMessage("Application sessions require the connected local companion."); return; }
+      const currentCapabilities = await getOpsCapabilities({ force: true });
+      if (!currentCapabilities.canRunApplicationFactory) { setSessionMessage(capabilityMessage("application-factory", currentCapabilities)); return; }
       const result = await getOpsClient().previewApplicationSession(selectedIds);
       setPreview(result.data);
       setSessionMessage("Preview ready. No provider call was made.");
@@ -223,6 +241,8 @@ export function Inbox({ onSelect, onNavigate }: { onSelect?: (job: Job) => void;
   const confirmPrepare = async () => {
     if (!preview || selectedIds.length === 0) return;
     try {
+      const currentCapabilities = await getOpsCapabilities({ force: true });
+      if (!currentCapabilities.canRunApplicationFactory) { setSessionMessage(capabilityMessage("application-factory", currentCapabilities)); return; }
       const session = await getOpsClient().createApplicationSession(selectedIds);
       const processed = await getOpsClient().executeApplicationSession(session.data.id);
       setSessionItems(processed.data.items);
@@ -240,9 +260,10 @@ export function Inbox({ onSelect, onNavigate }: { onSelect?: (job: Job) => void;
     <div style={{ ...mutedPanelStyle, marginBottom: 14 }}>
       <strong>{selectedIds.length} selected</strong>{" "}
       <button type="button" onClick={() => setSelectedIds([])} disabled={selectedIds.length === 0} style={secondaryButton}>Clear selection</button>{" "}
-      <button type="button" onClick={() => void prepareSelected()} disabled={selectedIds.length === 0} style={selectedIds.length > 0 ? primaryButton : secondaryButton}>Preview selected</button>
+      <button type="button" onClick={() => void prepareSelected()} disabled={selectedIds.length === 0 || !capabilities?.canRunApplicationFactory} style={selectedIds.length > 0 && capabilities?.canRunApplicationFactory ? primaryButton : secondaryButton}>Preview selected</button>
+      {!capabilities?.canRunApplicationFactory && capabilities && <div role="status" style={{ marginTop: 8, fontSize: 12 }}>{capabilityMessage("application-factory", capabilities)}</div>}
       {preview && <div role="status" style={{ marginTop: 8 }}>Preview: {preview.selected} selected · {preview.cached_v4} cached V4 · {preview.expected_provider_calls} possible provider calls · {preview.archived_or_ineligible} archived/ineligible. Cost estimate unavailable.</div>}
-      {preview && <button type="button" onClick={() => void confirmPrepare()} style={{ ...primaryButton, marginTop: 8 }}>Confirm and process selected</button>}
+      {preview && <button type="button" onClick={() => void confirmPrepare()} disabled={!capabilities?.canRunApplicationFactory} style={{ ...primaryButton, marginTop: 8 }}>Confirm and process selected</button>}
       {sessionMessage && <div role="status" style={{ marginTop: 8 }}>{sessionMessage}</div>}
       {sessionItems.length > 0 && <ol aria-label="Application session queue" style={{ margin: "10px 0 0", paddingLeft: 22 }}>{sessionItems.map((item) => <li key={`${item.title}-${item.company_name ?? ""}`}>{item.title} — {item.queue_state}</li>)}</ol>}
     </div>
@@ -277,14 +298,20 @@ export function Inbox({ onSelect, onNavigate }: { onSelect?: (job: Job) => void;
 }
 
 export function ApplicationCard({ job, onBack }: { job: Job; onBack?: () => void }): ReactNode {
+  const capabilities = useOpsCapabilities();
   const [tab, setTab] = useState("Overview");
   const [currentJob, setCurrentJob] = useState(job);
   const [preview, setPreview] = useState<{ provider: string; model: string; token_estimate: number | null; cache_hit: boolean; what_is_sent: string[]; what_is_not_sent: string[] } | null>(null);
   const [run, setRun] = useState<{ run_id: string; status: string; ready: boolean; score: number | null; decision: string | null; confidence: string | null; cover_letter: string | null; recruiter_risks: Array<{ risk: string; severity: string; mitigation: string }>; cached: boolean; token_input: number | null; token_output: number | null; estimated_cost_usd: number | null } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [appliedBusy, setAppliedBusy] = useState(false);
   const tabs = ["Overview", "Vacancy", "Evidence", "Score", "Letter", "Timeline", "Follow-up", "Interview", "Debug"];
   const isFull = !needsFullVacancyHydration(currentJob);
+  const refreshCapabilities = async (): Promise<OpsCapabilities> => {
+    const next = await getOpsCapabilities({ force: true });
+    return next;
+  };
   const hydrate = async () => {
     const hydrated = await getOpsClient().hydrateVacancy(currentJob.id);
     const item = hydrated.data;
@@ -293,6 +320,11 @@ export function ApplicationCard({ job, onBack }: { job: Job; onBack?: () => void
   const previewFullV4 = async () => {
     setBusy(true); setError(null); setPreview(null);
     try {
+      const currentCapabilities = await refreshCapabilities();
+      if (!currentCapabilities.canUseFullV4) {
+        setError(capabilityMessage("full-v4", currentCapabilities));
+        return;
+      }
       // A migrated/full local projection is already sufficient for the
       // provider-free preview. Hydration is an explicit HH API read and must
       // only run when the stored vacancy is actually incomplete.
@@ -305,7 +337,14 @@ export function ApplicationCard({ job, onBack }: { job: Job; onBack?: () => void
   };
   const refreshFullDetails = async () => {
     setBusy(true); setError(null);
-    try { await hydrate(); }
+    try {
+      const currentCapabilities = await refreshCapabilities();
+      if (!currentCapabilities.canHydrateVacancy) {
+        setError(capabilityMessage("vacancy-hydration", currentCapabilities));
+        return;
+      }
+      await hydrate();
+    }
     catch (err) { setError(err instanceof Error ? err.message : "Full vacancy refresh failed"); }
     finally { setBusy(false); }
   };
@@ -313,6 +352,11 @@ export function ApplicationCard({ job, onBack }: { job: Job; onBack?: () => void
     if (!preview || busy) return;
     setBusy(true); setError(null);
     try {
+      const currentCapabilities = await refreshCapabilities();
+      if (!currentCapabilities.canUseFullV4) {
+        setError(capabilityMessage("full-v4", currentCapabilities));
+        return;
+      }
       const response = await getOpsClient().analyzeFullV4(currentJob.id);
       const persisted = await getOpsClient().getFullV4Run(response.data.run_id);
       setRun({ ...response.data, status: persisted.data.status, ready: persisted.data.ready, score: persisted.data.score, decision: persisted.data.decision });
@@ -320,6 +364,32 @@ export function ApplicationCard({ job, onBack }: { job: Job; onBack?: () => void
     }
     catch (err) { setError(err instanceof Error ? err.message : "Full V4 analysis failed"); }
     finally { setBusy(false); }
+  };
+  const confirmApplied = async () => {
+    if (appliedBusy || currentJob.status === "applied") return;
+    setAppliedBusy(true); setError(null);
+    try {
+      const currentCapabilities = await refreshCapabilities();
+      if (!currentCapabilities.canUseGuidedApplyMutation) {
+        setError(capabilityMessage("guided-apply-mutation", currentCapabilities));
+        return;
+      }
+      if (!window.confirm(`${NATIVE_HH_SUBMISSION_CONFIRMATION}. Confirm local tracking?`)) return;
+      const updated = await tracker.updateStatus(
+        currentJob.id,
+        "applied",
+        "User confirmed native HH submission",
+      );
+      if (!updated) {
+        setError("The local vacancy was not found. Refresh the card and try again.");
+        return;
+      }
+      setCurrentJob(updated);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to mark as applied");
+    } finally {
+      setAppliedBusy(false);
+    }
   };
   return <section aria-labelledby="application-card-title">
     <button type="button" onClick={onBack} style={{ ...secondaryButton, marginBottom: 14 }}>← Back to Inbox</button>
@@ -332,7 +402,10 @@ export function ApplicationCard({ job, onBack }: { job: Job; onBack?: () => void
         <span style={{ ...statusBadge, background: colors.neutralBg, color: colors.textSecondary }}>{statusLabel(currentJob.status)}</span>
       </div>
       <p style={{ margin: "0 0 12px", color: colors.textMuted, fontSize: 12 }}>Vacancy readiness: <strong>{isFull ? "Full details available" : "Search preview only"}</strong>{!isFull && " — refresh to load the official full vacancy before running Full V4."}</p>
-      <div style={actionRowStyle}><button type="button" onClick={() => void previewFullV4()} disabled={busy} style={primaryButton}>Preview Full V4</button><button type="button" onClick={() => void refreshFullDetails()} disabled={busy} style={secondaryButton}>Refresh vacancy</button>{preview && <button type="button" onClick={() => void executeFullV4()} disabled={busy} style={primaryButton}>Confirm and run Full V4</button>}</div>
+      <div style={actionRowStyle}><button type="button" onClick={() => void previewFullV4()} disabled={busy || !capabilities?.canUseFullV4} style={primaryButton}>Preview Full V4</button><button type="button" onClick={() => void refreshFullDetails()} disabled={busy || !capabilities?.canHydrateVacancy} style={secondaryButton}>Refresh vacancy</button>{preview && <button type="button" onClick={() => void executeFullV4()} disabled={busy || !capabilities?.canUseFullV4} style={primaryButton}>Confirm and run Full V4</button>}</div>
+      {capabilities && !capabilities.canUseFullV4 && <p role="status" style={{ margin: "10px 0 0", color: colors.textMuted }}>{capabilityMessage("full-v4", capabilities)}</p>}
+      {currentJob.status !== "applied" && <button type="button" onClick={() => void confirmApplied()} disabled={appliedBusy || !capabilities?.canUseGuidedApplyMutation} style={{ ...secondaryButton, marginTop: 10, opacity: appliedBusy || !capabilities?.canUseGuidedApplyMutation ? 0.6 : 1 }}>I submitted this application on HH — mark Applied</button>}
+      {capabilities && currentJob.status !== "applied" && !capabilities.canUseGuidedApplyMutation && <p role="status" style={{ margin: "10px 0 0", color: colors.textMuted }}>{capabilityMessage("guided-apply-mutation", capabilities)}</p>}
       {busy && <p role="status" style={{ margin: "10px 0 0", color: colors.textMuted }}>Working…</p>}{error && <p role="alert" style={{ margin: "10px 0 0", color: colors.red }}>{error}</p>}
     </div>
     {preview && <div style={{ ...mutedPanelStyle, margin: "0 0 14px" }}><strong style={{ color: colors.navy }}>Preview only — no provider call was made.</strong><p>Target: {preview.provider}/{preview.model}. Expected provider call: {preview.cache_hit ? 0 : 1} (cache hit: {preview.cache_hit ? "yes" : "no"}).</p><p style={{ marginBottom: 0 }}>Payload readiness: full vacancy text loaded; privacy disclosure applies. Sent: {preview.what_is_sent.join(", ") || "none"}.</p></div>}
@@ -352,6 +425,7 @@ export function ApplicationCard({ job, onBack }: { job: Job; onBack?: () => void
 }
 
 function FollowUpPanel({ job }: { job: Job }): ReactNode {
+  const capabilities = useOpsCapabilities();
   const [followUpAt, setFollowUpAt] = useState<string | null>(null);
   const [status, setStatus] = useState("Loading…");
   const [activeFollowUp, setActiveFollowUp] = useState<FollowUpItem | null>(null);
@@ -359,17 +433,17 @@ function FollowUpPanel({ job }: { job: Job }): ReactNode {
   useEffect(() => {
     let cancelled = false;
     void db.applications.where("jobId").equals(job.id).first().then(async (application) => {
-      if (application?.followUpAt) {
+      const currentCapabilities = await getOpsCapabilities();
+      if (currentCapabilities.mode.effectiveMode === "standalone" && application?.followUpAt) {
         if (!cancelled) { setApplicationId(application.id); setFollowUpAt(application.followUpAt); setStatus(new Date(application.followUpAt) <= new Date() ? "overdue" : "scheduled"); }
         return;
       }
       try {
-        const connection = await detectCompanionStatus();
-        if (connection.status === "connected" && application) {
+        if (currentCapabilities.canUseOpsFollowups && application) {
           const response = await getOpsClient().listFollowUps(application.id);
           const active = response.data.find((item) => !["completed", "cancelled", "sent", "skipped"].includes(item.status));
           if (!cancelled) { setApplicationId(application.id); setActiveFollowUp(active ?? null); setFollowUpAt(active?.due_at ?? null); setStatus(active?.derived_state ?? "none"); }
-        } else if (!cancelled) setStatus("none");
+        } else if (!cancelled) setStatus(currentCapabilities.mode.effectiveMode === "ops" ? "unavailable" : "none");
       } catch { if (!cancelled) setStatus("unavailable"); }
     }).catch(() => { if (!cancelled) setStatus("unavailable"); });
     return () => { cancelled = true; };
@@ -377,16 +451,27 @@ function FollowUpPanel({ job }: { job: Job }): ReactNode {
   const update = async (nextStatus: "completed" | "snoozed" | "cancelled" | "sent") => {
     if (activeFollowUp) {
       try {
+        const currentCapabilities = await getOpsCapabilities({ force: true });
+        if (!currentCapabilities.canUseOpsFollowups) {
+          setStatus("unavailable");
+          return;
+        }
         const response = await getOpsClient().updateFollowUp(activeFollowUp.id, { expected_revision: activeFollowUp.revision, status: nextStatus === "sent" ? undefined : nextStatus, sent_confirmation: nextStatus === "sent", due_at: nextStatus === "snoozed" ? new Date(Date.now() + 86400000).toISOString() : undefined });
         setActiveFollowUp(nextStatus === "completed" || nextStatus === "cancelled" || nextStatus === "sent" ? null : response.data);
         setStatus(nextStatus);
       } catch { setStatus("unavailable"); }
     } else if (applicationId && followUpAt) {
+      const currentCapabilities = await getOpsCapabilities({ force: true });
+      if (currentCapabilities.mode.effectiveMode === "ops") {
+        setStatus("unavailable");
+        return;
+      }
       await db.applications.update(applicationId, { followUpAt: undefined });
       setFollowUpAt(null); setStatus(nextStatus);
     }
   };
-  return <><h3>Follow-up</h3><p>Status: <strong>{status}</strong>{followUpAt ? ` · due ${formatShortDate(followUpAt)}` : ""}.</p><p>Follow-ups are local and human-controlled. Draft generation never sends a message; explicit sent confirmation is required.</p>{activeFollowUp?.draft_text && <p style={{ whiteSpace: "pre-wrap", background: "#f7f9fb", padding: 8 }}>{activeFollowUp.draft_text}</p>}{(activeFollowUp || (applicationId && followUpAt)) && <div style={{ display: "flex", gap: 8 }}><button type="button" onClick={() => void update("completed")}>Complete</button><button type="button" onClick={() => void update("snoozed")}>Snooze 1 day</button><button type="button" onClick={() => void update("cancelled")}>Cancel</button>{activeFollowUp?.draft_text && <button type="button" onClick={() => void update("sent")}>Confirm sent</button>}</div>}{status === "none" && <p>No active follow-up is recorded.</p>}</>;
+  const followupWriteBlocked = capabilities?.mode.effectiveMode === "ops" && !capabilities.canUseOpsFollowups;
+  return <><h3>Follow-up</h3><p>Status: <strong>{status}</strong>{followUpAt ? ` · due ${formatShortDate(followUpAt)}` : ""}.</p><p>Follow-ups are local and human-controlled. Draft generation never sends a message; explicit sent confirmation is required.</p>{followupWriteBlocked && <p role="status">{capabilityMessage("ops-followups", capabilities)}</p>}{activeFollowUp?.draft_text && <p style={{ whiteSpace: "pre-wrap", background: "#f7f9fb", padding: 8 }}>{activeFollowUp.draft_text}</p>}{(activeFollowUp || (applicationId && followUpAt)) && <div style={{ display: "flex", gap: 8 }}><button type="button" disabled={followupWriteBlocked} onClick={() => void update("completed")}>Complete</button><button type="button" disabled={followupWriteBlocked} onClick={() => void update("snoozed")}>Snooze 1 day</button><button type="button" disabled={followupWriteBlocked} onClick={() => void update("cancelled")}>Cancel</button>{activeFollowUp?.draft_text && <button type="button" disabled={followupWriteBlocked} onClick={() => void update("sent")}>Confirm sent</button>}</div>}{status === "none" && <p>No active follow-up is recorded.</p>}</>;
 }
 
 export function ApplicationWorkspace({ onNavigate }: { onNavigate?: (route: "discovery") => void }): ReactNode {
@@ -409,8 +494,8 @@ export function ApplicationWorkspace({ onNavigate }: { onNavigate?: (route: "dis
       // present in local Dexie. Read the safe list projection only; this does
       // not create an Application and does not invoke Full V4/provider work.
       try {
-        const connection = await detectCompanionStatus();
-        if (connection.status !== "connected") return;
+        const capabilities = await getOpsCapabilities();
+        if (!capabilities.canUseSearchProfiles) return;
         const response = await getOpsClient().listVacancies({ archived: false });
         const remote = response.data.find(
           (item) => item.source === "hh" && item.source_vacancy_id === vacancyId,

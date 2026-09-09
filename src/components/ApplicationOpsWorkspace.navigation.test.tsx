@@ -35,7 +35,24 @@ vi.mock("@/db/repositories", () => ({
 
 vi.mock("@/services/companion-service", () => ({
   detectCompanionStatus: vi.fn().mockResolvedValue({ status: "unavailable" }),
-  getOpsClient: vi.fn(),
+  getOpsClient: vi.fn().mockReturnValue({
+    listHHSearchProfiles: vi.fn().mockResolvedValue({ data: [] }),
+  }),
+}));
+
+vi.mock("@/services/ops-capabilities", () => ({
+  getOpsCapabilities: vi.fn().mockResolvedValue({
+    mode: { effectiveMode: "ops", requestedOpsMode: true, authorityMode: "ops" },
+    companion: { status: "connected" },
+    canUseFullV4: true,
+    canHydrateVacancy: true,
+    canUseSearchProfiles: true,
+    canUseOpsAnalytics: true,
+    canRunApplicationFactory: true,
+    canUseOpsFollowups: true,
+    canUseGuidedApplyMutation: false,
+  }),
+  capabilityMessage: vi.fn(() => "Capability unavailable"),
 }));
 
 import { ApplicationCard, ApplicationWorkspace, needsFullVacancyHydration } from "./ApplicationOpsWorkspace";
@@ -47,6 +64,9 @@ describe("Application Workspace navigation", () => {
 
   beforeEach(() => {
     window.history.replaceState({}, "", "/");
+    vi.mocked(getOpsClient).mockReturnValue({
+      listHHSearchProfiles: vi.fn().mockResolvedValue({ data: [] }),
+    } as never);
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);

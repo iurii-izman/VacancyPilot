@@ -45,6 +45,7 @@ import { isCompatibleApiVersion } from './types';
 // ── Constants ──────────────────────────────────────────────────────────────
 
 export const COMPANION_BASE_URL = 'http://127.0.0.1:8765/api/v1';
+export const IDEMPOTENCY_HEADER = 'X-VacancyPilot-Idempotency-Key';
 const DEFAULT_TIMEOUT_MS = 10_000;
 export const FULL_V4_TIMEOUT_MS = 300_000;
 
@@ -174,7 +175,7 @@ export class OpsClient {
     }
 
     if (options?.idempotencyKey) {
-      headers['X-VacancyPilot-Idempotency-Key'] = options.idempotencyKey;
+      headers[IDEMPOTENCY_HEADER] = options.idempotencyKey;
     }
 
     if (body !== undefined) {

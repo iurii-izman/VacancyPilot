@@ -11,6 +11,8 @@ import { EmptyState } from "@/components/EmptyState";
 import { LoadingState } from "@/components/LoadingState";
 import { ErrorState } from "@/components/ErrorState";
 import type { Job, JobStatus } from "@/models/job";
+import { getOperatingMode } from "@/services/operating-mode";
+import { NATIVE_HH_SUBMISSION_CONFIRMATION } from "@/services/applied-confirmation";
 
 // ── Kanban column definitions ─────────────────────────────────────────────
 
@@ -152,6 +154,8 @@ export function KanbanBoard(): ReactNode {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [effectiveMode, setEffectiveMode] = useState<"standalone" | "ops" | null>(null);
   const [search, setSearch] = useState("");
   const [changingJobId, setChangingJobId] = useState<string | null>(null);
   const [lastMoved, setLastMoved] = useState<{
@@ -179,6 +183,12 @@ export function KanbanBoard(): ReactNode {
   }, [loadJobs]);
 
   useEffect(() => {
+    void getOperatingMode()
+      .then((mode) => setEffectiveMode(mode.effectiveMode))
+      .catch(() => setEffectiveMode("standalone"));
+  }, []);
+
+  useEffect(() => {
     const handleStorageChange = (
       changes: Record<string, chrome.storage.StorageChange>,
       areaName: string,
@@ -198,9 +208,16 @@ export function KanbanBoard(): ReactNode {
   const handleMoveJob = useCallback(
     async (jobId: string, toStatus: JobStatus) => {
       setChangingJobId(jobId);
+      setActionError(null);
       try {
+        const mode = await getOperatingMode();
+        if (toStatus === "applied" && mode.effectiveMode !== "standalone") {
+          setActionError("Confirm Applied is unavailable in Ops Mode until Fix 2.");
+          return;
+        }
         const job = await jobRepo.getById(jobId);
         if (!job) return;
+        if (toStatus === "applied" && !window.confirm(`${NATIVE_HH_SUBMISSION_CONFIRMATION}. Confirm local tracking?`)) return;
         const change = createStatusChange(job.status, toStatus, "user");
         job.status = toStatus;
         job.statusHistory = [...job.statusHistory, change];
@@ -225,7 +242,7 @@ export function KanbanBoard(): ReactNode {
         setLastMoved({ jobId, toStatus });
         setTimeout(() => setLastMoved(null), 1200);
       } catch {
-        // Let UI stay consistent — reload on error
+        setActionError("Could not update the local status. Refresh and try again.");
         void loadJobs(true);
       } finally {
         setChangingJobId(null);
@@ -362,6 +379,7 @@ export function KanbanBoard(): ReactNode {
             lastMoved={lastMoved}
             onMoveJob={handleMoveJob}
             onOpenVacancy={handleOpenVacancy}
+            allowApplied={effectiveMode === "standalone"}
             colWidth={colWidth}
           />
         ))}
@@ -381,10 +399,12 @@ export function KanbanBoard(): ReactNode {
             lastMoved={lastMoved}
             onMoveJob={handleMoveJob}
             onOpenVacancy={handleOpenVacancy}
+            allowApplied={effectiveMode === "standalone"}
             colWidth={colWidth}
           />
         )}
       </div>
+      {actionError && <p role="status" style={{ color: "#8a6d14", fontSize: 12 }}>{actionError}</p>}
     </div>
   );
 }
@@ -398,6 +418,7 @@ function KanbanColumnView({
   lastMoved,
   onMoveJob,
   onOpenVacancy,
+  allowApplied,
   colWidth = 240,
 }: {
   column: KanbanColumn;
@@ -406,6 +427,7 @@ function KanbanColumnView({
   lastMoved: { jobId: string; toStatus: JobStatus } | null;
   onMoveJob: (jobId: string, toStatus: JobStatus) => void;
   onOpenVacancy: (url: string) => void;
+  allowApplied: boolean;
   colWidth?: number;
 }): ReactNode {
   const [dropdownJobId, setDropdownJobId] = useState<string | null>(null);
@@ -429,6 +451,9 @@ function KanbanColumnView({
   const allowedMoves =
     COLUMN_TRANSITIONS[column.id] ??
     (["saved", "applied", "offer", "rejected_by_me"] as JobStatus[]);
+  const visibleMoves = allowApplied
+    ? allowedMoves
+    : allowedMoves.filter((status) => status !== "applied");
 
   return (
     <div
@@ -630,7 +655,7 @@ function KanbanColumnView({
                       overflow: "hidden",
                     }}
                   >
-                    {allowedMoves
+                    {visibleMoves
                       .filter((s) => s !== job.status)
                       .map((targetStatus) => {
                         const targetBadge = statusBadgeStyle(targetStatus);

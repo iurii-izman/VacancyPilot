@@ -124,11 +124,12 @@ async function findExistingJob(
   return jobRepo.findBySourceVacancy(SOURCE_HH, sourceVacancyId);
 }
 
-/**
- * Map RawVacancyDTO to a new Job domain object.
- * Caller must provide a validated, non-empty sourceVacancyId.
- */
-function dtoToNewJob(dto: RawVacancyDTO, sourceVacancyId: string): Job {
+/** Build a sanitized in-memory job without persisting it. */
+export function buildJobFromDTO(dto: RawVacancyDTO): Job {
+  const sourceVacancyId = (dto.sourceVacancyId ?? "").trim();
+  if (!sourceVacancyId) {
+    throw new Error("Cannot build vacancy: sourceVacancyId is missing");
+  }
   const now = new Date().toISOString();
   const descriptionClean = dto.descriptionText ?? "";
 
@@ -251,7 +252,7 @@ export const tracker = {
     }
 
     // New job
-    const job = dtoToNewJob(dto, sourceVacancyId);
+    const job = buildJobFromDTO(dto);
     await jobRepo.save(job);
     await persistEvent("job_saved", job.id, {
       title: job.title,

@@ -150,6 +150,34 @@ def auth_headers(auth_token: str) -> dict[str, str]:
 
 
 class TestIntakeIdempotency:
+    def test_cors_preflight_and_authenticated_intake_accept_canonical_header(
+        self, client_with_db: TestClient, auth_headers: dict[str, str]
+    ) -> None:
+        origin = 'chrome-extension://vacancypilot-dev'
+        preflight = client_with_db.options(
+            '/api/v1/vacancies/intake',
+            headers={
+                'Origin': origin,
+                'Access-Control-Request-Method': 'POST',
+                'Access-Control-Request-Headers': (
+                    'content-type,x-vacancypilot-client,x-vacancypilot-idempotency-key'
+                ),
+            },
+        )
+        assert preflight.status_code == 200, preflight.text
+
+        response = client_with_db.post(
+            '/api/v1/vacancies/intake',
+            json=_base_vacancy(),
+            headers={
+                **auth_headers,
+                'Origin': origin,
+                'X-VacancyPilot-Idempotency-Key': 'cors-contract-1',
+            },
+        )
+        assert response.status_code == 200, response.text
+        assert response.headers['access-control-allow-origin'] == origin
+
     def test_create_then_duplicate_is_unchanged(
         self, client_with_db: TestClient, auth_headers: dict[str, str]
     ) -> None:

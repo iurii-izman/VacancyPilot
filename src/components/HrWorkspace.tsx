@@ -38,6 +38,7 @@ export interface HrWorkspaceProps {
   job?: Job;
   /** Callback to refresh parent state after changes */
   onRefresh: () => void;
+  readOnly?: boolean;
 }
 
 // ── Reply type display helpers ─────────────────────────────────────
@@ -90,6 +91,7 @@ export function HrWorkspace({
   jobId,
   job,
   onRefresh,
+  readOnly = false,
 }: HrWorkspaceProps): ReactNode {
   const [application, setApplication] = useState<Application | null>(null);
   const [timeline, setTimeline] = useState<HrTimelineEntry[]>([]);
@@ -180,6 +182,10 @@ export function HrWorkspace({
       setSaveStatus(null);
 
       if (!application) return;
+      if (readOnly) {
+        setSaveError("HR follow-up writes are unavailable in Ops Mode until Fix 2.");
+        return;
+      }
 
       try {
         const updated: Application = {
@@ -201,7 +207,7 @@ export function HrWorkspace({
         setSaveError(err instanceof Error ? err.message : "Save failed");
       }
     },
-    [application, followUpDate, notes, job, onRefresh],
+    [application, followUpDate, notes, job, onRefresh, readOnly],
   );
 
   // ── Mark timeline entry as read ─────────────────────────────────
@@ -209,7 +215,7 @@ export function HrWorkspace({
   const handleMarkRead = useCallback(
     async (entryId: string) => {
       const entry = timeline.find((e) => e.id === entryId);
-      if (!entry || entry.isRead) return;
+      if (readOnly || !entry || entry.isRead) return;
 
       try {
         const updated: HrTimelineEntry = {
@@ -225,7 +231,7 @@ export function HrWorkspace({
         // Non-critical
       }
     },
-    [timeline],
+    [timeline, readOnly],
   );
 
   // ── Copy reply to clipboard ─────────────────────────────────────
@@ -256,6 +262,10 @@ export function HrWorkspace({
 
   const handleMarkReplied = useCallback(async () => {
     if (!job || !application || job.status === "hr_replied") return;
+    if (readOnly) {
+      setSaveError("Marking HR replied is unavailable in Ops Mode until Fix 2.");
+      return;
+    }
 
     try {
       const now = new Date().toISOString();
@@ -299,7 +309,7 @@ export function HrWorkspace({
     } catch {
       // Non-critical
     }
-  }, [application, job, onRefresh]);
+  }, [application, job, onRefresh, readOnly]);
 
   // ── Loading state ──────────────────────────────────────────────
 
@@ -370,10 +380,11 @@ export function HrWorkspace({
           <button
             type="button"
             onClick={() => void handleMarkReplied()}
+            disabled={readOnly}
             style={{
               padding: "4px 10px",
               fontSize: 11,
-              cursor: "pointer",
+              cursor: readOnly ? "not-allowed" : "pointer",
               border: "1px solid #4a90d9",
               borderRadius: 4,
               background: "#e6f0ff",
@@ -439,13 +450,13 @@ export function HrWorkspace({
               return (
                 <div
                   key={entry.id}
-                  onClick={() => void handleMarkRead(entry.id)}
+                  onClick={readOnly ? undefined : () => void handleMarkRead(entry.id)}
                   style={{
                     padding: 10,
                     background: entry.isRead ? "#f9f9f9" : "#fff",
                     border: `1px solid ${entry.isRead ? "#eee" : colors.fg}40`,
                     borderRadius: 6,
-                    cursor: entry.isRead ? "default" : "pointer",
+                    cursor: entry.isRead || readOnly ? "default" : "pointer",
                     opacity: entry.isRead ? 0.8 : 1,
                     transition: "border-color 0.2s",
                   }}
@@ -496,7 +507,7 @@ export function HrWorkspace({
                         color: "#4a90d9",
                       }}
                     >
-                      Click to mark as read
+                      {readOnly ? "Read-state changes are unavailable in Ops Mode." : "Click to mark as read"}
                     </div>
                   )}
                   {entry.isRead && (
@@ -641,6 +652,7 @@ export function HrWorkspace({
               type="date"
               value={followUpDate}
               onChange={(e) => setFollowUpDate(e.target.value)}
+              disabled={readOnly}
               style={{
                 width: "100%",
                 padding: "6px 8px",
@@ -674,6 +686,7 @@ export function HrWorkspace({
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
+              disabled={readOnly}
               placeholder="E.g.: Prepare portfolio, research company, follow up on Friday…"
               rows={3}
               style={{
@@ -700,11 +713,12 @@ export function HrWorkspace({
           >
             <button
               type="submit"
+              disabled={readOnly}
               style={{
                 padding: "6px 16px",
                 fontSize: 12,
                 fontWeight: 600,
-                cursor: "pointer",
+                cursor: readOnly ? "not-allowed" : "pointer",
                 border: "1px solid #2a8",
                 borderRadius: 4,
                 background: saveStatus ? "#e6f7e6" : "#e6f7e6",
@@ -721,6 +735,7 @@ export function HrWorkspace({
             )}
           </div>
         </form>
+        {readOnly && <p style={{ fontSize: 11, color: "#8a6d14" }}>Ops Mode shows the current HR projection read-only. Follow-up and status writes are deferred until Fix 2.</p>}
       </div>
 
       {/* ── Application info ───────────────────────────────────── */}

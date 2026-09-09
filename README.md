@@ -16,10 +16,10 @@ No auto-apply. No hidden browser-side HH requests. No external recruiter or foll
 
 “Personal dogfood” describes current product use, not repository visibility: this GitHub repository is public, while the private V4 engine package and real candidate knowledge remain outside it.
 
-The current checkout includes the Pass 3 daily-use UX polish: the six-route IA,
-storage model, provider boundaries and Full V4 confirmation semantics are
-unchanged; empty states, filters, tabs, hierarchy and primary actions are more
-explicit and compact for repeated use.
+The current checkout includes the Pass 3 daily-use UX polish and the Fix 1
+transport/mode-safety hardening: supported Companion launch is loopback-only,
+the effective operating mode is centralized, and Applied remains an explicit
+confirmation after the user's native HH submission.
 
 ## What It Does Today
 
@@ -27,6 +27,7 @@ explicit and compact for repeated use.
   Candidate and Settings; legacy hashes remain compatibility aliases.
 - Reads visible vacancy and search-card data from HH.ru pages the user opened.
 - Uses the official HH read-only API through the optional local companion in Ops Mode.
+- Derives Ops capabilities only from committed Ops authority plus a valid connected Companion; Standalone remains usable when the Companion is unavailable.
 - Manages Search Profiles and deterministic Stage A triage.
 - Runs evidence-aware Full V4 analysis when the private local engine package and explicit AI configuration are available.
 - Prepares, edits and tracks evidence-aware cover letters; generated text is never evidence.
@@ -65,9 +66,9 @@ flowchart LR
     COMP --> OPENAI[OpenAI BYOK on explicit action]
 ```
 
-**Standalone Mode** is the extension-only workflow: WXT, Manifest V3, TypeScript and React; Dexie/IndexedDB is the canonical domain store and `chrome.storage.local` holds settings, small state and the standalone BYOK path.
+**Standalone Mode** is the extension-only workflow: WXT, Manifest V3, TypeScript and React; Dexie/IndexedDB is the canonical domain store and `chrome.storage.local` holds settings, small state and the standalone BYOK path. The effective mode is Standalone until Ops intent is enabled *and* migration has committed authority to Ops.
 
-**Ops Mode** pairs the extension with a loopback-only FastAPI companion. SQLite is canonical there; Dexie acts as cache/outbox and sync metadata. The companion keeps its operational secrets in the OS keyring, loads the private V4 package locally, and makes official HH API reads. It is not a developer cloud backend.
+**Ops Mode** pairs the extension with a loopback-only FastAPI companion. SQLite is canonical there; Dexie acts as cache/outbox and sync metadata. The companion keeps its operational secrets in the OS keyring, loads the private V4 package locally, and makes official HH API reads. It is not a developer cloud backend. The supported launcher is `pnpm companion:start`, which runs the project-owned `app.server` entrypoint on `127.0.0.1:8765` and rejects non-loopback binds.
 
 ## Safety and Privacy
 
@@ -79,7 +80,7 @@ Read the [security policy](SECURITY.md) and [privacy policy](PRIVACY.md) for sto
 
 Full V4 analysis requires the private engine package installed locally; real candidate knowledge is intentionally absent from this public repository. OpenAI BYOK requests are explicit, payload-previewed and locally accounted for. A generated letter is a draft until the user reviews and records the appropriate state.
 
-R5 Application Factory prepares a manual queue. Preview makes zero provider calls, execution requires explicit confirmation, and the user must perform any HH application action outside VacancyPilot and then confirm `APPLIED`. R5 conversion intelligence is descriptive: it reports the observed sample and provenance, not causal proof.
+R5 Application Factory prepares a manual queue. Preview makes zero provider calls, execution requires explicit confirmation, and the user must perform any HH application action outside VacancyPilot and then explicitly confirm `APPLIED`. Guided Apply separates preparation from this confirmation; it never fills or submits an HH form. R5 conversion intelligence is descriptive: it reports the observed sample and provenance, not causal proof.
 
 ## Tech Stack
 

@@ -6,6 +6,17 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
+vi.mock('@/services/operating-mode', () => ({
+  setOpsModeIntent: vi.fn(async (enabled: boolean) => {
+    const current = await chrome.storage.local.get('app_settings_v1');
+    const settings = (current.app_settings_v1 ?? {}) as Record<string, unknown>;
+    const companion = (settings.companion ?? {}) as Record<string, unknown>;
+    await chrome.storage.local.set({
+      app_settings_v1: { ...settings, companion: { ...companion, opsModeEnabled: enabled } },
+    });
+  }),
+}));
+
 const mockStorage = new Map<string, unknown>();
 const storageWrites: Array<Record<string, unknown>> = [];
 

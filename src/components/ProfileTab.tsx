@@ -17,6 +17,7 @@ interface ProfileTabProps {
   resumeId?: string;
   onProfileChange?: (profileId: string) => void;
   onResumeChange?: (resumeId: string) => void;
+  readOnly?: boolean;
 }
 
 export function ProfileTab({
@@ -26,6 +27,7 @@ export function ProfileTab({
   resumeId: initialResumeId,
   onProfileChange,
   onResumeChange,
+  readOnly = false,
 }: ProfileTabProps): ReactNode {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [resumes, setResumes] = useState<Resume[]>([]);
@@ -77,6 +79,7 @@ export function ProfileTab({
 
   const handleSelectProfile = useCallback(
     async (profileId: string) => {
+      if (readOnly) return;
       if (!jobId) return;
       setSaving(true);
       setError(null);
@@ -108,11 +111,12 @@ export function ProfileTab({
         setSaving(false);
       }
     },
-    [jobId, initialJob, onProfileChange],
+    [jobId, initialJob, onProfileChange, readOnly],
   );
 
   const handleSelectResume = useCallback(
     async (resumeId: string) => {
+      if (readOnly) return;
       if (!jobId) return;
       setSaving(true);
       setError(null);
@@ -136,10 +140,11 @@ export function ProfileTab({
         setSaving(false);
       }
     },
-    [jobId, initialJob, onResumeChange],
+    [jobId, initialJob, onResumeChange, readOnly],
   );
 
   const handleSetDefaultProfile = useCallback(async (profileId: string) => {
+    if (readOnly) return;
     try {
       const settings: AppSettings = await loadSettings();
       settings.general.defaultProfileId = profileId;
@@ -148,7 +153,7 @@ export function ProfileTab({
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to set default");
     }
-  }, []);
+  }, [readOnly]);
 
   const selectedProfile = profiles.find((p) => p.id === selectedProfileId);
   const profileResumes = resumes.filter(
@@ -180,6 +185,11 @@ export function ProfileTab({
 
   return (
     <div>
+      {readOnly && (
+        <div style={{ marginBottom: 12, padding: "8px 10px", background: "#f5f5f5", borderRadius: 4, fontSize: 11, color: "#666" }}>
+          Ops Mode is read-only here. Profile and resume assignments remain in Standalone Mode until the next migration-safe write path.
+        </div>
+      )}
       {/* Current profile */}
       <div
         style={{
@@ -243,7 +253,7 @@ export function ProfileTab({
               borderRadius: 4,
               marginBottom: 4,
               background: p.id === selectedProfileId ? "#f0f6ff" : "#fff",
-              cursor: "pointer",
+              cursor: readOnly ? "not-allowed" : "pointer",
             }}
             onClick={() => handleSelectProfile(p.id)}
             role="button"
@@ -281,6 +291,7 @@ export function ProfileTab({
             {p.id !== defaultProfileId && (
               <button
                 type="button"
+                disabled={readOnly}
                 onClick={(e) => {
                   e.stopPropagation();
                   handleSetDefaultProfile(p.id);
@@ -288,7 +299,7 @@ export function ProfileTab({
                 style={{
                   padding: "2px 6px",
                   fontSize: 10,
-                  cursor: "pointer",
+                  cursor: readOnly ? "not-allowed" : "pointer",
                   border: "1px solid #ddd",
                   borderRadius: 3,
                   background: "#fff",
@@ -334,7 +345,7 @@ export function ProfileTab({
                   borderRadius: 4,
                   marginBottom: 4,
                   background: r.id === selectedResumeId ? "#f0f6ff" : "#fff",
-                  cursor: "pointer",
+                  cursor: readOnly ? "not-allowed" : "pointer",
                 }}
                 onClick={() => handleSelectResume(r.id)}
                 role="button"

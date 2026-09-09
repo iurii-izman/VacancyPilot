@@ -13,6 +13,7 @@ import {
   detectCompanionStatus,
   invalidateCompanionStatusCache,
 } from '@/services/companion-service';
+import { getOperatingMode } from '@/services/operating-mode';
 import type { CompanionStatus } from '@/adapters/companion/types';
 // ── Status mapping ─────────────────────────────────────────────────────────
 
@@ -76,9 +77,8 @@ export function OpsStatusDot({ onOpenSettings }: OpsStatusDotProps): ReactNode {
   const refresh = useCallback(async () => {
     // Don't show the indicator if Ops Mode is disabled.
     try {
-      const { loadSettings } = await import('@/db/settings-bridge');
-      const settings = await loadSettings();
-      if (!settings.companion.opsModeEnabled) {
+      const mode = await getOperatingMode();
+      if (!mode.requestedOpsMode) {
         setVisible(false);
         return;
       }

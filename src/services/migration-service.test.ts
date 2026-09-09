@@ -166,6 +166,27 @@ vi.mock("@/db/ops-repository", () => ({
   },
 }));
 
+vi.mock("@/services/operating-mode", () => ({
+  beginOpsMigration: vi.fn(async () => {
+    mockOpsMetaEntries.set("authority_mode", "migration");
+  }),
+  commitOpsAuthority: vi.fn(async () => {
+    mockOpsMetaEntries.set("authority_mode", "ops");
+  }),
+  returnToStandalone: vi.fn(async () => {
+    mockOpsMetaEntries.set("authority_mode", "standalone");
+  }),
+  getOperatingMode: vi.fn(async () => {
+    const value = mockOpsMetaEntries.get("authority_mode");
+    const authorityMode = value === "migration" || value === "ops" ? value : "standalone";
+    return {
+      effectiveMode: authorityMode === "ops" ? "ops" : "standalone",
+      requestedOpsMode: authorityMode === "ops",
+      authorityMode,
+    };
+  }),
+}));
+
 // Mock OpsClient with controllable responses
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mockOpsClient: any = {

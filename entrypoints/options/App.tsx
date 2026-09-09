@@ -15,7 +15,7 @@ import { CompanionSettings } from "@/components/CompanionSettings";
 import { HHIntegrationSection } from "@/components/HHIntegrationSection";
 import { TodayWorkspace, ApplicationWorkspace } from "@/components/ApplicationOpsWorkspace";
 import { PerformanceSection } from "@/components/PerformanceSection";
-import { detectCompanionStatus } from "@/services/companion-service";
+import { capabilityMessage, getOpsCapabilities, type OpsCapabilities } from "@/services/ops-capabilities";
 import { useState, useCallback, useEffect, type ReactNode } from "react";
 import {
   colors,
@@ -510,11 +510,9 @@ export function SectionContent({
 }
 
 export function DiscoveryWorkspace({ onNavigate }: { onNavigate?: (route: RouteState) => void }): ReactNode {
-  const [status, setStatus] = useState("Checking Companion…");
+  const [capabilities, setCapabilities] = useState<OpsCapabilities | null>(null);
   useEffect(() => {
-    void detectCompanionStatus()
-      .then((result) => setStatus(result.status))
-      .catch(() => setStatus("unavailable"));
+    void getOpsCapabilities().then(setCapabilities).catch(() => setCapabilities(null));
   }, []);
   return (
     <section aria-labelledby="discovery-title">
@@ -522,13 +520,13 @@ export function DiscoveryWorkspace({ onNavigate }: { onNavigate?: (route: RouteS
       <p style={pageIntro}>
         Find and review HH.ru vacancies through the connected local Companion. Search and sync never submit applications or messages.
       </p>
-      {status === "connected" ? (
+      {capabilities?.canUseSearchProfiles ? (
         <HHIntegrationSection />
       ) : (
         <EmptyState
           icon="🔎"
-          message="Discovery requires a connected Companion"
-          description="Pair the local Companion in Settings → Companion & HH to manage Search Profiles and preview official vacancy search."
+          message="Discovery requires Ops Mode and a connected Companion"
+          description={capabilities ? capabilityMessage("search-profiles", capabilities) : "Checking the local Companion connection…"}
           actionLabel="Open Companion settings"
           onAction={() => onNavigate?.({ section: "settings", settingsTab: "companion" })}
         />
@@ -544,11 +542,12 @@ export function PipelineWorkspace({
   initialTab?: "board" | "performance";
   onTabChange?: (tab: "board" | "performance") => void;
 }): ReactNode {
-  const [opsMode, setOpsMode] = useState<boolean | null>(null);
+  const [capabilities, setCapabilities] = useState<OpsCapabilities | null>(null);
   useEffect(() => {
-    void loadSettings().then((settings) => setOpsMode(settings.companion.opsModeEnabled)).catch(() => setOpsMode(false));
+    void getOpsCapabilities().then(setCapabilities).catch(() => setCapabilities(null));
   }, []);
-  if (opsMode === null) return <LoadingState message="Loading Pipeline…" />;
+  if (capabilities === null) return <LoadingState message="Loading Pipeline…" />;
+  const opsMode = capabilities.mode.effectiveMode === "ops";
   return (
     <section aria-labelledby="pipeline-title">
       <h2 id="pipeline-title" style={pageTitle}>Pipeline</h2>
@@ -561,9 +560,9 @@ export function PipelineWorkspace({
         ))}
       </div>
       {opsMode ? (
-        initialTab === "performance" ? <PerformanceSection /> : <EmptyState icon="📋" message="Ops Mode is active" description="The Companion is the authority for Pipeline data in Ops Mode. Open Performance for descriptive outcomes, or use Inbox for the application workflow." actionLabel="Open Performance" onAction={() => onTabChange?.("performance")} />
+        initialTab === "performance" && capabilities.canUseOpsAnalytics ? <PerformanceSection /> : initialTab === "performance" ? <EmptyState icon="📊" message="Ops analytics is unavailable" description={capabilityMessage("ops-analytics", capabilities)} /> : <EmptyState icon="📋" message="Ops Mode is active" description="The Companion is the authority for Pipeline data in Ops Mode. Open Performance for descriptive outcomes, or use Inbox for the application workflow." actionLabel="Open Performance" onAction={() => onTabChange?.("performance")} />
       ) : (
-        initialTab === "performance" ? <PerformanceSection /> : <KanbanBoard />
+        initialTab === "performance" ? <EmptyState icon="📊" message="Performance is Ops-only" description={capabilityMessage("ops-analytics", capabilities)} /> : <KanbanBoard />
       )}
     </section>
   );

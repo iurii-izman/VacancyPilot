@@ -31,6 +31,12 @@ import type { TableName } from "@/db";
 import { opsMetaRepo } from "@/db/ops-repository";
 import { OPS_META_KEYS } from "@/models/ops";
 import type { AuthorityMode } from "@/models/ops";
+import {
+  beginOpsMigration,
+  commitOpsAuthority,
+  getOperatingMode,
+  returnToStandalone,
+} from "@/services/operating-mode";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -211,7 +217,7 @@ export async function saveMigrationCheckpoint(
  * after a successful, complete migration import.
  */
 export async function switchToOpsAuthority(): Promise<void> {
-  await opsMetaRepo.setAuthorityMode("ops");
+  await commitOpsAuthority();
 }
 
 /**
@@ -279,12 +285,12 @@ export async function confirmMigration(
   if (!explicitlyConfirmed) {
     throw new Error('Migration import requires explicit user confirmation');
   }
-  await opsMetaRepo.setAuthorityMode("migration");
+  await beginOpsMigration();
   let importResult: MigrationImportResponse["data"];
   try {
     importResult = await requestMigrationImport(client, snapshot);
   } catch (error) {
-    await opsMetaRepo.setAuthorityMode("standalone");
+    await returnToStandalone();
     throw error;
   }
 
@@ -294,7 +300,7 @@ export async function confirmMigration(
     await saveMigrationCheckpoint(snapshot, importResult);
     await switchToOpsAuthority();
   } else {
-    await opsMetaRepo.setAuthorityMode("standalone");
+    await returnToStandalone();
   }
 
   return {
@@ -312,12 +318,12 @@ export async function confirmMigration(
  * Ops Mode without losing data.
  */
 export async function revertToStandalone(): Promise<void> {
-  await opsMetaRepo.setAuthorityMode("standalone");
+  await returnToStandalone();
 }
 
 /**
  * Get the current authority mode from opsMeta.
  */
 export async function getAuthorityMode(): Promise<AuthorityMode> {
-  return opsMetaRepo.getAuthorityMode();
+  return (await getOperatingMode()).authorityMode;
 }

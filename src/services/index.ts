@@ -2,7 +2,7 @@
 
 export { STATUS_ORDER, createStatusChange } from "./status-transitions";
 export { createEventLogEntry } from "./event-log-helper";
-export { tracker } from "./tracker";
+export { tracker, buildJobFromDTO } from "./tracker";
 export { scoreJob, DEFAULT_WEIGHTS } from "./scoring";
 
 export {
@@ -146,7 +146,27 @@ export {
   buildHrTimelineEntryId,
   normalizeHrTimelineEntry,
   persistHrTimelineForJob,
+  isApplicationStatus,
 } from "./hr-timeline-sync";
+
+export {
+  getOperatingMode,
+  reconcileOperatingMode,
+  setOpsModeIntent,
+  beginOpsMigration,
+  commitOpsAuthority,
+  returnToStandalone,
+} from "./operating-mode";
+export type {
+  EffectiveOperatingMode,
+  OperatingModeSnapshot,
+} from "./operating-mode";
+export {
+  getOpsCapabilities,
+  deriveOpsCapabilities,
+  capabilityMessage,
+} from "./ops-capabilities";
+export type { OpsCapabilities, OpsCapability } from "./ops-capabilities";
 
 // AI budget preview and controls
 export {

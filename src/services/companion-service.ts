@@ -19,7 +19,8 @@ import {
   saveClientToken,
   deleteClientToken,
 } from '@/db/companion-auth-bridge';
-import { loadSettings, saveSettings } from '@/db/settings-bridge';
+import { loadSettings } from '@/db/settings-bridge';
+import { setOpsModeIntent } from '@/services/operating-mode';
 
 // ── Singleton client ───────────────────────────────────────────────────────
 
@@ -27,7 +28,7 @@ let _opsClient: OpsClient | null = null;
 
 export const COMPANION_STATUS_CACHE_TTL_MS = 5_000;
 
-type CompanionStatusResult = {
+export type CompanionStatusResult = {
   status: CompanionStatus;
   versionInfo?: CompanionVersionInfo;
   error?: string;
@@ -321,9 +322,7 @@ export async function disconnectCompanion(): Promise<{
  * re-enable Ops Mode later without re-pairing.
  */
 export async function setOpsModeEnabled(enabled: boolean): Promise<void> {
-  const settings = await loadSettings();
-  settings.companion.opsModeEnabled = enabled;
-  await saveSettings(settings);
+  await setOpsModeIntent(enabled);
   invalidateCompanionStatusCache();
 
   // Re-init client with (possibly) updated base URL

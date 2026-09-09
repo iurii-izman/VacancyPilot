@@ -27,7 +27,9 @@ actions outside automated HH controls.
   state.
 - Ops Mode is an explicitly paired loopback FastAPI Companion. SQLite plus
   Alembic is canonical there; Dexie is cache/outbox metadata.
-- The Companion binds to `127.0.0.1:8765`, uses the OS keyring for its secrets,
+- The supported Companion launcher is project-owned and validates loopback
+  binding before start. The default is `127.0.0.1:8765`; `localhost` and `::1`
+  are the only accepted alternatives. It uses the OS keyring for its secrets,
   exposes the generated OpenAPI contract, and performs only official
   read-only HH API reads.
 - Current local private engine metadata reports Application Engine `4.0.1`.
@@ -54,6 +56,18 @@ Binding invariants: no auto-submit, auto-apply, auto-click, HH form writes,
 synthetic HH form events, hidden HH requests, CAPTCHA bypass, cookie/password/
 session handling, external recruiter/follow-up sending, or developer telemetry
 by default. Generated text is never evidence; `SKIP` generates no letter.
+
+The canonical effective-mode service requires both enabled Ops intent and
+committed `ops` authority. Enabled intent before migration remains safe
+Standalone/pending migration; disabling intent takes effect before stale
+authority cleanup. Capability gates additionally require connected, paired,
+compatible Companion status. The canonical HTTP idempotency header is
+`X-VacancyPilot-Idempotency-Key`; blocked outbox entries remain pending.
+
+The final local Applied mutation requires explicit confirmation that the user
+submitted through native HH. Guided Apply preparation is checklist/clipboard
+only, and its final local mutation plus HR/application/timeline Dexie writes
+are unavailable in effective Ops until Fix 2.
 
 ## Surface truth
 

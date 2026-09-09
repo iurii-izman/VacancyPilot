@@ -35,5 +35,5 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "Starting loopback service on http://127.0.0.1:8765 ..."
-uv run --project companion uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8765
+uv run --project companion --directory companion python -m app.server
 exit $LASTEXITCODE

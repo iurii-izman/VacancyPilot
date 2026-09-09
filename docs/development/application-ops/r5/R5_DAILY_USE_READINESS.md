@@ -8,6 +8,8 @@ MODE: `REAL DAILY USE / DOGFOOD`
 ## Start checklist
 
 - Companion healthy and paired.
+- Effective Ops Mode is confirmed after migration; an enabled toggle alone is
+  not authority.
 - Engine V4 valid.
 - OpenAI configured only if analysis or letter generation is needed.
 - HH public API available for the explicitly enabled read-only capability.
@@ -33,6 +35,14 @@ Copying or opening HH is not applying. Generated letter text is not evidence;
 `SKIP` produces no letter. Follow-ups are local and human-controlled, with
 explicit sent confirmation. Interview Pack and backup health are deferred or
 inactive.
+
+In Standalone, the local Confirm Applied action is available only after the
+user has submitted through native HH and confirms that fact. In effective Ops,
+Full V4, hydration, Search Profiles, analytics, Application Factory and Ops
+follow-ups are enabled only when the Companion is connected and paired; stale
+or unavailable transport leaves those controls disabled with an explanation.
+Guided Apply's preparation checklist never marks Applied, and its final local
+mutation is intentionally deferred until Fix 2.
 
 ## Daily-use UI cues
 

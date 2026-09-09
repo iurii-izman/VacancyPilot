@@ -34,16 +34,27 @@ canonical.
 The current presentation pass keeps this route and data architecture intact.
 It consolidates daily-use hierarchy around clear page titles, compact cards,
 core-versus-secondary filters, actionable empty states and explicit preview or
-confirmation actions. These are UI-only refinements; they do not alter the
-database, API, permission or private V4 boundaries.
+confirmation actions. The mode-safety pass adds capability-derived gates at
+the UI and action boundaries without changing the product's read-only HH
+boundary.
 
 ## Companion
 
-Ops Mode is opt-in and paired through a terminal code. The FastAPI service binds
-only to `127.0.0.1:8765` and exposes `/api/v1` routes. The generated snapshot at
+Ops Mode is opt-in and paired through a terminal code. The supported
+project-owned `app.server` entrypoint validates a loopback bind before starting;
+the default is `127.0.0.1:8765` and non-loopback launch values are rejected. The
+FastAPI service exposes `/api/v1` routes. The generated snapshot at
 [`../shared/contracts/openapi.json`](../shared/contracts/openapi.json) is the
 contract. SQLite is canonical in Ops Mode; Dexie is cache/outbox metadata.
-Alembic upgrades are run by `pnpm companion:start` before Uvicorn starts.
+Alembic upgrades are run by `pnpm companion:start` before `app.server` starts.
+
+The effective mode is `ops` only when the persisted Ops intent is enabled and
+the authority metadata is the committed `ops` state. Intent alone leaves the
+extension in Standalone while migration is pending; disabling intent first
+forces Standalone and then normalizes stale authority metadata. UI and
+action-time capability gates require effective Ops plus a connected, paired,
+compatible Companion. The canonical idempotency header is
+`X-VacancyPilot-Idempotency-Key`.
 
 The Companion stores sensitive material through the OS keyring, loads the
 private engine from `.local/private-engine/` into
@@ -59,4 +70,7 @@ cloud backend, hidden HH request, auto-apply, HH form write, CAPTCHA bypass,
 cookie/session handling, recruiter sending, or developer telemetry by default.
 
 The user performs any HH application action outside VacancyPilot and explicitly
-confirms the resulting state. Copy/open is never treated as sent/applied.
+confirms the resulting state. Copy/open, preparation, HR extraction, and a
+generated letter are never treated as sent/applied. Guided Apply's final local
+mutation is Standalone-only until the next migration-safe write phase; Ops
+surfaces remain read-only for that state.

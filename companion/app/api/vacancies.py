@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 from typing import Any, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -32,6 +32,7 @@ from app.domain.vacancy_intake import (
 from app.hh.client import HHApiClient
 from app.hh.errors import HHApiError, HHConfigurationError
 from app.security.auth import ClientTokenDep
+from app.security.middleware import IDEMPOTENCY_HEADER
 
 router = APIRouter(tags=['vacancies'])
 
@@ -298,12 +299,12 @@ def vacancy_intake(
     request: Request,
     body: VacancyIntakeV1,
     client_identity: ClientTokenDep,
+    idempotency_key: str | None = Header(default=None, alias=IDEMPOTENCY_HEADER),
     db: Session | None = Depends(get_db_session_long),  # noqa: B008
 ) -> IntakeResponse:
     """Idempotently capture a normalized vacancy into the companion."""
     del client_identity
     session = _require_db(db)
-    idempotency_key = request.headers.get('X-VacancyPilot-Idempotency-Key')
     if idempotency_key is not None and not idempotency_key.strip():
         raise HTTPException(status_code=400, detail='Idempotency key must not be empty')
     if idempotency_key is not None and len(idempotency_key) > 128:

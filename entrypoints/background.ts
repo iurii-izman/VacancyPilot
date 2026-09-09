@@ -3,14 +3,7 @@ import {
   quickSaveSearchCard,
   quickRejectSearchCard,
 } from "@/services/search-actions";
-import { jobRepo } from "@/db/repositories";
-import { createStatusChange } from "@/services/status-transitions";
-import {
-  checkGuidedApplyGate,
-  recordLabsAction,
-} from "@/services/labs-control";
 import type { RawSearchItemDTO } from "@/adapters/types";
-import { upsertApplicationFromJob } from "@/services/hr-timeline-sync";
 import { recordVacancyVisit } from "@/services/visit-marks";
 import {
   ensureMigrationsBootstrapped,
@@ -19,6 +12,8 @@ import {
 } from "@/db";
 import { loadSettings } from "@/db/settings-bridge";
 import { applyToolbarBehaviorFromSettings } from "@/services/toolbar-behavior";
+import { reconcileOperatingMode } from "@/services/operating-mode";
+import { confirmGuidedApplyMutation } from "@/services/guided-apply-mutation";
 import {
   getSearchHighlightStates,
   resolveSearchHighlightControls,
@@ -51,6 +46,7 @@ async function bootBackground(): Promise<void> {
       `[VacancyPilot] schema version: stored=${storedVersion}, current=${CURRENT_VERSION}`,
     );
     await ensureMigrationsBootstrapped();
+    await reconcileOperatingMode();
     if (storedVersion < CURRENT_VERSION) {
       console.log(
         `[VacancyPilot] migration applied: v${storedVersion} → v${CURRENT_VERSION}`,
@@ -406,33 +402,12 @@ export default defineBackground(() => {
       }
       void (async () => {
         try {
-          const gate = await checkGuidedApplyGate();
-          if (!gate.allowed) {
-            sendResponse({ success: false, error: gate.reason });
-            return;
-          }
-          const job = await jobRepo.getById(jobId);
-          if (!job) {
-            sendResponse({ success: false, error: "Job not found" });
-            return;
-          }
-          const change = createStatusChange(
-            job.status,
-            "applied",
-            "user",
-            "Marked as applied via guided apply",
-          );
-          job.status = "applied";
-          job.statusHistory = [...job.statusHistory, change];
-          job.updatedAt = new Date().toISOString();
-          await jobRepo.save(job);
-          await upsertApplicationFromJob(job, "guided");
-          await recordLabsAction("guided_apply_completed", {
+          const result = await confirmGuidedApplyMutation({
             jobId,
-            vacancyUrl: job.sourceUrl,
-            countsTowardBudget: true,
+            preparationComplete: message.preparationComplete === true,
+            nativeSubmissionConfirmed: message.nativeSubmissionConfirmed,
           });
-          sendResponse({ success: true });
+          sendResponse(result);
         } catch (err: unknown) {
           sendResponse({
             success: false,

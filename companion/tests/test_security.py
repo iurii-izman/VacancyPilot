@@ -128,6 +128,36 @@ class TestCORS:
             'chrome-extension://vacancypilot-dev'
         )
 
+    def test_canonical_idempotency_header_is_allowed(self, client: TestClient) -> None:
+        resp = client.options(
+            '/api/v1/vacancies/intake',
+            headers={
+                'Origin': 'chrome-extension://vacancypilot-dev',
+                'Access-Control-Request-Method': 'POST',
+                'Access-Control-Request-Headers': (
+                    'content-type,x-vacancypilot-client,x-vacancypilot-idempotency-key'
+                ),
+            },
+        )
+        assert resp.status_code == 200
+        assert 'X-VacancyPilot-Idempotency-Key' in resp.headers['access-control-allow-headers']
+        allowed_headers = {
+            header.strip().lower()
+            for header in resp.headers['access-control-allow-headers'].split(',')
+        }
+        assert 'idempotency-key' not in allowed_headers
+
+    def test_unrelated_preflight_header_is_rejected(self, client: TestClient) -> None:
+        resp = client.options(
+            '/api/v1/vacancies/intake',
+            headers={
+                'Origin': 'chrome-extension://vacancypilot-dev',
+                'Access-Control-Request-Method': 'POST',
+                'Access-Control-Request-Headers': 'content-type,x-not-allowed',
+            },
+        )
+        assert resp.status_code == 400
+
     def test_wildcard_configuration_is_rejected(self, monkeypatch: pytest.MonkeyPatch) -> None:
         from app.security.middleware import get_configured_origins
 
