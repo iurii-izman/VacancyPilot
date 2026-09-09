@@ -24,10 +24,10 @@ class Settings(BaseSettings):
     port: int = 8765
 
     # Database
-    db_path: str = ''  # empty => default under companion/data/
+    db_path: str = ''  # empty => default under .local/data/companion/
 
     # Engine
-    engine_package_root: str = ''  # empty => default companion/data/engine/
+    engine_package_root: str = ''  # empty => default under .local/data/companion/
 
     # HH OAuth application registration. The client secret is never loaded
     # from configuration; it belongs in the OS keyring.
@@ -50,5 +50,16 @@ def resolve_engine_package_root() -> Path:
     configured = settings.engine_package_root.strip()
     if configured:
         return Path(configured).expanduser().resolve(strict=False)
-    companion_root = Path(__file__).resolve().parents[1]
-    return companion_root / 'data' / 'engine'
+    return resolve_local_companion_root() / 'engine'
+
+
+def resolve_local_companion_root() -> Path:
+    """Return the canonical ignored local runtime root for Companion."""
+    repository_root = Path(__file__).resolve().parents[2]
+    return repository_root / '.local' / 'data' / 'companion'
+
+
+def resolve_private_engine_source() -> Path:
+    """Return the canonical ignored private V4 package source directory."""
+    repository_root = Path(__file__).resolve().parents[2]
+    return repository_root / '.local' / 'private-engine'

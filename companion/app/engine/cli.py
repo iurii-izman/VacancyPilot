@@ -11,13 +11,15 @@ import argparse
 import os
 import sys
 
-from app.config import resolve_engine_package_root
+from app.config import resolve_engine_package_root, resolve_private_engine_source
 from app.engine.installer import InstallResult, install_package, verify_package
 
 
 def _install_cmd(args: argparse.Namespace) -> int:
     """Copy a package from the supplied source path into the engine data store."""
     source = args.source or os.environ.get('VACANCYPILOT_V4_PACKAGE_SOURCE', '')
+    if not source:
+        source = str(resolve_private_engine_source())
     if not source:
         print(
             'ERROR: No source path supplied. Pass --source or set VACANCYPILOT_V4_PACKAGE_SOURCE.',
@@ -83,12 +85,12 @@ def main() -> int:
     )
     install_parser.add_argument(
         '--source',
-        help='Path to the source engine package directory. '
-        'Defaults to VACANCYPILOT_V4_PACKAGE_SOURCE env var.',
+        help='Path to the source engine package directory. Defaults to the '
+        'canonical .local/private-engine path, or VACANCYPILOT_V4_PACKAGE_SOURCE.',
     )
     install_parser.add_argument(
         '--target',
-        help='Target engine data root directory (default: data/engine)',
+        help='Target engine data root directory (default: .local/data/companion/engine)',
     )
     install_parser.add_argument(
         '--force',
@@ -105,7 +107,7 @@ def main() -> int:
     )
     verify_parser.add_argument(
         '--target',
-        help='Target engine data root directory (default: data/engine)',
+        help='Target engine data root directory (default: .local/data/companion/engine)',
     )
     verify_parser.set_defaults(func=_verify_cmd)
 

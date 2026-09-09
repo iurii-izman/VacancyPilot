@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$DbPath = (Join-Path $PSScriptRoot '..\work\companion\vacancypilot.db')
+    [string]$DbPath = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -10,6 +10,10 @@ $ErrorActionPreference = 'Stop'
 # ``app.main`` (the source of the historical wrong-database failure).
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 Set-Location -LiteralPath $repoRoot
+
+if ([string]::IsNullOrWhiteSpace($DbPath)) {
+    $DbPath = Join-Path $repoRoot '.local\data\companion\vacancypilot.db'
+}
 
 if ([System.IO.Path]::IsPathRooted($DbPath)) {
     $resolvedDbPath = [System.IO.Path]::GetFullPath($DbPath)

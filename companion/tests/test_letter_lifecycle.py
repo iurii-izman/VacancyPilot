@@ -123,7 +123,8 @@ def test_bridge_request_is_stable_and_has_no_secret_or_private_path(
     assert first.json()['data'] == second.json()['data']
     request_text = first.json()['data']['request_text'].lower()
     assert 'api key' not in request_text
-    assert 'workoutreachhh' not in request_text
+    assert 'c:\\dev\\' not in request_text
+    assert '.local\\' not in request_text
 
 
 def test_malformed_bridge_import_is_rejected_without_persistence(
