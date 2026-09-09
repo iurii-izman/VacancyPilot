@@ -17,9 +17,6 @@ let mockSettings: AppSettings = {
     showPageBadge: true,
     trackVisitMarks: true,
     rejectedSearchCardBehavior: "dim",
-    language: "en",
-    theme: "system",
-    autosaveViewedJobs: false,
     toolbarClickBehavior: "popup",
     closePopupAfterOpeningSidePanel: true,
   },
@@ -27,18 +24,14 @@ let mockSettings: AppSettings = {
     provider: undefined,
     dailyRequestLimit: 10,
     maxInputChars: 4000,
-    enableStreaming: false,
     enableCache: true,
   },
   privacy: {
     aiEnabled: false,
-    n8nEnabled: false,
     strictPrivacyMode: false,
-    showPayloadPreviewAlways: false,
     allowResumeHighlightsToAI: false,
     allowFullDescriptionToAI: false,
     redactContacts: true,
-    debugHtmlMode: false,
   },
   n8n: {
     enabled: false,
@@ -55,10 +48,6 @@ let mockSettings: AppSettings = {
   companion: {
     opsModeEnabled: false,
     baseUrl: "http://127.0.0.1:8765/api/v1",
-    lastServiceVersion: null,
-    lastApiVersion: null,
-    lastApiCompatible: false,
-    lastConnectedAt: null,
   },
 };
 
@@ -74,9 +63,6 @@ function resetMocks() {
       showPageBadge: true,
       trackVisitMarks: true,
       rejectedSearchCardBehavior: "dim",
-      language: "en",
-      theme: "system",
-      autosaveViewedJobs: false,
       toolbarClickBehavior: "popup",
       closePopupAfterOpeningSidePanel: true,
     },
@@ -84,18 +70,14 @@ function resetMocks() {
       provider: undefined,
       dailyRequestLimit: 10,
       maxInputChars: 4000,
-      enableStreaming: false,
       enableCache: true,
     },
     privacy: {
       aiEnabled: false,
-      n8nEnabled: false,
       strictPrivacyMode: false,
-      showPayloadPreviewAlways: false,
       allowResumeHighlightsToAI: false,
       allowFullDescriptionToAI: false,
       redactContacts: true,
-      debugHtmlMode: false,
     },
     n8n: {
       enabled: false,
@@ -112,10 +94,6 @@ function resetMocks() {
     companion: {
       opsModeEnabled: false,
       baseUrl: "http://127.0.0.1:8765/api/v1",
-      lastServiceVersion: null,
-      lastApiVersion: null,
-      lastApiCompatible: false,
-      lastConnectedAt: null,
     },
   };
 }

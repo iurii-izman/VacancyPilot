@@ -98,7 +98,7 @@ function ActionCard({ label, value, description, onClick }: {
   </button>;
 }
 
-export function CommandCenter({ onNavigate }: { onNavigate?: (section: "inbox" | "pipeline") => void }): ReactNode {
+export function TodayWorkspace({ onNavigate }: { onNavigate?: (section: "inbox" | "pipeline") => void }): ReactNode {
   const { jobs, loading, error } = useJobs();
   const [companion, setCompanion] = useState("Checking…");
   const [followupCount, setFollowupCount] = useState<number | null>(null);

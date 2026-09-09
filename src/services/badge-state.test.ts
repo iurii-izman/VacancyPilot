@@ -113,7 +113,7 @@ describe("removeAllBadgeStates", () => {
     // Seed: badge keys + a non-badge key
     await persistBadgeState("1", { status: "saved" });
     await persistBadgeState("2", { status: "viewed" });
-    mockStorage.set("app_settings_v1", { theme: "dark" });
+    mockStorage.set("app_settings_v1", { general: {} });
 
     expect(mockStorage.has("badge_v1_hh_1")).toBe(true);
     expect(mockStorage.has("badge_v1_hh_2")).toBe(true);
@@ -128,7 +128,7 @@ describe("removeAllBadgeStates", () => {
   });
 
   it("does nothing when no badge keys exist", async () => {
-    mockStorage.set("app_settings_v1", { theme: "light" });
+    mockStorage.set("app_settings_v1", { general: {} });
 
     await removeAllBadgeStates();
 

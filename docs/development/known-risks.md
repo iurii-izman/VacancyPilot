@@ -92,11 +92,11 @@ accepted before public release; this is not a feature queue.
 
 **Risk**: n8n webhook client (ITER-014) is deferred from current Phase 1 completion path. The spec references n8n as Phase 1 scope, but the permission model remains an open decision (spec 26.5).
 
-**Mitigation**: n8n toggle exists in Labs settings, off by default. UI fields for webhook URL and HMAC secret are placeholders. Event logging (EventLog table) exists for future integration.
+**Mitigation**: Active n8n UI and delivery plumbing were removed from the current build. Persisted event/export fields and redaction remain for compatibility, while EventLog data remains available for a future reviewed integration.
 
 **Residual**: n8n feature is unavailable. No external event delivery.
 
-**Decision (PHASE-1-SIGNOFF)**: Deferred. n8n is opt-in Labs, not Core. Will be re-evaluated after live browser rerun confirms core runtime stability.
+**Decision (PHASE-1-SIGNOFF)**: Deferred. n8n is not an active Core or Labs feature. It will be re-evaluated only after a new permission-model decision and security review.
 
 **Action**: Revisit n8n in a future iteration. Update roadmap and acceptance criteria accordingly.
 

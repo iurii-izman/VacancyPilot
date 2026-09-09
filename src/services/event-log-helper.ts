@@ -4,7 +4,8 @@ import type { EventLog, EventLogType } from '@/models/event-log';
  * Create a local EventLog entry.
  *
  * Payload preview is minimal — full event data belongs to other tables.
- * n8n fields default to false/undefined until the n8n module is integrated.
+ * Deferred outbound-event fields default to false/undefined until a reviewed
+ * integration is reintroduced.
  */
 export function createEventLogEntry(
   type: EventLogType,

@@ -1,5 +1,5 @@
 /**
- * Redaction helpers — strip sensitive data before AI / n8n transmission.
+ * Redaction helpers — strip sensitive data before external transmission.
  *
  * Section 20.3: remove emails, phones, unnecessary URLs, tokens, hidden metadata.
  * These are pure functions: no side effects, no I/O, no dependencies.

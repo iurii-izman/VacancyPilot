@@ -58,12 +58,12 @@ function setupMocks() {
 const defaultSettings = {
   schemaVersion: 1,
   onboardingCompleted: false,
-  general: { language: 'ru', theme: 'system', showPageBadge: true, searchHighlightsEnabled: true, searchHighlightsShowViewed: true, searchHighlightsShowSavedRejected: true, searchHighlightsShowScore: true, searchHighlightsShowViewCount: true, trackVisitMarks: true, rejectedSearchCardBehavior: 'dim', autosaveViewedJobs: true, toolbarClickBehavior: 'popup', closePopupAfterOpeningSidePanel: true },
-  privacy: { aiEnabled: false, n8nEnabled: false, strictPrivacyMode: true, showPayloadPreviewAlways: true, allowResumeHighlightsToAI: false, allowFullDescriptionToAI: false, redactContacts: true, debugHtmlMode: false },
-  ai: { dailyRequestLimit: 10, maxInputChars: 3000, enableStreaming: false, enableCache: true },
+  general: { showPageBadge: true, searchHighlightsEnabled: true, searchHighlightsShowViewed: true, searchHighlightsShowSavedRejected: true, searchHighlightsShowScore: true, searchHighlightsShowViewCount: true, trackVisitMarks: true, rejectedSearchCardBehavior: 'dim', toolbarClickBehavior: 'popup', closePopupAfterOpeningSidePanel: true },
+  privacy: { aiEnabled: false, strictPrivacyMode: true, allowResumeHighlightsToAI: false, allowFullDescriptionToAI: false, redactContacts: true },
+  ai: { dailyRequestLimit: 10, maxInputChars: 3000, enableCache: true },
   n8n: { enabled: false, hmacSecretSet: false, enabledEvents: [], dailyEventLimit: 10 },
   labs: { enabled: false, guidedApplyEnabled: false, killSwitchEnabled: false, dailyActionLimit: 5 },
-  companion: { opsModeEnabled: false, baseUrl: 'http://127.0.0.1:8765/api/v1', lastServiceVersion: null, lastApiVersion: null, lastApiCompatible: false, lastConnectedAt: null },
+  companion: { opsModeEnabled: false, baseUrl: 'http://127.0.0.1:8765/api/v1' },
 };
 
 function seedSettings(overrides: Record<string, unknown> = {}) {

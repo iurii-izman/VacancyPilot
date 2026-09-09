@@ -373,8 +373,8 @@ export function PermissionsSection(): ReactNode {
           <li>No install-time host permissions such as `https://hh.ru/*`.</li>
           <li>No optional permissions such as `clipboardWrite` or `alarms`.</li>
           <li>
-            No install-time API host permissions for OpenAI, DeepSeek,
-            OpenRouter, or n8n.
+            No install-time API host permissions for OpenAI or deferred
+            integrations.
           </li>
         </ul>
         <p
@@ -384,9 +384,8 @@ export function PermissionsSection(): ReactNode {
             margin: "8px 0 0",
           }}
         >
-          AI and n8n remain opt-in. Today only OpenAI is wired through an
-          optional runtime host request. Other providers stay out of scope until
-          implemented.
+          AI remains opt-in. Today only OpenAI is wired through an optional
+          runtime host request; deferred integrations stay inactive.
         </p>
       </div>
 

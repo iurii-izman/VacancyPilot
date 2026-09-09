@@ -13,7 +13,7 @@ import { PermissionsSection } from "@/components/PermissionsSection";
 import { PrivacyDisclosureSection } from "@/components/PrivacyDisclosureSection";
 import { CompanionSettings } from "@/components/CompanionSettings";
 import { HHIntegrationSection } from "@/components/HHIntegrationSection";
-import { CommandCenter, ApplicationWorkspace } from "@/components/ApplicationOpsWorkspace";
+import { TodayWorkspace, ApplicationWorkspace } from "@/components/ApplicationOpsWorkspace";
 import { PerformanceSection } from "@/components/PerformanceSection";
 import { detectCompanionStatus } from "@/services/companion-service";
 import { useState, useCallback, useEffect, type ReactNode } from "react";
@@ -43,11 +43,6 @@ import {
   getDataCounts,
 } from "@/services/delete-all";
 import { getActionLog, getRemainingDailyBudget } from "@/services/labs-control";
-import { getReminders, getDailySummary } from "@/services/reminders";
-import type {
-  ReminderItem,
-  DailySummary as DailySummaryType,
-} from "@/services/reminders";
 import { loadSettings, saveSettings } from "@/db/settings-bridge";
 import { db, ensureMigrationsBootstrapped } from "@/db";
 import type { JobStatus } from "@/models/job";
@@ -493,7 +488,7 @@ export function SectionContent({
 }): ReactNode {
   switch (section) {
     case "today":
-      return <CommandCenter onNavigate={(target) => onNavigate?.({ section: target })} />;
+      return <TodayWorkspace onNavigate={(target) => onNavigate?.({ section: target })} />;
     case "discovery":
       return <DiscoveryWorkspace />;
     case "inbox":
@@ -1297,253 +1292,6 @@ const dangerPrimaryButtonStyle = {
   color: "#fff",
   fontWeight: 700,
 } as const;
-
-// ── Legacy daily summary helper ──
-
-// Kept as a non-visible compatibility helper; the visible Summary route now
-// resolves to Pipeline → Performance.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function SummarySection(): ReactNode {
-  const [summary, setSummary] = useState<DailySummaryType | null>(null);
-  const [reminders, setReminders] = useState<ReminderItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    try {
-      const jobs = await db.jobs.toArray();
-      setSummary(getDailySummary(jobs));
-      setReminders(getReminders(jobs));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load summary");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  useEffect(() => {
-    const handleStorageChange = (
-      changes: Record<string, chrome.storage.StorageChange>,
-      areaName: string,
-    ) => {
-      if (areaName !== "local") return;
-      const relevantChange = Object.keys(changes).some(
-        (key) => key.startsWith("badge_v1_hh_") || key === "app_settings_v1",
-      );
-      if (relevantChange) void load();
-    };
-    chrome.storage.onChanged.addListener(handleStorageChange);
-    return () => {
-      chrome.storage.onChanged.removeListener(handleStorageChange);
-    };
-  }, [load]);
-
-  if (loading) return <LoadingState />;
-  if (error)
-    return (
-      <ErrorState
-        message="Failed to load summary"
-        details={error}
-        onRetry={() => {
-          setError(null);
-          setLoading(true);
-          void load();
-        }}
-      />
-    );
-
-  if (!summary || summary.totalTracked === 0)
-    return (
-      <EmptyState
-        icon="📊"
-        message="No data yet"
-        description="Start saving vacancies to see your daily summary here."
-      />
-    );
-
-  const statBox = (label: string, value: number, color: string) => (
-    <div
-      style={{
-        flex: 1,
-        minWidth: 100,
-        padding: "12px",
-        background: "#fafafa",
-        border: `1px solid ${color}30`,
-        borderRadius: 6,
-        textAlign: "center",
-      }}
-    >
-      <div style={{ fontSize: 22, fontWeight: 700, color }}>{value}</div>
-      <div style={{ fontSize: 11, color: "#999", marginTop: 2 }}>{label}</div>
-    </div>
-  );
-
-  return (
-    <div>
-      <h2
-        style={{
-          fontSize: 16,
-          fontWeight: 700,
-          margin: "0 0 4px",
-          color: "#1a3a5c",
-        }}
-      >
-        Daily Summary
-      </h2>
-      <p style={{ fontSize: 11, color: "#999", margin: "0 0 16px" }}>
-        Generated {summary.generatedAt.slice(0, 16).replace("T", " ")}
-      </p>
-
-      {/* Stats row */}
-      <div
-        style={{
-          display: "flex",
-          gap: 8,
-          flexWrap: "wrap",
-          marginBottom: 20,
-        }}
-      >
-        {statBox("Tracked", summary.totalTracked, "#4a90d9")}
-        {statBox("Active", summary.activeCount, "#e6a817")}
-        {statBox("New this week", summary.newThisWeek, "#2a8")}
-        {statBox("Applied this week", summary.appliedThisWeek, "#2a8")}
-        {statBox("Needs follow-up", summary.needsFollowUp, "#c44")}
-      </div>
-
-      {/* Reminders */}
-      {reminders.length > 0 && (
-        <div style={{ marginBottom: 20 }}>
-          <h3
-            style={{
-              fontSize: 14,
-              fontWeight: 700,
-              margin: "0 0 8px",
-              color: "#1a3a5c",
-            }}
-          >
-            🔔 Follow-up Reminders ({reminders.length})
-          </h3>
-          {reminders.map((r) => (
-            <div
-              key={r.jobId}
-              style={{
-                padding: "8px 10px",
-                background: "#fff",
-                border: "1px solid #f0e0e0",
-                borderLeft: "3px solid #c44",
-                borderRadius: 4,
-                marginBottom: 6,
-                fontSize: 12,
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
-                <a
-                  href={r.sourceUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    fontWeight: 600,
-                    color: "#4a90d9",
-                    textDecoration: "none",
-                  }}
-                >
-                  {r.title}
-                </a>
-                <span
-                  style={{
-                    fontSize: 10,
-                    color: "#999",
-                  }}
-                >
-                  {r.daysSince}d ago
-                </span>
-              </div>
-              <div style={{ color: "#666", marginTop: 2 }}>{r.companyName}</div>
-              <div style={{ color: "#c44", fontSize: 10, marginTop: 2 }}>
-                ⚠ {r.label}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {reminders.length === 0 && (
-        <div
-          style={{
-            padding: "12px",
-            background: "#e6f7e6",
-            border: "1px solid #2a8",
-            borderRadius: 6,
-            fontSize: 12,
-            color: "#2a8",
-            marginBottom: 20,
-          }}
-        >
-          ✅ All caught up! No follow-ups needed right now.
-        </div>
-      )}
-
-      {/* Recent Activity */}
-      {summary.recentActivity.length > 0 && (
-        <div>
-          <h3
-            style={{
-              fontSize: 14,
-              fontWeight: 700,
-              margin: "0 0 8px",
-              color: "#1a3a5c",
-            }}
-          >
-            📜 Recent Activity
-          </h3>
-          {summary.recentActivity.map((evt, i) => (
-            <div
-              key={`${evt.jobId}-${evt.changedAt}-${i}`}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "4px 0",
-                borderBottom: "1px solid #f5f5f5",
-                fontSize: 11,
-              }}
-            >
-              <span
-                style={{
-                  display: "inline-block",
-                  padding: "1px 5px",
-                  borderRadius: 3,
-                  fontSize: 10,
-                  fontWeight: 600,
-                  background: "#e6f0ff",
-                  color: "#4a90d9",
-                }}
-              >
-                {evt.status.replace(/_/g, " ")}
-              </span>
-              <span style={{ color: "#333", flex: 1 }}>
-                {evt.title} · {evt.companyName}
-              </span>
-              <span style={{ color: "#999" }}>
-                {evt.daysAgo === 0 ? "today" : `${evt.daysAgo}d ago`}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 // ── Labs Section ──
 

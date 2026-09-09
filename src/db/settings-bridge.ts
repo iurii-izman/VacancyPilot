@@ -20,8 +20,6 @@ export function defaultSettings(): AppSettings {
     onboardingCompleted: false,
 
     general: {
-      language: "ru",
-      theme: "system",
       showPageBadge: true,
       searchHighlightsEnabled: true,
       searchHighlightsShowViewed: true,
@@ -30,26 +28,21 @@ export function defaultSettings(): AppSettings {
       searchHighlightsShowViewCount: true,
       trackVisitMarks: true,
       rejectedSearchCardBehavior: "dim",
-      autosaveViewedJobs: true,
       toolbarClickBehavior: "popup",
       closePopupAfterOpeningSidePanel: true,
     },
 
     privacy: {
       aiEnabled: false,
-      n8nEnabled: false,
       strictPrivacyMode: true,
-      showPayloadPreviewAlways: true,
       allowResumeHighlightsToAI: false,
       allowFullDescriptionToAI: false,
       redactContacts: true,
-      debugHtmlMode: false,
     },
 
     ai: {
       dailyRequestLimit: 10,
       maxInputChars: 3000,
-      enableStreaming: false,
       enableCache: true,
     },
 
@@ -70,33 +63,51 @@ export function defaultSettings(): AppSettings {
     companion: {
       opsModeEnabled: false,
       baseUrl: "http://127.0.0.1:8765/api/v1",
-      lastServiceVersion: null,
-      lastApiVersion: null,
-      lastApiCompatible: false,
-      lastConnectedAt: null,
     },
   };
 }
 
 function normalizeSettings(
-  stored: Partial<AppSettings> | undefined,
+  stored: (Partial<AppSettings> & Record<string, unknown>) | undefined,
 ): AppSettings {
   const defaults = defaultSettings();
+  const storedGeneral = (stored?.general ?? {}) as Record<string, unknown>;
+  const storedPrivacy = (stored?.privacy ?? {}) as Record<string, unknown>;
+  const storedAi = (stored?.ai ?? {}) as Record<string, unknown>;
+  const storedCompanion = (stored?.companion ?? {}) as Record<string, unknown>;
 
   return {
-    ...defaults,
-    ...stored,
+    schemaVersion: defaults.schemaVersion,
+    onboardingCompleted: stored?.onboardingCompleted === true,
     general: {
       ...defaults.general,
-      ...stored?.general,
+      defaultProfileId: typeof storedGeneral.defaultProfileId === "string" ? storedGeneral.defaultProfileId : undefined,
+      showPageBadge: storedGeneral.showPageBadge !== false,
+      searchHighlightsEnabled: storedGeneral.searchHighlightsEnabled !== false,
+      searchHighlightsShowViewed: storedGeneral.searchHighlightsShowViewed !== false,
+      searchHighlightsShowSavedRejected: storedGeneral.searchHighlightsShowSavedRejected !== false,
+      searchHighlightsShowScore: storedGeneral.searchHighlightsShowScore !== false,
+      searchHighlightsShowViewCount: storedGeneral.searchHighlightsShowViewCount !== false,
+      trackVisitMarks: storedGeneral.trackVisitMarks !== false,
+      rejectedSearchCardBehavior: storedGeneral.rejectedSearchCardBehavior === "hide" || storedGeneral.rejectedSearchCardBehavior === "none" ? storedGeneral.rejectedSearchCardBehavior : defaults.general.rejectedSearchCardBehavior,
+      toolbarClickBehavior: storedGeneral.toolbarClickBehavior === "sidePanel" ? "sidePanel" : defaults.general.toolbarClickBehavior,
+      closePopupAfterOpeningSidePanel: storedGeneral.closePopupAfterOpeningSidePanel !== false,
     },
     privacy: {
       ...defaults.privacy,
-      ...stored?.privacy,
+      aiEnabled: storedPrivacy.aiEnabled === true,
+      strictPrivacyMode: storedPrivacy.strictPrivacyMode !== false,
+      allowResumeHighlightsToAI: storedPrivacy.allowResumeHighlightsToAI === true,
+      allowFullDescriptionToAI: storedPrivacy.allowFullDescriptionToAI === true,
+      redactContacts: storedPrivacy.redactContacts !== false,
     },
     ai: {
       ...defaults.ai,
-      ...stored?.ai,
+      provider: storedAi.provider === "openai" || storedAi.provider === "deepseek" || storedAi.provider === "openrouter" || storedAi.provider === "mock" ? storedAi.provider : undefined,
+      model: typeof storedAi.model === "string" ? storedAi.model : undefined,
+      dailyRequestLimit: typeof storedAi.dailyRequestLimit === "number" ? storedAi.dailyRequestLimit : defaults.ai.dailyRequestLimit,
+      maxInputChars: typeof storedAi.maxInputChars === "number" ? storedAi.maxInputChars : defaults.ai.maxInputChars,
+      enableCache: storedAi.enableCache !== false,
     },
     n8n: {
       ...defaults.n8n,
@@ -108,7 +119,7 @@ function normalizeSettings(
     },
     companion: {
       ...defaults.companion,
-      ...stored?.companion,
+      opsModeEnabled: storedCompanion.opsModeEnabled === true,
       baseUrl: defaults.companion.baseUrl,
     },
   };
@@ -120,7 +131,7 @@ function normalizeSettings(
  */
 export async function loadSettings(): Promise<AppSettings> {
   const result = await chrome.storage.local.get(SETTINGS_KEY);
-  const stored = result[SETTINGS_KEY] as Partial<AppSettings> | undefined;
+  const stored = result[SETTINGS_KEY] as (Partial<AppSettings> & Record<string, unknown>) | undefined;
   return normalizeSettings(stored);
 }
 

@@ -11,30 +11,23 @@ const mockSettings: AppSettings = {
   onboardingCompleted: false,
   general: {
     defaultProfileId: undefined,
-    language: "ru" as const,
-    theme: "system" as const,
     showPageBadge: true,
     trackVisitMarks: true,
     rejectedSearchCardBehavior: "dim",
-    autosaveViewedJobs: true,
     toolbarClickBehavior: "popup" as const,
     closePopupAfterOpeningSidePanel: true,
   },
   privacy: {
     aiEnabled: false,
-    n8nEnabled: false,
     strictPrivacyMode: true,
-    showPayloadPreviewAlways: true,
     allowResumeHighlightsToAI: false,
     allowFullDescriptionToAI: false,
     redactContacts: true,
-    debugHtmlMode: false,
   },
   ai: {
     provider: undefined,
     dailyRequestLimit: 10,
     maxInputChars: 3000,
-    enableStreaming: false,
     enableCache: true,
   },
   n8n: {
@@ -52,10 +45,6 @@ const mockSettings: AppSettings = {
   companion: {
     opsModeEnabled: false,
     baseUrl: "http://127.0.0.1:8765/api/v1",
-    lastServiceVersion: null,
-    lastApiVersion: null,
-    lastApiCompatible: false,
-    lastConnectedAt: null,
   },
 };
 

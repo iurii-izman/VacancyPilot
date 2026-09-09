@@ -348,7 +348,7 @@ describe("exportAllJson", () => {
 
     expect(envelope.settings).toBeDefined();
     expect(envelope.settings.schemaVersion).toBe(1);
-    expect(envelope.settings.general.language).toBe("ru");
+    expect((envelope.settings.general as Record<string, unknown>).language).toBeUndefined();
   });
 
   it("redacts n8n webhook URL in settings export", async () => {

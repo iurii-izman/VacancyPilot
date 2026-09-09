@@ -77,29 +77,22 @@ vi.mock("@/db/settings-bridge", () => ({
   loadSettings: async () => ({
     schemaVersion: 1,
     general: {
-      language: "ru",
-      theme: "system",
       showPageBadge: true,
       trackVisitMarks: true,
       rejectedSearchCardBehavior: "dim",
-      autosaveViewedJobs: true,
       toolbarClickBehavior: "popup",
       closePopupAfterOpeningSidePanel: true,
     },
     privacy: {
       aiEnabled: false,
-      n8nEnabled: false,
       strictPrivacyMode: true,
-      showPayloadPreviewAlways: true,
       allowResumeHighlightsToAI: false,
       allowFullDescriptionToAI: false,
       redactContacts: true,
-      debugHtmlMode: false,
     },
     ai: {
       dailyRequestLimit: 10,
       maxInputChars: 3000,
-      enableStreaming: false,
       enableCache: true,
     },
     n8n: {

@@ -1,8 +1,8 @@
 # Current State
 
-Reviewed checkout: branch `hotfix/hh-vacancy-hydration-v4-card`, commit
-`2595c145bc73f52a215b9632fae3daa14cbce2bf` before this Pass 1 UI structure
-change.
+Reviewed checkout: branch `hotfix/hh-vacancy-hydration-v4-card`, Pass 1 baseline
+`f47fa11ddff67d2bf081b8df1939e1d4cef6f6b0` before this Pass 2 dead-tail
+cleanup.
 The worktree was clean at audit preflight. This document is the current
 runtime/status snapshot; dated acceptance reports are historical evidence.
 
@@ -66,10 +66,12 @@ contains General, Companion & HH, AI, Privacy & Data, Permissions, About and
 Advanced. Onboarding is hidden from normal navigation and is available on
 first run or by manual rerun from Settings.
 
-Settings are normalized and persisted under `app_settings_v1`; API keys and the
-Companion token use separate local storage slots. The current Dexie schema is
-v6, with Dexie migrations in `src/db/migrations.ts`; Companion schema changes
-are Alembic migrations with one current head.
+Settings are normalized and persisted under `app_settings_v1`; stale removed
+UI-only keys are stripped on load, while API keys and the Companion token use
+separate local storage slots. Deferred n8n/event/export fields remain only for
+compatibility and redaction. The current Dexie schema is v6, with Dexie
+migrations in `src/db/migrations.ts`; Companion schema changes are Alembic
+migrations with one current head.
 
 ## Deferred / incomplete
 

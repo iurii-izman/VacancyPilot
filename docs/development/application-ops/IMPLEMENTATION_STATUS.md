@@ -7,7 +7,7 @@ dated acceptance reports.
 ## Current baseline
 
 - Branch: `hotfix/hh-vacancy-hydration-v4-card`
-- Code baseline at audit preflight: `e6c27c8`
+- Pass 1 code baseline before the Pass 2 cleanup: `f47fa11`
 - Product mode: **FEATURE DEVELOPMENT: FROZEN / REAL DAILY USE / DOGFOOD**
 - Private engine: local metadata reports `4.0.1`; public fixtures intentionally
   include a synthetic `4.0.0` package for compatibility/regression coverage.
@@ -23,7 +23,7 @@ dated acceptance reports.
 | Standalone storage | `src/db/schema.ts`, `src/db/database.ts`, `src/db/migrations.ts` | Dexie schema v6 is canonical |
 | Ops storage | `companion/app/db/`, `companion/alembic/` | SQLite is canonical; Alembic has one current head |
 | API contract | `shared/contracts/openapi.json`, FastAPI routers | Generated OpenAPI is canonical; old planning contract was retired |
-| Settings | `src/models/settings.ts`, `src/db/settings-bridge.ts` | normalized `app_settings_v1`; API keys and Companion token are separate slots |
+| Settings | `src/models/settings.ts`, `src/db/settings-bridge.ts` | normalized `app_settings_v1`; obsolete UI-only keys are stripped; API keys and Companion token are separate slots |
 | Engine boundary | `companion/app/engine/`, local `.local/private-engine/` | real V4 stays local/private; no candidate knowledge is tracked |
 | Application Factory | `src/components/ApplicationOpsWorkspace.tsx`, route/tests | Preview is provider-free; execute is explicit; queue never creates `APPLIED` |
 | HH boundary | content scripts, Companion HH routes, release-safety tests | read-only DOM/API access; no HH form writes or hidden page requests |
@@ -80,3 +80,8 @@ pnpm verify:all
 
 `verify:aops-workflow` was retired with the obsolete executor pack. It is not a
 runtime or CI contract.
+
+Pass 2 cleanup keeps persisted n8n/event/export fields only as compatibility
+data, with no active n8n UI or delivery runtime. The obsolete daily Summary
+renderer and reminder service were removed; Today and Pipeline/Performance are
+the canonical current surfaces.

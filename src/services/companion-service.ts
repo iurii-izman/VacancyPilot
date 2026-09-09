@@ -220,11 +220,6 @@ export async function confirmPairing(
     client.setClientToken(token);
     invalidateCompanionStatusCache();
 
-    // Update settings
-    const settings = await loadSettings();
-    settings.companion.lastConnectedAt = new Date().toISOString();
-    await saveSettings(settings);
-
     return { success: true };
   } catch (err) {
     return {
@@ -269,9 +264,6 @@ export async function confirmPairingRecovery(
     client.setClientToken(response.data.client_token);
     invalidateCompanionStatusCache();
 
-    const settings = await loadSettings();
-    settings.companion.lastConnectedAt = new Date().toISOString();
-    await saveSettings(settings);
     return { success: true };
   } catch (err) {
     return {

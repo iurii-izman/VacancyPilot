@@ -149,7 +149,6 @@ export function AISettingsSection(): ReactNode {
   const [model, setModel] = useState("");
   const [dailyLimit, setDailyLimit] = useState(10);
   const [maxInputChars, setMaxInputChars] = useState(3000);
-  const [streaming, setStreaming] = useState(false);
   const [cache, setCache] = useState(true);
 
   // API key state
@@ -184,7 +183,6 @@ export function AISettingsSection(): ReactNode {
       setModel(settings.ai.model ?? "");
       setDailyLimit(settings.ai.dailyRequestLimit);
       setMaxInputChars(settings.ai.maxInputChars);
-      setStreaming(settings.ai.enableStreaming);
       setCache(settings.ai.enableCache);
 
       // Load stored API key for current provider
@@ -326,18 +324,6 @@ export function AISettingsSection(): ReactNode {
     },
     [],
   );
-
-  const handleToggleStreaming = useCallback(async () => {
-    setSaving(true);
-    try {
-      const settings = await loadSettings();
-      settings.ai.enableStreaming = !settings.ai.enableStreaming;
-      await saveSettings(settings);
-      setStreaming(settings.ai.enableStreaming);
-    } finally {
-      setSaving(false);
-    }
-  }, []);
 
   const handleToggleCache = useCallback(async () => {
     setSaving(true);
@@ -693,42 +679,6 @@ export function AISettingsSection(): ReactNode {
           style={{ ...inputStyle, width: 72 }}
           aria-label="Max input characters"
         />
-      </div>
-
-      {/* ── Streaming toggle ──────────────────────────────────────────── */}
-      <div style={rowStyle}>
-        <div>
-          <div style={labelStyle}>Enable streaming</div>
-          <div style={hintStyle}>
-            Stream AI responses token by token for faster feedback
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={handleToggleStreaming}
-          disabled={saving}
-          style={{
-            ...toggleBase,
-            background: streaming ? "#4a90d9" : "#ccc",
-            opacity: saving ? 0.6 : 1,
-            cursor: saving ? "not-allowed" : "pointer",
-          }}
-          aria-label={streaming ? "Disable streaming" : "Enable streaming"}
-        >
-          <span
-            style={{
-              width: 18,
-              height: 18,
-              borderRadius: "50%",
-              background: "#fff",
-              position: "absolute",
-              top: 2,
-              left: knobLeft(streaming),
-              transition: "left 0.2s",
-              boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-            }}
-          />
-        </button>
       </div>
 
       {/* ── Cache toggle ──────────────────────────────────────────────── */}

@@ -317,7 +317,7 @@ export function ProfileTab({
           </div>
           {profileResumes.length === 0 ? (
             <p style={{ fontSize: 12, color: "#888" }}>
-              No resumes for this profile. Add one in Dashboard → Resumes.
+              No resumes for this profile. Add one in Candidate → Resume.
             </p>
           ) : (
             profileResumes.map((r) => (

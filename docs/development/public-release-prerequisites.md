@@ -57,11 +57,11 @@ A public privacy policy is **mandatory** for Chrome Web Store submission. The po
 
 - [ ] **Data collected**: What data the extension accesses and stores.
 - [ ] **Data storage**: Data may be stored in Standalone browser storage (IndexedDB, `chrome.storage.local`) or Ops Mode local SQLite/keyring/engine storage. No developer cloud storage or sync.
-- [ ] **Data sent externally**: AI payloads (to user-configured AI provider), n8n webhooks (to user-configured webhook URL). Both are opt-in.
+- [ ] **Data sent externally**: AI payloads only, sent to a user-configured AI provider after explicit review. Deferred n8n event-delivery fields remain compatibility-only in the current build.
 - [ ] **Data minimization**: Redaction of PII before external requests. Payload preview for user transparency.
 - [ ] **No telemetry**: No analytics, no crash reporting, no usage tracking sent to developer.
 - [ ] **User controls**: Export, delete all, AI cache controls, Strict Privacy mode, Labs kill switch.
-- [ ] **Third-party services**: Only user-configured providers (AI API, n8n). No developer-operated backend.
+- [ ] **Third-party services**: Only the user-configured AI API is active in the current build. Deferred n8n delivery is not active; there is no developer-operated backend.
 - [ ] **Contact**: How users can reach the developer with privacy questions.
 - [ ] **Policy URL**: Hosted, publicly accessible URL (e.g., GitHub Pages, project site).
 
@@ -83,7 +83,7 @@ See `docs/development/privacy-policy-checklist.md` for detailed coverage.
 ## 5. Technical Requirements
 
 ### 5.1 AI Provider Implementation (spec 26.2)
-- [x] Implement at least one real AI provider (OpenRouter or OpenAI recommended).
+- [x] Implement at least one real AI provider (OpenAI is the current supported runtime provider).
 - [x] Mock provider is no longer the only path.
 - [ ] Test with real API calls in live browser flow: analysis, cover letter generation, error handling, rate limiting.
 

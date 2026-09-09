@@ -83,13 +83,11 @@ Execute in at least Chrome and one additional Chromium browser (Edge, Brave, or 
 
 ### n8n Readiness (spec 26.5, deferred)
 
-- [ ] n8n toggle is off by default (Labs)
-- [ ] n8n webhook URL field is visible but optional
-- [ ] HMAC secret field exists and is masked
-- [ ] Payload preview shown before sending webhook events
-- [ ] Retry policy is documented
+- [x] Active n8n UI and delivery plumbing are absent from the current build
+- [x] Persisted n8n/event/export fields remain compatibility-only and are redacted on export
+- [ ] Reintroduce a user-visible n8n flow only after an explicit permission-model decision and a new security review
 
-Known open: runtime `optional_host_permissions` behavior for user webhook host — needs testing before Sprint 6.
+Known open: runtime `optional_host_permissions` behavior for a future user webhook host — needs testing before any n8n implementation resumes.
 
 ### Data Safety
 
