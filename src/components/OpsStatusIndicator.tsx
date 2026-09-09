@@ -9,7 +9,10 @@
  */
 
 import { useState, useEffect, useCallback, type ReactNode } from 'react';
-import { detectCompanionStatus } from '@/services/companion-service';
+import {
+  detectCompanionStatus,
+  invalidateCompanionStatusCache,
+} from '@/services/companion-service';
 import type { CompanionStatus } from '@/adapters/companion/types';
 // ── Status mapping ─────────────────────────────────────────────────────────
 
@@ -53,6 +56,17 @@ function tooltipText(status: CompanionStatus): string {
 interface OpsStatusDotProps {
   /** Called when the dot is clicked — opens companion settings. */
   onOpenSettings?: () => void;
+}
+
+/** Status metadata must not turn a settings event into another probe. */
+export function hasCompanionConfigChange(
+  change: chrome.storage.StorageChange | undefined,
+): boolean {
+  if (!change) return false;
+  const oldCompanion = (change.oldValue as { companion?: { opsModeEnabled?: boolean; baseUrl?: string } } | undefined)?.companion;
+  const newCompanion = (change.newValue as { companion?: { opsModeEnabled?: boolean; baseUrl?: string } } | undefined)?.companion;
+  return oldCompanion?.opsModeEnabled !== newCompanion?.opsModeEnabled
+    || oldCompanion?.baseUrl !== newCompanion?.baseUrl;
 }
 
 export function OpsStatusDot({ onOpenSettings }: OpsStatusDotProps): ReactNode {
@@ -112,9 +126,10 @@ export function OpsStatusDot({ onOpenSettings }: OpsStatusDotProps): ReactNode {
     ) {
       if (areaName !== 'local') return;
       if (
-        changes.app_settings_v1 ||
+        hasCompanionConfigChange(changes.app_settings_v1) ||
         changes.companion_client_token_v1
       ) {
+        invalidateCompanionStatusCache();
         void refresh();
       }
     }

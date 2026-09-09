@@ -25,6 +25,25 @@ import { loadSettings, saveSettings } from '@/db/settings-bridge';
 
 let _opsClient: OpsClient | null = null;
 
+export const COMPANION_STATUS_CACHE_TTL_MS = 5_000;
+
+type CompanionStatusResult = {
+  status: CompanionStatus;
+  versionInfo?: CompanionVersionInfo;
+  error?: string;
+};
+
+let statusCache: {
+  value: CompanionStatusResult;
+  expiresAt: number;
+} | null = null;
+let statusProbeInFlight: Promise<CompanionStatusResult> | null = null;
+
+/** Invalidate the shared status snapshot after a pairing/configuration change. */
+export function invalidateCompanionStatusCache(): void {
+  statusCache = null;
+}
+
 /** Return the singleton OpsClient, creating it if necessary. */
 export function getOpsClient(): OpsClient {
   if (!_opsClient) {
@@ -64,11 +83,7 @@ export async function initCompanionClient(): Promise<void> {
  *    - Health OK, stored token → validate ``/pair/status`` before connected.
  *    - Unexpected error → ``error``.
  */
-export async function detectCompanionStatus(): Promise<{
-  status: CompanionStatus;
-  versionInfo?: CompanionVersionInfo;
-  error?: string;
-}> {
+async function probeCompanionStatus(): Promise<CompanionStatusResult> {
   const settings = await loadSettings();
   if (!settings.companion.opsModeEnabled) {
     return { status: 'unavailable' };
@@ -80,13 +95,6 @@ export async function detectCompanionStatus(): Promise<{
 
   try {
     const versionInfo = await client.handshake();
-
-    // Persist version info
-    settings.companion.lastServiceVersion = versionInfo.service_version;
-    settings.companion.lastApiVersion = versionInfo.api_version;
-    settings.companion.lastApiCompatible = versionInfo.compatible;
-    settings.companion.lastConnectedAt = new Date().toISOString();
-    await saveSettings(settings);
 
     if (!versionInfo.compatible) {
       return { status: 'incompatible-api', versionInfo };
@@ -130,6 +138,35 @@ export async function detectCompanionStatus(): Promise<{
   }
 }
 
+/**
+ * Detect companion status with bounded, shared polling.
+ *
+ * Status probes are observational: they do not write app_settings_v1. A
+ * short shared cache and in-flight promise prevent simultaneous Dashboard and
+ * Side Panel surfaces from multiplying health/pair-status requests.
+ */
+export async function detectCompanionStatus(options: { force?: boolean } = {}): Promise<CompanionStatusResult> {
+  if (statusProbeInFlight) return statusProbeInFlight;
+
+  const now = Date.now();
+  if (!options.force && statusCache && statusCache.expiresAt > now) {
+    return statusCache.value;
+  }
+
+  const probe = probeCompanionStatus();
+  statusProbeInFlight = probe;
+  try {
+    const result = await probe;
+    statusCache = {
+      value: result,
+      expiresAt: Date.now() + COMPANION_STATUS_CACHE_TTL_MS,
+    };
+    return result;
+  } finally {
+    statusProbeInFlight = null;
+  }
+}
+
 // ── Pairing flow ───────────────────────────────────────────────────────────
 
 /**
@@ -147,6 +184,7 @@ export async function startPairing(): Promise<{
   try {
     const client = getOpsClient();
     const response = await client.pairStart();
+    invalidateCompanionStatusCache();
     return {
       success: true,
       challengeId: response.data.challenge_id,
@@ -180,6 +218,7 @@ export async function confirmPairing(
     // Persist token and inject into client
     await saveClientToken(token);
     client.setClientToken(token);
+    invalidateCompanionStatusCache();
 
     // Update settings
     const settings = await loadSettings();
@@ -204,6 +243,7 @@ export async function startPairingRecovery(): Promise<{
 }> {
   try {
     const response = await getOpsClient().pairRecoveryStart();
+    invalidateCompanionStatusCache();
     return {
       success: true,
       challengeId: response.data.challenge_id,
@@ -227,6 +267,7 @@ export async function confirmPairingRecovery(
     const response = await client.pairRecoveryConfirm(challengeId, code);
     await saveClientToken(response.data.client_token);
     client.setClientToken(response.data.client_token);
+    invalidateCompanionStatusCache();
 
     const settings = await loadSettings();
     settings.companion.lastConnectedAt = new Date().toISOString();
@@ -268,6 +309,7 @@ export async function disconnectCompanion(): Promise<{
   try {
     await deleteClientToken();
     getOpsClient().clearClientToken();
+    invalidateCompanionStatusCache();
     return { success: true, revoked };
   } catch (err) {
     return {
@@ -290,6 +332,7 @@ export async function setOpsModeEnabled(enabled: boolean): Promise<void> {
   const settings = await loadSettings();
   settings.companion.opsModeEnabled = enabled;
   await saveSettings(settings);
+  invalidateCompanionStatusCache();
 
   // Re-init client with (possibly) updated base URL
   await initCompanionClient();

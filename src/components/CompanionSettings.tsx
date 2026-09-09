@@ -141,7 +141,7 @@ export function CompanionSettings(): ReactNode {
     setActionError(null);
 
     try {
-      const result = await detectCompanionStatus();
+      const result = await detectCompanionStatus({ force: true });
       setStatus(result.status);
       if (result.versionInfo) setVersionInfo(result.versionInfo);
       if (result.error) {
