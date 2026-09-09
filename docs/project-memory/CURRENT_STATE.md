@@ -1,8 +1,8 @@
 # Current State
 
 Reviewed checkout: branch `hotfix/hh-vacancy-hydration-v4-card`, Pass 1 baseline
-`f47fa11ddff67d2bf081b8df1939e1d4cef6f6b0` before this Pass 2 dead-tail
-cleanup.
+`f47fa11ddff67d2bf081b8df1939e1d4cef6f6b0` before Pass 2 dead-tail cleanup and
+Pass 3 daily-use UX polish.
 The worktree was clean at audit preflight. This document is the current
 runtime/status snapshot; dated acceptance reports are historical evidence.
 
@@ -65,6 +65,12 @@ configuration. Candidate contains Profile and Resume subviews. Settings
 contains General, Companion & HH, AI, Privacy & Data, Permissions, About and
 Advanced. Onboarding is hidden from normal navigation and is available on
 first run or by manual rerun from Settings.
+
+Pass 3 is presentation-only: the six-route IA remains unchanged. The current
+UI uses clearer page hierarchy, compact action cards, styled tabs, core/secondary
+Inbox filters, and actionable empty states. No database, API, permission,
+private V4 or safety semantics changed. Post-change production static render was
+inspected; final unpacked-extension visual acceptance still needs human review.
 
 Settings are normalized and persisted under `app_settings_v1`; stale removed
 UI-only keys are stripped on load, while API keys and the Companion token use

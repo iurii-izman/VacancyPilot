@@ -39,6 +39,16 @@ configuration. Standalone Pipeline renders the existing Dexie Kanban board;
 Ops Pipeline renders Companion-backed performance summaries and never treats
 the local board as canonical. Onboarding is a hidden first-run/manual flow.
 
+### Pass 3 daily-use UX polish
+
+The final presentation pass keeps the six routes and all runtime contracts
+unchanged. It improves page titles and hierarchy, compact cards and action
+priority, styled tabs and buttons, the 860px full-label sidebar breakpoint,
+Inbox filter disclosure, and actionable empty/error states. No DB, API,
+permission, private V4 or HH safety behavior changed. Production static pages
+were rendered after the changes; unpacked-extension visual acceptance remains
+`VISUAL_ACCEPTANCE_NEEDS_HUMAN_REVIEW` until a human reloads the built extension.
+
 ## Full V4 and application safety
 
 The application sequence is:

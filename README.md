@@ -16,6 +16,11 @@ No auto-apply. No hidden browser-side HH requests. No external recruiter or foll
 
 “Personal dogfood” describes current product use, not repository visibility: this GitHub repository is public, while the private V4 engine package and real candidate knowledge remain outside it.
 
+The current checkout includes the Pass 3 daily-use UX polish: the six-route IA,
+storage model, provider boundaries and Full V4 confirmation semantics are
+unchanged; empty states, filters, tabs, hierarchy and primary actions are more
+explicit and compact for repeated use.
+
 ## What It Does Today
 
 - Presents six primary Options routes: Today, Discovery, Inbox, Pipeline,

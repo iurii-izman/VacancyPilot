@@ -28,6 +28,11 @@ import {
   appSubtitle,
   headerBar,
   scrollArea,
+  pageTitle,
+  pageIntro,
+  tabListStyle,
+  tabButtonStyle,
+  secondaryButton,
 } from "@/styles";
 
 import {
@@ -228,9 +233,9 @@ function DashboardContent(): ReactNode {
 
   // Responsive breakpoints (per audit P0-04):
   //   >= 1000: full sidebar with labels (200px)
-  //   760-999: compact icon-only sidebar (56px)
+  //   860-999: compact icon-only sidebar (56px)
   //   < 760:   compact collapsible (56px, can be hidden)
-  const sidebarFull = windowWidth >= 1000;
+  const sidebarFull = windowWidth >= 860;
   const sidebarNarrow = windowWidth < 760;
   const showLabels = sidebarFull;
 
@@ -309,7 +314,7 @@ function DashboardContent(): ReactNode {
           {showLabels ? (
             <>
               <h1 style={appTitle}>VacancyPilot</h1>
-              <p style={appSubtitle}>Dashboard</p>
+              <p style={appSubtitle}>Local workspace</p>
             </>
           ) : (
             <h1 style={{ ...appTitle, fontSize: fontSizes.cardHeading }}>VP</h1>
@@ -490,9 +495,9 @@ export function SectionContent({
     case "today":
       return <TodayWorkspace onNavigate={(target) => onNavigate?.({ section: target })} />;
     case "discovery":
-      return <DiscoveryWorkspace />;
+      return <DiscoveryWorkspace onNavigate={onNavigate} />;
     case "inbox":
-      return <ApplicationWorkspace />;
+      return <ApplicationWorkspace onNavigate={() => onNavigate?.({ section: "discovery" })} />;
     case "pipeline":
       return <PipelineWorkspace initialTab={route.pipelineTab} onTabChange={(pipelineTab) => onNavigate?.({ section: "pipeline", pipelineTab })} />;
     case "candidate":
@@ -504,7 +509,7 @@ export function SectionContent({
   }
 }
 
-export function DiscoveryWorkspace(): ReactNode {
+export function DiscoveryWorkspace({ onNavigate }: { onNavigate?: (route: RouteState) => void }): ReactNode {
   const [status, setStatus] = useState("Checking Companion…");
   useEffect(() => {
     void detectCompanionStatus()
@@ -513,8 +518,8 @@ export function DiscoveryWorkspace(): ReactNode {
   }, []);
   return (
     <section aria-labelledby="discovery-title">
-      <h2 id="discovery-title" style={{ marginTop: 0 }}>Discovery</h2>
-      <p style={{ color: "#536273", fontSize: 13 }}>
+      <h2 id="discovery-title" style={pageTitle}>Discovery</h2>
+      <p style={pageIntro}>
         Find and review HH.ru vacancies through the connected local Companion. Search and sync never submit applications or messages.
       </p>
       {status === "connected" ? (
@@ -524,6 +529,8 @@ export function DiscoveryWorkspace(): ReactNode {
           icon="🔎"
           message="Discovery requires a connected Companion"
           description="Pair the local Companion in Settings → Companion & HH to manage Search Profiles and preview official vacancy search."
+          actionLabel="Open Companion settings"
+          onAction={() => onNavigate?.({ section: "settings", settingsTab: "companion" })}
         />
       )}
     </section>
@@ -544,16 +551,17 @@ export function PipelineWorkspace({
   if (opsMode === null) return <LoadingState message="Loading Pipeline…" />;
   return (
     <section aria-labelledby="pipeline-title">
-      <h2 id="pipeline-title" style={{ marginTop: 0 }}>Pipeline</h2>
-      <div role="tablist" aria-label="Pipeline views" style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+      <h2 id="pipeline-title" style={pageTitle}>Pipeline</h2>
+      <p style={pageIntro}>{opsMode ? "Ops Mode summaries from the connected Companion." : "Standalone Mode application status board."}</p>
+      <div role="tablist" aria-label="Pipeline views" style={tabListStyle}>
         {(["board", "performance"] as const).map((tab) => (
-          <button key={tab} type="button" role="tab" aria-selected={(initialTab ?? "board") === tab} onClick={() => onTabChange?.(tab)}>
+          <button key={tab} type="button" role="tab" aria-selected={(initialTab ?? "board") === tab} onClick={() => onTabChange?.(tab)} style={tabButtonStyle((initialTab ?? "board") === tab)}>
             {tab === "board" ? "Board" : "Performance"}
           </button>
         ))}
       </div>
       {opsMode ? (
-        initialTab === "performance" ? <PerformanceSection /> : <EmptyState icon="📋" message="Pipeline is managed by the connected Companion" description="Open Performance for Ops summaries, or use Inbox for the canonical local application workflow." />
+        initialTab === "performance" ? <PerformanceSection /> : <EmptyState icon="📋" message="Ops Mode is active" description="The Companion is the authority for Pipeline data in Ops Mode. Open Performance for descriptive outcomes, or use Inbox for the application workflow." actionLabel="Open Performance" onAction={() => onTabChange?.("performance")} />
       ) : (
         initialTab === "performance" ? <PerformanceSection /> : <KanbanBoard />
       )}
@@ -570,10 +578,11 @@ export function CandidateWorkspace({
 }): ReactNode {
   return (
     <section aria-labelledby="candidate-title">
-      <h2 id="candidate-title" style={{ marginTop: 0 }}>Candidate</h2>
-      <div role="tablist" aria-label="Candidate views" style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+      <h2 id="candidate-title" style={pageTitle}>Candidate</h2>
+      <p style={pageIntro}>Profile and Resume support Standalone scoring and letter workflows. Ops Full V4 uses separate private local candidate evidence; Search Profiles live in Discovery.</p>
+      <div role="tablist" aria-label="Candidate views" style={tabListStyle}>
         {(["profile", "resume"] as const).map((tab) => (
-          <button key={tab} type="button" role="tab" aria-selected={initialTab === tab} onClick={() => onTabChange?.(tab)}>
+          <button key={tab} type="button" role="tab" aria-selected={initialTab === tab} onClick={() => onTabChange?.(tab)} style={tabButtonStyle(initialTab === tab)}>
             {tab === "profile" ? "Profile" : "Resume"}
           </button>
         ))}
@@ -603,10 +612,11 @@ export function SettingsWorkspace({
   ];
   return (
     <section aria-labelledby="settings-title">
-      <h2 id="settings-title" style={{ marginTop: 0 }}>Settings</h2>
-      <div role="tablist" aria-label="Settings views" style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 20 }}>
+      <h2 id="settings-title" style={pageTitle}>Settings</h2>
+      <p style={pageIntro}>Local preferences, Companion & HH setup, privacy controls, and safe diagnostics in one place.</p>
+      <div role="tablist" aria-label="Settings views" style={tabListStyle}>
         {tabs.map(([tab, label]) => (
-          <button key={tab} type="button" role="tab" aria-selected={initialTab === tab} onClick={() => onTabChange?.(tab)}>{label}</button>
+          <button key={tab} type="button" role="tab" aria-selected={initialTab === tab} onClick={() => onTabChange?.(tab)} style={tabButtonStyle(initialTab === tab)}>{label}</button>
         ))}
       </div>
       {initialTab === "general" && <SearchHighlightsSection />}
@@ -614,8 +624,8 @@ export function SettingsWorkspace({
       {initialTab === "ai" && <AISettingsSection />}
       {initialTab === "privacy" && <><PrivacyDisclosureSection /><div style={{ height: 24 }} /><ExportSection /><div style={{ height: 24 }} /><PrivacySection /></>}
       {initialTab === "permissions" && <PermissionsSection />}
-      {initialTab === "about" && <><AboutSection /><div style={{ height: 16 }} /><button type="button" onClick={onOpenOnboarding}>Run setup guide again</button></>}
-      {initialTab === "advanced" && <><LabsSection /><div style={{ height: 16 }} /><button type="button" onClick={onOpenOnboarding}>Run setup guide again</button></>}
+      {initialTab === "about" && <><AboutSection /><div style={{ height: 16 }} /><button type="button" onClick={onOpenOnboarding} style={secondaryButton}>Run setup guide again</button></>}
+      {initialTab === "advanced" && <><LabsSection /><div style={{ height: 16 }} /><button type="button" onClick={onOpenOnboarding} style={secondaryButton}>Run setup guide again</button></>}
     </section>
   );
 }
@@ -1751,7 +1761,7 @@ export default function App(): ReactNode {
   }, []);
 
   return (
-    <ErrorBoundary rootLabel="Dashboard">
+    <ErrorBoundary rootLabel="VacancyPilot">
       {dbError ? (
         <ErrorState
           message="Failed to initialize local data"

@@ -345,7 +345,7 @@ export class OpenAILLMProvider implements LLMProvider {
     const apiKey = await getApiKey("openai");
     if (!apiKey) {
       throw new Error(
-        "OpenAI API key not configured. Add your key in Dashboard → Settings.",
+        "OpenAI API key not configured. Add your key in Settings → AI.",
       );
     }
 
@@ -402,7 +402,7 @@ export class OpenAILLMProvider implements LLMProvider {
     const apiKey = await getApiKey("openai");
     if (!apiKey) {
       throw new Error(
-        "OpenAI API key not configured. Add your key in Dashboard → Settings.",
+        "OpenAI API key not configured. Add your key in Settings → AI.",
       );
     }
 

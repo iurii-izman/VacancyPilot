@@ -1,11 +1,27 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { db } from "@/db";
+import { EmptyState } from "@/components/EmptyState";
 import { jobRepo } from "@/db/repositories";
 import { detectCompanionStatus, getOpsClient } from "@/services/companion-service";
 import type { Job } from "@/models/job";
 import type { FollowUpItem } from "@/adapters/companion/application-types";
 import type { HHSearchProfile } from "@/adapters/companion/types";
 import type { VacancyListItem } from "@/adapters/companion/vacancy-types";
+import {
+  card,
+  colors,
+  compactCard,
+  formInput,
+  formSelect,
+  pageIntro,
+  pageTitle,
+  primaryButton,
+  secondaryButton,
+  statusBadge,
+  tertiaryButton,
+  tabButtonStyle,
+  tabListStyle,
+} from "@/styles";
 function formatShortDate(iso: string): string {
   const date = new Date(iso);
   return Number.isNaN(date.getTime()) ? iso : date.toLocaleDateString();
@@ -49,10 +65,20 @@ function companionVacancyToJob(item: VacancyListItem): Job {
 }
 
 const cardStyle: React.CSSProperties = {
-  border: "1px solid #e2e7ee",
-  borderRadius: 8,
+  ...card,
   padding: 14,
-  background: "#fff",
+};
+
+const mutedPanelStyle: React.CSSProperties = {
+  ...compactCard,
+  background: colors.neutralBg,
+};
+
+const actionRowStyle: React.CSSProperties = {
+  display: "flex",
+  gap: 8,
+  flexWrap: "wrap",
+  alignItems: "center",
 };
 
 function useJobs(searchProfileId?: string): { jobs: Job[]; loading: boolean; error: string | null } {
@@ -91,14 +117,14 @@ function useJobs(searchProfileId?: string): { jobs: Job[]; loading: boolean; err
 function ActionCard({ label, value, description, onClick }: {
   label: string; value: string; description: string; onClick: () => void;
 }): ReactNode {
-  return <button type="button" onClick={onClick} style={{ ...cardStyle, textAlign: "left", cursor: "pointer", minWidth: 150, flex: "1 1 150px" }} aria-label={`${label}: ${value}`}>
-    <div style={{ fontSize: 12, color: "#536273" }}>{label}</div>
-    <div style={{ fontSize: 25, fontWeight: 700, color: "#1a3a5c", margin: "4px 0" }}>{value}</div>
-    <div style={{ fontSize: 11, color: "#687789" }}>{description}</div>
+  return <button type="button" onClick={onClick} style={{ ...compactCard, textAlign: "left", cursor: "pointer", minWidth: 170, flex: "1 1 170px", marginBottom: 0 }} aria-label={`${label}: ${value}`}>
+    <div style={{ fontSize: 12, color: colors.textMuted }}>{label}</div>
+    <div style={{ fontSize: 23, fontWeight: 700, color: colors.navy, margin: "3px 0" }}>{value}</div>
+    <div style={{ fontSize: 11, color: colors.textFaint }}>{description}</div>
   </button>;
 }
 
-export function TodayWorkspace({ onNavigate }: { onNavigate?: (section: "inbox" | "pipeline") => void }): ReactNode {
+export function TodayWorkspace({ onNavigate }: { onNavigate?: (section: "discovery" | "inbox" | "pipeline") => void }): ReactNode {
   const { jobs, loading, error } = useJobs();
   const [companion, setCompanion] = useState("Checking…");
   const [followupCount, setFollowupCount] = useState<number | null>(null);
@@ -124,25 +150,36 @@ export function TodayWorkspace({ onNavigate }: { onNavigate?: (section: "inbox" 
   const ready = jobs.filter((job) => job.status === "letter_ready");
   const applied = jobs.filter((job) => job.status === "applied");
   const updated = jobs.filter((job) => job.passiveHHStatus && job.passiveHHStatus.detectedAt > job.updatedAt);
+  const attentionCount = newJobs.length + ready.length + updated.length + (followupCount ?? 0);
   return <section aria-labelledby="today-title">
-    <h2 id="today-title" style={{ marginTop: 0 }}>Today</h2>
-    <p style={{ color: "#536273", fontSize: 13 }}>A daily, action-oriented view of the local job search.</p>
-    <div style={{ display: "flex", gap: 10, flexWrap: "wrap", margin: "16px 0" }}>
-      <ActionCard label="New to review" value={String(newJobs.length)} description="Open the Inbox" onClick={() => onNavigate?.("inbox")} />
-      <ActionCard label="Ready to review" value={String(ready.length)} description="Review manually" onClick={() => onNavigate?.("inbox")} />
-      <ActionCard label="Applied" value={String(applied.length)} description="Tracked explicitly" onClick={() => onNavigate?.("pipeline")} />
-      <ActionCard label="HH updates" value={String(updated.length)} description="Known local signals" onClick={() => onNavigate?.("inbox")} />
-      <ActionCard label="Follow-ups due" value={followupCount === null ? "—" : String(followupCount)} description={followupCount === null ? "Unavailable" : "Open the Inbox"} onClick={() => onNavigate?.("inbox")} />
-    </div>
-    <div style={{ ...cardStyle, background: "#f7f9fb" }}>
-      <h3 style={{ margin: "0 0 8px", fontSize: 14 }}>System status</h3>
+    <h2 id="today-title" style={pageTitle}>Today</h2>
+    <p style={pageIntro}>A daily, action-oriented view of the local job search.</p>
+    {attentionCount === 0 ? (
+      <div style={{ ...mutedPanelStyle, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+        <div>
+          <strong style={{ display: "block", color: colors.navy, marginBottom: 4 }}>Nothing needs attention right now.</strong>
+          <span style={{ color: colors.textMuted, fontSize: 12 }}>Open Discovery to sync new vacancies.</span>
+        </div>
+        <button type="button" onClick={() => onNavigate?.("discovery")} style={primaryButton}>Open Discovery</button>
+      </div>
+    ) : (
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", margin: "16px 0" }}>
+        <ActionCard label="New to review" value={String(newJobs.length)} description="Open the Inbox" onClick={() => onNavigate?.("inbox")} />
+        <ActionCard label="Ready to review" value={String(ready.length)} description="Review manually" onClick={() => onNavigate?.("inbox")} />
+        <ActionCard label="HH updates" value={String(updated.length)} description="Known local signals" onClick={() => onNavigate?.("inbox")} />
+        <ActionCard label="Follow-ups due" value={followupCount === null ? "—" : String(followupCount)} description={followupCount === null ? "Unavailable" : "Open the Inbox"} onClick={() => onNavigate?.("inbox")} />
+        <ActionCard label="Applied" value={String(applied.length)} description="Tracked explicitly" onClick={() => onNavigate?.("pipeline")} />
+      </div>
+    )}
+    <div style={{ ...mutedPanelStyle, marginTop: 16 }}>
+      <h3 style={{ margin: "0 0 8px", fontSize: 14, color: colors.navy }}>System status</h3>
       <p style={{ margin: 0, fontSize: 12 }}>Companion: <strong>{companion}</strong>. Follow-ups use local/Companion endpoints when available; Interview Pack and backup health are not active.</p>
       <p style={{ margin: "8px 0 0", fontSize: 12 }}>HH negotiations: <strong>Unavailable when denied by HH</strong>; this is not shown as zero responses.</p>
     </div>
   </section>;
 }
 
-export function Inbox({ onSelect }: { onSelect?: (job: Job) => void }): ReactNode {
+export function Inbox({ onSelect, onNavigate }: { onSelect?: (job: Job) => void; onNavigate?: (route: "discovery") => void }): ReactNode {
   const [profileFilter, setProfileFilter] = useState("all");
   const [searchProfiles, setSearchProfiles] = useState<HHSearchProfile[]>([]);
   const { jobs, loading, error } = useJobs(profileFilter === "all" ? undefined : profileFilter);
@@ -153,6 +190,7 @@ export function Inbox({ onSelect }: { onSelect?: (job: Job) => void }): ReactNod
   const [decision, setDecision] = useState("all");
   const [analysisStatus, setAnalysisStatus] = useState("all");
   const [updatedAfter, setUpdatedAfter] = useState("");
+  const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [preview, setPreview] = useState<{ selected: number; expected_provider_calls: number; cached_v4: number; archived_or_ineligible: number } | null>(null);
   const [sessionMessage, setSessionMessage] = useState<string | null>(null);
@@ -192,37 +230,47 @@ export function Inbox({ onSelect }: { onSelect?: (job: Job) => void }): ReactNod
       setPreview(null); setSelectedIds([]);
     } catch (err) { setSessionMessage(err instanceof Error ? err.message : "Session execution failed"); }
   };
+  const clearFilters = () => {
+    setQuery(""); setStatus("all"); setWorkMode("all"); setScoreBand("all");
+    setDecision("all"); setAnalysisStatus("all"); setUpdatedAfter(""); setProfileFilter("all");
+  };
   return <section aria-labelledby="inbox-title">
-    <h2 id="inbox-title" style={{ marginTop: 0 }}>Inbox</h2>
-    <p style={{ color: "#536273", fontSize: 13 }}>Review imported vacancies. Full V4 analysis remains an explicit single-item action or a bounded confirmed session.</p>
-    <div style={{ ...cardStyle, background: "#f7f9fb", marginBottom: 12 }}>
+    <h2 id="inbox-title" style={pageTitle}>Inbox</h2>
+    <p style={pageIntro}>Review imported vacancies. Full V4 analysis remains an explicit single-item action or a bounded confirmed session.</p>
+    <div style={{ ...mutedPanelStyle, marginBottom: 14 }}>
       <strong>{selectedIds.length} selected</strong>{" "}
-      <button type="button" onClick={() => setSelectedIds([])} disabled={selectedIds.length === 0}>Clear selection</button>{" "}
-      <button type="button" onClick={() => void prepareSelected()} disabled={selectedIds.length === 0}>Prepare selected</button>
+      <button type="button" onClick={() => setSelectedIds([])} disabled={selectedIds.length === 0} style={secondaryButton}>Clear selection</button>{" "}
+      <button type="button" onClick={() => void prepareSelected()} disabled={selectedIds.length === 0} style={selectedIds.length > 0 ? primaryButton : secondaryButton}>Preview selected</button>
       {preview && <div role="status" style={{ marginTop: 8 }}>Preview: {preview.selected} selected · {preview.cached_v4} cached V4 · {preview.expected_provider_calls} possible provider calls · {preview.archived_or_ineligible} archived/ineligible. Cost estimate unavailable.</div>}
-      {preview && <button type="button" onClick={() => void confirmPrepare()} style={{ marginTop: 8 }}>Confirm and process selected</button>}
+      {preview && <button type="button" onClick={() => void confirmPrepare()} style={{ ...primaryButton, marginTop: 8 }}>Confirm and process selected</button>}
       {sessionMessage && <div role="status" style={{ marginTop: 8 }}>{sessionMessage}</div>}
       {sessionItems.length > 0 && <ol aria-label="Application session queue" style={{ margin: "10px 0 0", paddingLeft: 22 }}>{sessionItems.map((item) => <li key={`${item.title}-${item.company_name ?? ""}`}>{item.title} — {item.queue_state}</li>)}</ol>}
     </div>
-    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
-      <label style={{ flex: "1 1 220px", fontSize: 12 }}>Search title or company<input aria-label="Search vacancies" value={query} onChange={(event) => setQuery(event.target.value)} style={{ display: "block", width: "100%", padding: 7, marginTop: 3 }} /></label>
-      <label style={{ fontSize: 12 }}>Status<select aria-label="Filter by status" value={status} onChange={(event) => setStatus(event.target.value)} style={{ display: "block", padding: 7, marginTop: 3 }}><option value="all">All</option>{["new", "viewed", "saved", "letter_ready", "applied", "hr_replied", "interview", "test_task", "offer", "rejected_by_me", "rejected_by_company"].map((item) => <option key={item} value={item}>{statusLabel(item as Job["status"])}</option>)}</select></label>
-      <label style={{ fontSize: 12 }}>Work mode<select aria-label="Filter by work mode" value={workMode} onChange={(event) => setWorkMode(event.target.value)} style={{ display: "block", padding: 7, marginTop: 3 }}><option value="all">All</option><option value="remote">Remote</option><option value="hybrid">Hybrid</option><option value="office">Office</option></select></label>
-      <label style={{ fontSize: 12 }}>Score<select aria-label="Filter by score band" value={scoreBand} onChange={(event) => setScoreBand(event.target.value)} style={{ display: "block", padding: 7, marginTop: 3 }}><option value="all">All</option><option value="high">70+</option><option value="mid">50–69</option><option value="low">&lt;50</option></select></label>
-      <label style={{ fontSize: 12 }}>Decision<select aria-label="Filter by decision" value={decision} onChange={(event) => setDecision(event.target.value)} style={{ display: "block", padding: 7, marginTop: 3 }}><option value="all">All</option><option value="apply">Apply</option><option value="consider">Consider</option><option value="skip">Skip</option></select></label>
-      <label style={{ fontSize: 12 }}>Analysis<select aria-label="Filter by analysis status" value={analysisStatus} onChange={(event) => setAnalysisStatus(event.target.value)} style={{ display: "block", padding: 7, marginTop: 3 }}><option value="all">All</option><option value="available">Available</option><option value="not_run">Not run</option></select></label>
-      <label style={{ fontSize: 12 }}>Updated after<input aria-label="Filter by updated date" type="date" value={updatedAfter} onChange={(event) => setUpdatedAfter(event.target.value)} style={{ display: "block", padding: 7, marginTop: 3 }} /></label>
-      <label style={{ fontSize: 12 }}>Search profile<select aria-label="Filter by search profile" value={profileFilter} onChange={(event) => setProfileFilter(event.target.value)} style={{ display: "block", padding: 7, marginTop: 3 }}><option value="all">All profiles</option>{searchProfiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.name}</option>)}</select></label>
+    <div style={{ ...cardStyle, marginBottom: 14 }}>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "end" }}>
+        <label style={{ flex: "1 1 260px", fontSize: 12, color: colors.textMuted, fontWeight: 600 }}>Search title or company<input aria-label="Search vacancies" value={query} onChange={(event) => setQuery(event.target.value)} style={{ ...formInput, display: "block", marginTop: 4 }} /></label>
+        <label style={{ flex: "0 1 160px", fontSize: 12, color: colors.textMuted, fontWeight: 600 }}>Status<select aria-label="Filter by status" value={status} onChange={(event) => setStatus(event.target.value)} style={{ ...formSelect, display: "block", marginTop: 4 }}><option value="all">All</option>{["new", "viewed", "saved", "letter_ready", "applied", "hr_replied", "interview", "test_task", "offer", "rejected_by_me", "rejected_by_company"].map((item) => <option key={item} value={item}>{statusLabel(item as Job["status"])}</option>)}</select></label>
+        <label style={{ flex: "0 1 140px", fontSize: 12, color: colors.textMuted, fontWeight: 600 }}>Decision<select aria-label="Filter by decision" value={decision} onChange={(event) => setDecision(event.target.value)} style={{ ...formSelect, display: "block", marginTop: 4 }}><option value="all">All</option><option value="apply">Apply</option><option value="consider">Consider</option><option value="skip">Skip</option></select></label>
+        <button type="button" aria-expanded={showMoreFilters} onClick={() => setShowMoreFilters((value) => !value)} style={secondaryButton}>{showMoreFilters ? "Fewer filters" : "More filters"}</button>
+      </div>
+      {showMoreFilters && <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12, paddingTop: 12, borderTop: `1px solid ${colors.borderHairline}` }}>
+        <label style={{ flex: "0 1 140px", fontSize: 12, color: colors.textMuted, fontWeight: 600 }}>Work mode<select aria-label="Filter by work mode" value={workMode} onChange={(event) => setWorkMode(event.target.value)} style={{ ...formSelect, display: "block", marginTop: 4 }}><option value="all">All</option><option value="remote">Remote</option><option value="hybrid">Hybrid</option><option value="office">Office</option></select></label>
+        <label style={{ flex: "0 1 120px", fontSize: 12, color: colors.textMuted, fontWeight: 600 }}>Score<select aria-label="Filter by score band" value={scoreBand} onChange={(event) => setScoreBand(event.target.value)} style={{ ...formSelect, display: "block", marginTop: 4 }}><option value="all">All</option><option value="high">70+</option><option value="mid">50–69</option><option value="low">&lt;50</option></select></label>
+        <label style={{ flex: "0 1 140px", fontSize: 12, color: colors.textMuted, fontWeight: 600 }}>Analysis<select aria-label="Filter by analysis status" value={analysisStatus} onChange={(event) => setAnalysisStatus(event.target.value)} style={{ ...formSelect, display: "block", marginTop: 4 }}><option value="all">All</option><option value="available">Available</option><option value="not_run">Not run</option></select></label>
+        <label style={{ flex: "0 1 150px", fontSize: 12, color: colors.textMuted, fontWeight: 600 }}>Updated after<input aria-label="Filter by updated date" type="date" value={updatedAfter} onChange={(event) => setUpdatedAfter(event.target.value)} style={{ ...formInput, display: "block", marginTop: 4 }} /></label>
+        <label style={{ flex: "0 1 180px", fontSize: 12, color: colors.textMuted, fontWeight: 600 }}>Search profile<select aria-label="Filter by search profile" value={profileFilter} onChange={(event) => setProfileFilter(event.target.value)} style={{ ...formSelect, display: "block", marginTop: 4 }}><option value="all">All profiles</option>{searchProfiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.name}</option>)}</select></label>
+        <button type="button" onClick={clearFilters} style={{ ...tertiaryButton, alignSelf: "end" }}>Clear filters</button>
+      </div>}
     </div>
-    {filtered.length === 0 ? <div style={cardStyle}>No vacancies match these filters. No automatic analysis was requested.</div> : <div style={{ display: "grid", gap: 8 }}>
+    {filtered.length === 0 ? jobs.length === 0 ? <EmptyState icon="📥" message="Inbox is empty" description="Open Discovery to sync new vacancies, or open an HH vacancy to save it here." actionLabel="Open Discovery" onAction={() => onNavigate?.("discovery")} /> : <div style={cardStyle}><strong>No vacancies match these filters.</strong><p style={{ margin: "6px 0 10px", color: colors.textMuted, fontSize: 12 }}>No automatic analysis was requested.</p><button type="button" onClick={clearFilters} style={secondaryButton}>Clear filters</button></div> : <div style={{ display: "grid", gap: 10 }}>
       {filtered.map((job) => <article key={job.id} style={cardStyle}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
-          <div><label><input type="checkbox" aria-label={`Select ${job.title || "vacancy"}`} checked={selectedIds.includes(job.id)} onChange={() => toggleSelection(job.id)} /> Select</label><h3 style={{ margin: 0, fontSize: 14 }}>{job.title || "Untitled vacancy"}</h3><div style={{ fontSize: 12, color: "#687789" }}>{job.companyName || "Unknown company"} · {job.source.toUpperCase()}</div></div>
-          <span style={{ color: scoreColor(job.ruleScore?.total), fontWeight: 700 }}>{job.ruleScore?.total ?? "—"}</span>
+          <div style={{ minWidth: 0, flex: 1 }}><label style={{ display: "inline-flex", gap: 6, alignItems: "center", fontSize: 11, color: colors.textMuted }}><input type="checkbox" aria-label={`Select ${job.title || "vacancy"}`} checked={selectedIds.includes(job.id)} onChange={() => toggleSelection(job.id)} /> Select</label><h3 style={{ margin: "4px 0 2px", fontSize: 15, color: colors.navy, overflowWrap: "anywhere" }}>{job.title || "Untitled vacancy"}</h3><div style={{ fontSize: 12, color: colors.textFaint }}>{job.companyName || "Unknown company"} · {job.source.toUpperCase()}</div></div>
+          <span style={{ ...statusBadge, background: `${scoreColor(job.ruleScore?.total)}18`, color: scoreColor(job.ruleScore?.total) }}>Score {job.ruleScore?.total ?? "—"}</span>
         </div>
         <div style={{ fontSize: 12, marginTop: 8 }}>Status: <strong>{statusLabel(job.status)}</strong> · updated {formatShortDate(job.updatedAt)} · {job.workMode}</div>
         {job.passiveHHStatus && <div style={{ fontSize: 11, color: "#536273", marginTop: 5 }}>HH signal recorded locally; it does not change pipeline status automatically.</div>}
-        <div style={{ display: "flex", gap: 8, marginTop: 9 }}><button type="button" onClick={() => onSelect?.(job)}>Open application card</button><button type="button" onClick={() => window.open(job.sourceUrl, "_blank", "noopener,noreferrer")}>Open vacancy</button></div>
+        <div style={{ ...actionRowStyle, marginTop: 10 }}><button type="button" onClick={() => onSelect?.(job)} style={primaryButton}>Open application card</button><button type="button" onClick={() => window.open(job.sourceUrl, "_blank", "noopener,noreferrer")} style={secondaryButton}>Open on HH</button></div>
       </article>)}
     </div>}
   </section>;
@@ -274,14 +322,22 @@ export function ApplicationCard({ job, onBack }: { job: Job; onBack?: () => void
     finally { setBusy(false); }
   };
   return <section aria-labelledby="application-card-title">
-    <button type="button" onClick={onBack} style={{ marginBottom: 10 }}>← Back to Inbox</button>
-    <h2 id="application-card-title" style={{ margin: "0 0 4px" }}>{currentJob.title}</h2><p style={{ marginTop: 0, color: "#536273", fontSize: 13 }}>{currentJob.companyName} · {currentJob.source.toUpperCase()} · {statusLabel(currentJob.status)}</p>
-    <p>Vacancy details: <strong>{isFull ? "Full" : "Search preview"}</strong>{!isFull && " — refresh or preview Full V4 to load the official full vacancy."}</p>
-    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><button type="button" onClick={() => void refreshFullDetails()} disabled={busy}>Refresh full vacancy details</button><button type="button" onClick={() => void previewFullV4()} disabled={busy}>Preview Full V4</button>{preview && <button type="button" onClick={() => void executeFullV4()} disabled={busy}>Confirm and run Full V4</button>}</div>
-    {busy && <p role="status">Working…</p>}{error && <p role="alert">{error}</p>}
-    {preview && <div style={{ ...cardStyle, margin: "12px 0", background: "#f7f9fb" }}><strong>Preview only — no provider call was made.</strong><p>Target: {preview.provider}/{preview.model}. Expected provider call: {preview.cache_hit ? 0 : 1} (cache hit: {preview.cache_hit ? "yes" : "no"}).</p><p>Payload readiness: full vacancy text loaded; privacy disclosure applies. Sent: {preview.what_is_sent.join(", ") || "none"}.</p></div>}
-    <div role="tablist" aria-label="Application card sections" style={{ display: "flex", gap: 4, flexWrap: "wrap", borderBottom: "1px solid #dce2e8", marginBottom: 14 }}>{tabs.map((item) => <button key={item} type="button" role="tab" aria-selected={tab === item} onClick={() => setTab(item)}>{item}</button>)}</div>
-    <div role="tabpanel" style={cardStyle}>
+    <button type="button" onClick={onBack} style={{ ...secondaryButton, marginBottom: 14 }}>← Back to Inbox</button>
+    <div style={{ ...cardStyle, marginBottom: 14 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", alignItems: "flex-start" }}>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <h2 id="application-card-title" style={pageTitle}>{currentJob.title}</h2>
+          <p style={{ ...pageIntro, marginBottom: 10 }}>{currentJob.companyName} · {currentJob.source.toUpperCase()}</p>
+        </div>
+        <span style={{ ...statusBadge, background: colors.neutralBg, color: colors.textSecondary }}>{statusLabel(currentJob.status)}</span>
+      </div>
+      <p style={{ margin: "0 0 12px", color: colors.textMuted, fontSize: 12 }}>Vacancy readiness: <strong>{isFull ? "Full details available" : "Search preview only"}</strong>{!isFull && " — refresh to load the official full vacancy before running Full V4."}</p>
+      <div style={actionRowStyle}><button type="button" onClick={() => void previewFullV4()} disabled={busy} style={primaryButton}>Preview Full V4</button><button type="button" onClick={() => void refreshFullDetails()} disabled={busy} style={secondaryButton}>Refresh vacancy</button>{preview && <button type="button" onClick={() => void executeFullV4()} disabled={busy} style={primaryButton}>Confirm and run Full V4</button>}</div>
+      {busy && <p role="status" style={{ margin: "10px 0 0", color: colors.textMuted }}>Working…</p>}{error && <p role="alert" style={{ margin: "10px 0 0", color: colors.red }}>{error}</p>}
+    </div>
+    {preview && <div style={{ ...mutedPanelStyle, margin: "0 0 14px" }}><strong style={{ color: colors.navy }}>Preview only — no provider call was made.</strong><p>Target: {preview.provider}/{preview.model}. Expected provider call: {preview.cache_hit ? 0 : 1} (cache hit: {preview.cache_hit ? "yes" : "no"}).</p><p style={{ marginBottom: 0 }}>Payload readiness: full vacancy text loaded; privacy disclosure applies. Sent: {preview.what_is_sent.join(", ") || "none"}.</p></div>}
+    <div role="tablist" aria-label="Application card sections" style={tabListStyle}>{tabs.map((item) => <button key={item} type="button" role="tab" aria-selected={tab === item} onClick={() => setTab(item)} style={tabButtonStyle(tab === item)}>{item}</button>)}</div>
+    <div role="tabpanel" style={{ ...cardStyle, marginBottom: 0 }}>
       {tab === "Overview" && <><h3>Overview</h3><p>Source: {currentJob.source}. Work mode: {currentJob.workMode}. Last seen: {formatShortDate(currentJob.lastSeenAt)}.</p><p>Full V4: {run ? `persisted (${run.status}${run.ready ? ", ready" : ", not ready"})` : "not run"}. Viewing this card does not create an application or mark it Applied.</p></>}
       {tab === "Vacancy" && <><h3>Vacancy</h3><p style={{ whiteSpace: "pre-wrap" }}>{currentJob.descriptionClean || "Full vacancy description is not available."}</p><button type="button" onClick={() => window.open(currentJob.sourceUrl, "_blank", "noopener,noreferrer")}>Open source vacancy</button></>}
       {tab === "Evidence" && <><h3>Evidence</h3><p>Only persisted safe evidence references are shown here. Generated letters and provider output are not evidence.</p><p>Evidence trace: {run?.ready ? "available in the persisted Full V4 run" : run ? "not available: Full V4 result is invalid" : "not available"}.</p></>}
@@ -333,7 +389,7 @@ function FollowUpPanel({ job }: { job: Job }): ReactNode {
   return <><h3>Follow-up</h3><p>Status: <strong>{status}</strong>{followUpAt ? ` · due ${formatShortDate(followUpAt)}` : ""}.</p><p>Follow-ups are local and human-controlled. Draft generation never sends a message; explicit sent confirmation is required.</p>{activeFollowUp?.draft_text && <p style={{ whiteSpace: "pre-wrap", background: "#f7f9fb", padding: 8 }}>{activeFollowUp.draft_text}</p>}{(activeFollowUp || (applicationId && followUpAt)) && <div style={{ display: "flex", gap: 8 }}><button type="button" onClick={() => void update("completed")}>Complete</button><button type="button" onClick={() => void update("snoozed")}>Snooze 1 day</button><button type="button" onClick={() => void update("cancelled")}>Cancel</button>{activeFollowUp?.draft_text && <button type="button" onClick={() => void update("sent")}>Confirm sent</button>}</div>}{status === "none" && <p>No active follow-up is recorded.</p>}</>;
 }
 
-export function ApplicationWorkspace(): ReactNode {
+export function ApplicationWorkspace({ onNavigate }: { onNavigate?: (route: "discovery") => void }): ReactNode {
   const { loading } = useJobs();
   const [selected, setSelected] = useState<Job | null>(null);
   const [directLookup, setDirectLookup] = useState<"idle" | "loading" | "not-found">("idle");
@@ -375,5 +431,5 @@ export function ApplicationWorkspace(): ReactNode {
   if (directLookup === "loading") return <p role="status">Loading application card…</p>;
   if (selected) return <ApplicationCard job={selected} onBack={() => setSelected(null)} />;
   if (directLookup === "not-found") return <section aria-labelledby="inbox-title"><h2 id="inbox-title">Inbox</h2><p role="alert">Application card vacancy was not found.</p></section>;
-  return <Inbox onSelect={setSelected} />;
+  return <Inbox onSelect={setSelected} onNavigate={onNavigate} />;
 }

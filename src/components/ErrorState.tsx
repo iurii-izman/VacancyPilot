@@ -63,12 +63,15 @@ export function ErrorState({
           type="button"
           onClick={onRetry}
           style={{
-            padding: `${spacing.xs2}px ${spacing.lg}px`,
+            minHeight: 32,
+            padding: `0 ${spacing.lg}px`,
             fontSize: fontSizes.md,
             cursor: "pointer",
             border: `1px solid ${colors.borderLight}`,
             borderRadius: borderRadius.md,
             background: colors.white,
+            color: colors.text,
+            fontWeight: fontWeights.semibold,
           }}
         >
           Retry

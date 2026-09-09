@@ -25,6 +25,8 @@ export function LoadingState({
         fontSize: fontSizes.body,
         color: colors.textPlaceholder,
       }}
+      role="status"
+      aria-live="polite"
     >
       {message}
     </div>

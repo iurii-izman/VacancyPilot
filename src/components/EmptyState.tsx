@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { colors, fontSizes, fontWeights, spacing, fontFamily } from "../styles";
+import { colors, fontSizes, fontWeights, spacing, fontFamily, borderRadius } from "../styles";
 
 interface EmptyStateProps {
   /** Icon or emoji to show above the message. */
@@ -8,6 +8,9 @@ interface EmptyStateProps {
   message: string;
   /** Optional secondary description. */
   description?: string;
+  /** Optional next action for actionable empty/setup states. */
+  actionLabel?: string;
+  onAction?: () => void;
 }
 
 /**
@@ -18,6 +21,8 @@ export function EmptyState({
   icon = "📋",
   message,
   description,
+  actionLabel,
+  onAction,
 }: EmptyStateProps): ReactNode {
   return (
     <div
@@ -57,6 +62,25 @@ export function EmptyState({
         <p style={{ margin: 0, fontSize: fontSizes.md, lineHeight: 1.5 }}>
           {description}
         </p>
+      )}
+      {actionLabel && onAction && (
+        <button
+          type="button"
+          onClick={onAction}
+          style={{
+            marginTop: spacing.lg,
+            minHeight: 34,
+            padding: `0 ${spacing.xl}px`,
+            border: "none",
+            borderRadius: borderRadius.lg,
+            background: colors.blue,
+            color: colors.white,
+            fontWeight: fontWeights.semibold,
+            cursor: "pointer",
+          }}
+        >
+          {actionLabel}
+        </button>
       )}
     </div>
   );

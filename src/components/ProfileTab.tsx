@@ -163,7 +163,7 @@ export function ProfileTab({
       <EmptyState
         icon="👤"
         message="No profiles yet"
-        description="Open Dashboard → Profiles to create your first profile."
+        description="Create a profile here to enable local scoring and letter workflows."
       />
     );
   }

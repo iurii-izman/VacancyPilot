@@ -89,7 +89,7 @@ export function TrustSafetySummary({
             <li>No developer cloud backend or sync service; companion secrets use the OS keyring</li>
             <li>
               You can export all data (CSV or JSON) and delete everything from
-              the Dashboard at any time
+              Settings → Privacy & Data at any time
             </li>
           </ul>
         </div>

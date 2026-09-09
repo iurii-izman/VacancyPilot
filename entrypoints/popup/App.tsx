@@ -668,7 +668,7 @@ function PopupContent(): ReactNode {
           </div>
         )}
         <ActionButton
-          label="Dashboard"
+          label="Workspace"
           onClick={() => void openDashboard()}
           wide
         />

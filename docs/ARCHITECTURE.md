@@ -31,6 +31,12 @@ Standalone Pipeline is the Dexie/Kanban source of truth; Ops Pipeline exposes
 Companion-backed performance summaries and does not present the local board as
 canonical.
 
+The current presentation pass keeps this route and data architecture intact.
+It consolidates daily-use hierarchy around clear page titles, compact cards,
+core-versus-secondary filters, actionable empty states and explicit preview or
+confirmation actions. These are UI-only refinements; they do not alter the
+database, API, permission or private V4 boundaries.
+
 ## Companion
 
 Ops Mode is opt-in and paired through a terminal code. The FastAPI service binds

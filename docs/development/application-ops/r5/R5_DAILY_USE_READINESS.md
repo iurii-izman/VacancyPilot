@@ -34,6 +34,19 @@ Copying or opening HH is not applying. Generated letter text is not evidence;
 explicit sent confirmation. Interview Pack and backup health are deferred or
 inactive.
 
+## Daily-use UI cues
+
+Today, Discovery, Inbox, Pipeline, Candidate and Settings remain the only
+primary routes. Empty states now provide the next useful destination; Inbox
+keeps the common search/status/decision filters visible and puts secondary
+filters behind `More filters`; Application Card makes provider-free Preview and
+explicit execution confirmation visually distinct. These are presentation
+refinements only and do not change the underlying workflow or safety boundary.
+
+The post-change production render was inspected locally. Final visual acceptance
+of the unpacked browser extension still requires a human reload/review; no live
+Full V4/provider acceptance was performed as part of this polish pass.
+
 ## Immediate hotfix criteria
 
 Fix immediately only for data loss, duplicate application, incorrect
