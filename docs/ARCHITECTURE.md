@@ -40,6 +40,23 @@ confirmation actions. The mode-safety pass adds capability-derived gates at
 the UI and action boundaries without changing the product's read-only HH
 boundary.
 
+### Generated Companion wire contract
+
+The FastAPI-generated snapshot at `shared/contracts/openapi.json` is the
+canonical Companion API contract. `pnpm contracts:generate` produces the
+type-only `shared/contracts/generated/openapi-types.ts` module, while
+`src/adapters/companion/wire-types.ts` provides stable adapter aliases and
+explicitly documented view refinements for legacy open-object HH responses.
+`pnpm contracts:check` validates FastAPI snapshot drift, deterministic
+generation and generated-output privacy. Critical operation IDs are kept in
+the TypeScript compiler surface by `contract-compile-checks.ts`; generated
+types are not bundled into the extension runtime.
+
+The current Dexie schema is v7. Its explicit migration-coverage registry is
+independent from the schema object chain, and actual fake-IndexedDB tests cover
+v1/v6 upgrades, row/index preservation, v7 coordination stores and a current
+schema reopen.
+
 ### Ops read-model boundary
 
 The Ops projection is a derived read model over the existing SQLite tables. It

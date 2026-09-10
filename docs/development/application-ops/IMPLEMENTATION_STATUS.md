@@ -1,8 +1,12 @@
 # Application Ops — Implementation Evidence
 
 This is a concise evidence index for the current checkout, not a roadmap.
-Runtime code, tests, migrations and the generated OpenAPI snapshot outrank
-dated acceptance reports.
+Runtime code, tests, migrations and the generated OpenAPI/TypeScript contract
+artifacts outrank dated acceptance reports.
+
+Fix 5 engineering-hygiene implementation is tracked in
+[`../FIX5_ENGINEERING_HYGIENE.md`](../FIX5_ENGINEERING_HYGIENE.md); its final
+status is complete after the complete local quality gate passed.
 
 ## Current baseline
 
@@ -22,7 +26,7 @@ dated acceptance reports.
 | Extension | `wxt.config.ts`, `entrypoints/`, `src/` | MV3 with `storage`, `sidePanel`, `activeTab`; no required HH host permission |
 | Standalone storage | `src/db/schema.ts`, `src/db/database.ts`, `src/db/migrations.ts` | Dexie schema v7 is canonical |
 | Ops storage | `companion/app/db/`, `companion/alembic/` | SQLite is canonical; Alembic has one current head |
-| API contract | `shared/contracts/openapi.json`, FastAPI routers | Generated OpenAPI is canonical; old planning contract was retired |
+| API contract | `shared/contracts/openapi.json`, `shared/contracts/generated/openapi-types.ts`, FastAPI routers | Generated OpenAPI is canonical; deterministic TypeScript wire types are checked for drift |
 | Ops UI read model | `companion/app/api/ops_projection.py`, `src/models/work-item.ts`, `src/components/ApplicationOpsWorkspace.tsx` | One authenticated bounded projection; derived view only, no new table or write endpoint |
 | Settings | `src/models/settings.ts`, `src/db/settings-bridge.ts` | normalized `app_settings_v1`; obsolete UI-only keys are stripped; API keys and Companion token are separate slots |
 | Engine boundary | `companion/app/engine/`, local `.local/private-engine/` | real V4 stays local/private; no candidate knowledge is tracked |
@@ -63,8 +67,8 @@ The implementation uses Option B from the corrective-pass decision tree: one
 authenticated, read-only `GET /api/v1/ops/work-items` endpoint with
 `view=vacancies`, `view=applications`, and `view=summary`. It reads existing
 SQLite tables in bounded set-based queries, applies filters and sorting before
-pagination, and exposes a hand-written frontend transport type pending the
-Fix 5 generated-TypeScript pipeline. It performs no provider or HH call and
+pagination, and exposes generated frontend transport types mapped by
+`src/adapters/companion/wire-types.ts`. It performs no provider or HH call and
 does not mutate Dexie, SQLite, or any application state.
 
 Standalone presentation is built with `fromStandalone(Job)` and remains
@@ -220,6 +224,9 @@ pnpm test:release
 pnpm verify:companion
 pnpm verify:all
 pnpm companion:openapi-check
+pnpm contracts:check
+pnpm workflows:check
+pnpm release:artifacts
 ```
 
 `verify:aops-workflow` was retired with the obsolete executor pack. It is not a

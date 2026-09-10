@@ -12,7 +12,7 @@ No auto-apply. No hidden browser-side HH requests. No external recruiter or foll
 
 ## Status
 
-**Pre-release / personal dogfood.** The bounded R5 Application Factory is accepted with synthetic local QA; the current hydration/card hotfix line has not received a new live-provider V4 acceptance. R5.1 Project Memory Lite and dependency maintenance are merged. Feature development is frozen while real usage evidence is collected. VacancyPilot is not published as a Chrome Web Store release.
+**Pre-release / personal dogfood.** The bounded R5 Application Factory is accepted with synthetic local QA; the current hydration/card hotfix line has not received a new live-provider V4 acceptance. R5.1 Project Memory Lite and the Fix 5 engineering-hygiene work are on this checkout. Feature development is frozen while real usage evidence is collected. VacancyPilot is not published as a Chrome Web Store release.
 
 “Personal dogfood” describes current product use, not repository visibility: this GitHub repository is public, while the private V4 engine package and real candidate knowledge remain outside it.
 
@@ -105,7 +105,7 @@ R5 Application Factory prepares a manual queue. Preview makes zero provider call
 | Standalone storage | Dexie 4 / IndexedDB; `chrome.storage.local` |
 | Companion | Python 3.12+, FastAPI, Pydantic, SQLite, SQLAlchemy, Alembic |
 | Secrets | OS keyring for companion secrets; standalone extension BYOK remains in `chrome.storage.local` with a warning |
-| Contract | Generated OpenAPI snapshot at [`shared/contracts/openapi.json`](shared/contracts/openapi.json) |
+| Contract | Canonical OpenAPI snapshot plus generated TypeScript wire types at [`shared/contracts/`](shared/contracts/) |
 | Verification | Vitest, pytest, Ruff, mypy, ESLint |
 
 ## Quick Start
@@ -137,7 +137,13 @@ Root verification:
 ```bash
 pnpm verify
 pnpm test:release
+pnpm verify:all
 ```
+
+`pnpm verify:all` is the CI-equivalent full gate. It also checks workflow
+action pins, OpenAPI/TypeScript contract drift, release-package privacy, and
+the complete Companion quality suite. It does not call HH, an AI provider, or
+the private engine.
 
 Companion verification:
 
@@ -161,6 +167,7 @@ See the [current roadmap](docs/ROADMAP.md).
 - [Current state](docs/project-memory/CURRENT_STATE.md) — accepted runtime baseline and operating mode
 - [Application Ops status](docs/development/application-ops/IMPLEMENTATION_STATUS.md) — current implementation and validation
 - [Fix 4 data-security acceptance](docs/development/FIX4_DATA_SECURITY_ACCEPTANCE.md) — exact local data scope, findings and verification
+- [Fix 5 engineering hygiene](docs/development/FIX5_ENGINEERING_HYGIENE.md) — generated contracts, migrations, CI, dependencies and release artifacts
 - [Architecture](docs/ARCHITECTURE.md) and [V4 engine boundary](docs/V4_ENGINE.md)
 - [Master specification](docs/Техническое%20заданиеV.1.md)
 - [Daily-use readiness](docs/development/application-ops/r5/R5_DAILY_USE_READINESS.md)

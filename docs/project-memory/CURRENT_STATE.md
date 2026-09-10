@@ -119,8 +119,8 @@ Inbox filters, and actionable empty states. Fix 2 adds the authoritative Ops
 work-item read model without changing the database schema or HH safety
 boundary. Post-change production static render was inspected; final
 unpacked-extension visual acceptance still needs human review. The projection
-has targeted backend/frontend coverage and the generated OpenAPI snapshot is
-current.
+has targeted backend/frontend coverage and the generated OpenAPI snapshot plus
+the checked-in TypeScript wire artifact are current.
 
 Options and Side Panel authority is explicit: Standalone presentation reads
 Dexie domain state; Ops presentation reads the Companion/SQLite work-item
@@ -175,11 +175,24 @@ legacy `engine_runs.raw_output` without printing values.
 The complete Fix 4 evidence and exact data-scope contract are in
 [`../development/FIX4_DATA_SECURITY_ACCEPTANCE.md`](../development/FIX4_DATA_SECURITY_ACCEPTANCE.md).
 
+## Fix 5 engineering hygiene
+
+Fix 5 is accepted as a repository-local engineering-hygiene pass. The
+canonical OpenAPI snapshot now has a deterministic generated TypeScript
+artifact and adapter wire map with compiler checks. Dexie v1–v7 coverage is
+explicitly registered and exercised through upgrade tests. Workflow action
+pins, dependency-review blocking, dependency dispositions, release artifact
+privacy checks, and the provider-free `pnpm verify:all` gate are documented in
+[`../development/FIX5_ENGINEERING_HYGIENE.md`](../development/FIX5_ENGINEERING_HYGIENE.md).
+This does not claim live-provider V4 acceptance, final human visual
+acceptance, SEC-SERVER-AUTH-001 closure, public-release readiness, or external
+GitHub branch-protection configuration.
+
 ## Deferred / incomplete
 
 - AOPS-14 Interview Pack: deferred, not started.
-- Fix 5 follow-on work, including generated client-contract plumbing and
-  broader post-R5 product work, remains deferred.
+- Broader post-R5 product work remains deferred; Fix 5 engineering hygiene is
+  accepted locally as recorded above.
 - Full canonical AOPS-15 analytics/production pilot: incomplete; only the
   bounded R5 slice is accepted.
 - Backup/recovery redesign, public release, V4.1 and new providers: backlog or
