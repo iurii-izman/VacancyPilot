@@ -13,7 +13,7 @@ import { PermissionsSection } from "@/components/PermissionsSection";
 import { PrivacyDisclosureSection } from "@/components/PrivacyDisclosureSection";
 import { CompanionSettings } from "@/components/CompanionSettings";
 import { HHIntegrationSection } from "@/components/HHIntegrationSection";
-import { TodayWorkspace, ApplicationWorkspace } from "@/components/ApplicationOpsWorkspace";
+import { TodayWorkspace, ApplicationWorkspace, OpsPipelineWorkspace } from "@/components/ApplicationOpsWorkspace";
 import { PerformanceSection } from "@/components/PerformanceSection";
 import { capabilityMessage, getOpsCapabilities, type OpsCapabilities } from "@/services/ops-capabilities";
 import { useState, useCallback, useEffect, type ReactNode } from "react";
@@ -560,7 +560,7 @@ export function PipelineWorkspace({
         ))}
       </div>
       {opsMode ? (
-        initialTab === "performance" && capabilities.canUseOpsAnalytics ? <PerformanceSection /> : initialTab === "performance" ? <EmptyState icon="📊" message="Ops analytics is unavailable" description={capabilityMessage("ops-analytics", capabilities)} /> : <EmptyState icon="📋" message="Ops Mode is active" description="The Companion is the authority for Pipeline data in Ops Mode. Open Performance for descriptive outcomes, or use Inbox for the application workflow." actionLabel="Open Performance" onAction={() => onTabChange?.("performance")} />
+        initialTab === "performance" && capabilities.canUseOpsAnalytics ? <PerformanceSection /> : initialTab === "performance" ? <EmptyState icon="📊" message="Ops analytics is unavailable" description={capabilityMessage("ops-analytics", capabilities)} /> : <OpsPipelineWorkspace />
       ) : (
         initialTab === "performance" ? <EmptyState icon="📊" message="Performance is Ops-only" description={capabilityMessage("ops-analytics", capabilities)} /> : <KanbanBoard />
       )}

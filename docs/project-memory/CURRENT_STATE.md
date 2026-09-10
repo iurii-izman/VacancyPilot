@@ -1,8 +1,8 @@
 # Current State
 
-Reviewed checkout: branch `hotfix/hh-vacancy-hydration-v4-card`, Pass 1 baseline
-`f47fa11ddff67d2bf081b8df1939e1d4cef6f6b0` before Pass 2 dead-tail cleanup and
-Pass 3 daily-use UX polish.
+Reviewed checkout: branch `hotfix/hh-vacancy-hydration-v4-card`, Fix 2
+authoritative Ops read-model correction on top of the Pass 3 daily-use UX
+polish and Fix 1 transport/mode-safety baseline.
 The worktree was clean at audit preflight. This document is the current
 runtime/status snapshot; dated acceptance reports are historical evidence.
 
@@ -67,7 +67,8 @@ compatible Companion status. The canonical HTTP idempotency header is
 The final local Applied mutation requires explicit confirmation that the user
 submitted through native HH. Guided Apply preparation is checklist/clipboard
 only, and its final local mutation plus HR/application/timeline Dexie writes
-are unavailable in effective Ops until Fix 2.
+remain unavailable in effective Ops. Fix 2 corrects read authority; it does
+not add an Ops write path.
 
 ## Surface truth
 
@@ -82,9 +83,23 @@ first run or by manual rerun from Settings.
 
 Pass 3 is presentation-only: the six-route IA remains unchanged. The current
 UI uses clearer page hierarchy, compact action cards, styled tabs, core/secondary
-Inbox filters, and actionable empty states. No database, API, permission,
-private V4 or safety semantics changed. Post-change production static render was
-inspected; final unpacked-extension visual acceptance still needs human review.
+Inbox filters, and actionable empty states. Fix 2 adds the authoritative Ops
+work-item read model without changing the database schema or HH safety
+boundary. Post-change production static render was inspected; final
+unpacked-extension visual acceptance still needs human review. The projection
+has targeted backend/frontend coverage and the generated OpenAPI snapshot is
+current.
+
+Options and Side Panel authority is explicit: Standalone presentation reads
+Dexie domain state; Ops presentation reads the Companion/SQLite work-item
+projection. `/api/v1/ops/work-items` is a derived view only, not a persisted
+third authority. Ops Inbox is one row per Vacancy, including no-Application
+vacancies; Ops Pipeline is one row per Application. No Application is not
+`new`, no analysis is not score `0`, provenance can be many-to-many, and
+multiple Applications/follow-ups are retained as collections rather than
+arbitrarily selected. Ops refresh does not write Standalone jobs or local
+Application domain tables, and cached Ops data is never reinterpreted as
+Standalone truth.
 
 Settings are normalized and persisted under `app_settings_v1`; stale removed
 UI-only keys are stripped on load, while API keys and the Companion token use
@@ -96,6 +111,8 @@ migrations with one current head.
 ## Deferred / incomplete
 
 - AOPS-14 Interview Pack: deferred, not started.
+- Fix 3 execution/privacy/concurrency findings remain unresolved; Fix 2 does
+  not change those boundaries.
 - Full canonical AOPS-15 analytics/production pilot: incomplete; only the
   bounded R5 slice is accepted.
 - Backup/recovery redesign, public release, V4.1 and new providers: backlog or

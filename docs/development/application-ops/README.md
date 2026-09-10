@@ -10,6 +10,9 @@ not an active epic queue.
   is the API contract. FastAPI routes and tests are executable authority.
 - SQLite plus Alembic is canonical in Ops Mode. Dexie remains the extension
   cache/outbox and standalone canonical store.
+- Ops UI reads the derived, authenticated `/api/v1/ops/work-items` projection;
+  it is not a persisted third authority. Inbox is Vacancy-based, Pipeline is
+  Application-based, and no-Application/unknown states remain explicit.
 - The R5 Application Factory is bounded and human-controlled: Preview is
   provider-free, execution is explicitly confirmed, and queue preparation does
   not create an application or `APPLIED` state.

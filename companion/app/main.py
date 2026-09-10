@@ -27,6 +27,7 @@ from app.api.health import router as health_router
 from app.api.hh import router as hh_router
 from app.api.letters import router as letters_router
 from app.api.migration import router as migration_router
+from app.api.ops_projection import router as ops_projection_router
 from app.api.pairing import router as pairing_router
 from app.api.r5_analytics import router as r5_analytics_router
 from app.api.r5_application_factory import router as r5_application_factory_router
@@ -102,6 +103,7 @@ def create_app(*, initialize_db: bool = True) -> FastAPI:
     app.include_router(pairing_router, prefix=api_prefix)
     app.include_router(migration_router, prefix=api_prefix)
     app.include_router(vacancies_router, prefix=api_prefix)
+    app.include_router(ops_projection_router, prefix=api_prefix)
     app.include_router(application_ops_router, prefix=api_prefix)
     app.include_router(r5_application_factory_router, prefix=api_prefix)
     app.include_router(r5_analytics_router, prefix=api_prefix)

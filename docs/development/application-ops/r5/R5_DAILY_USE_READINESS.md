@@ -23,7 +23,9 @@ MODE: `REAL DAILY USE / DOGFOOD`
 
 Search Profiles / HH discovery → Inbox → open full vacancy → Preview Full V4
 → explicit Confirm and run → review V4 decision/evidence/letter → manually
-apply externally → Confirm Applied → track response/outcome.
+apply externally → Confirm Applied → track response/outcome. In Ops, Inbox is
+the Companion vacancy projection (including vacancies with no Application) and
+Pipeline is the Companion Application workflow.
 
 Application Factory Preview makes no provider call. Full V4 Preview is also
 provider-free for the analysis itself, but an incomplete selected vacancy may
@@ -42,7 +44,8 @@ Full V4, hydration, Search Profiles, analytics, Application Factory and Ops
 follow-ups are enabled only when the Companion is connected and paired; stale
 or unavailable transport leaves those controls disabled with an explanation.
 Guided Apply's preparation checklist never marks Applied, and its final local
-mutation is intentionally deferred until Fix 2.
+mutation remains unavailable in Ops. Fix 2 changes read authority only; it does
+not add an Ops write path.
 
 ## Daily-use UI cues
 
@@ -56,6 +59,12 @@ refinements only and do not change the underlying workflow or safety boundary.
 The post-change production render was inspected locally. Final visual acceptance
 of the unpacked browser extension still requires a human reload/review; no live
 Full V4/provider acceptance was performed as part of this polish pass.
+
+Ops read semantics are explicit: no Application is not `new`, no analysis is
+not score `0`, invalid/unavailable sources are not converted into valid/empty
+state, and multiple Applications or follow-ups are retained rather than
+arbitrarily selected. Refreshing Ops does not update Standalone Dexie domain
+tables. Fix 3 execution, privacy, and concurrency findings remain unresolved.
 
 ## Immediate hotfix criteria
 

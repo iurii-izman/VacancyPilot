@@ -31,6 +31,7 @@ import type {
   HHVacancySyncResponse,
 } from './types';
 import type { VacancyListFilters, VacancyListResponse, VacancyDetailResponse, FullV4PreviewResponse, FullV4AnalyzeResponse, FullV4PersistedRunResponse } from './vacancy-types';
+import type { OpsProjectionQuery, OpsWorkItemResponse } from './ops-projection-types';
 import type {
   ApplicationListResponse,
   ApplicationResponse,
@@ -348,6 +349,23 @@ export class OpsClient {
       if (value !== undefined) query.set(key, String(value));
     }
     return this.authenticatedGet<VacancyListResponse>(`/vacancies?${query.toString()}`, signal);
+  }
+
+  /** Read the authoritative, bounded Ops work-item projection. */
+  async getOpsWorkItems(
+    filters: OpsProjectionQuery = {},
+    signal?: AbortSignal,
+  ): Promise<OpsWorkItemResponse> {
+    const query = new URLSearchParams({
+      view: filters.view ?? 'vacancies',
+      limit: String(filters.limit ?? 100),
+      offset: String(filters.offset ?? 0),
+    });
+    for (const [key, value] of Object.entries(filters)) {
+      if (key === 'view' || key === 'limit' || key === 'offset') continue;
+      if (value !== undefined) query.set(key, String(value));
+    }
+    return this.authenticatedGet<OpsWorkItemResponse>(`/ops/work-items?${query.toString()}`, signal);
   }
 
   async getVacancy(id: string, signal?: AbortSignal): Promise<VacancyDetailResponse> {

@@ -2407,6 +2407,825 @@
         "title": "MigrationStatusResponse",
         "type": "object"
       },
+      "OpsAnalysis": {
+        "additionalProperties": false,
+        "properties": {
+          "confidence": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "decision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision"
+          },
+          "ready": {
+            "title": "Ready",
+            "type": "boolean"
+          },
+          "repair_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repair Status"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "state": {
+            "enum": [
+              "not_analyzed",
+              "running",
+              "ready",
+              "invalid",
+              "failed"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          }
+        },
+        "required": [
+          "run_id",
+          "state",
+          "status",
+          "repair_status",
+          "ready",
+          "score",
+          "decision",
+          "confidence",
+          "created_at"
+        ],
+        "title": "OpsAnalysis",
+        "type": "object"
+      },
+      "OpsApplication": {
+        "additionalProperties": false,
+        "properties": {
+          "application_id": {
+            "title": "Application Id",
+            "type": "string"
+          },
+          "applied_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Applied At"
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "decision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision"
+          },
+          "next_action_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Action At"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          },
+          "vacancy_id": {
+            "title": "Vacancy Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "application_id",
+          "vacancy_id",
+          "status",
+          "decision",
+          "score",
+          "confidence",
+          "applied_at",
+          "next_action_at",
+          "revision",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "OpsApplication",
+        "type": "object"
+      },
+      "OpsAvailability": {
+        "additionalProperties": false,
+        "description": "Availability of the joined authoritative sources.\n\nThe current implementation reads all sources in one SQLite transaction,\nso a database/query failure makes the whole request unavailable rather\nthan fabricating an empty child collection.  The per-source fields keep\nthat contract explicit for future transport-level partial responses.",
+        "properties": {
+          "analysis": {
+            "enum": [
+              "available",
+              "unavailable"
+            ],
+            "title": "Analysis",
+            "type": "string"
+          },
+          "application": {
+            "enum": [
+              "available",
+              "unavailable"
+            ],
+            "title": "Application",
+            "type": "string"
+          },
+          "follow_up": {
+            "enum": [
+              "available",
+              "unavailable"
+            ],
+            "title": "Follow Up",
+            "type": "string"
+          },
+          "provenance": {
+            "enum": [
+              "available",
+              "unavailable"
+            ],
+            "title": "Provenance",
+            "type": "string"
+          }
+        },
+        "required": [
+          "application",
+          "analysis",
+          "follow_up",
+          "provenance"
+        ],
+        "title": "OpsAvailability",
+        "type": "object"
+      },
+      "OpsFollowUp": {
+        "additionalProperties": false,
+        "properties": {
+          "application_id": {
+            "title": "Application Id",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "derived_state": {
+            "title": "Derived State",
+            "type": "string"
+          },
+          "draft_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Draft Text"
+          },
+          "due_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due At"
+          },
+          "follow_up_id": {
+            "title": "Follow Up Id",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "sent_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sent At"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "follow_up_id",
+          "application_id",
+          "reason",
+          "due_at",
+          "status",
+          "derived_state",
+          "draft_text",
+          "sent_at",
+          "revision",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "OpsFollowUp",
+        "type": "object"
+      },
+      "OpsProvenance": {
+        "additionalProperties": false,
+        "properties": {
+          "hits": {
+            "items": {
+              "$ref": "#/components/schemas/OpsProvenanceHit"
+            },
+            "title": "Hits",
+            "type": "array"
+          }
+        },
+        "required": [
+          "hits"
+        ],
+        "title": "OpsProvenance",
+        "type": "object"
+      },
+      "OpsProvenanceHit": {
+        "additionalProperties": false,
+        "properties": {
+          "first_seen_at": {
+            "title": "First Seen At",
+            "type": "string"
+          },
+          "hit_count": {
+            "title": "Hit Count",
+            "type": "integer"
+          },
+          "last_seen_at": {
+            "title": "Last Seen At",
+            "type": "string"
+          },
+          "search_profile_id": {
+            "title": "Search Profile Id",
+            "type": "string"
+          },
+          "search_profile_name": {
+            "title": "Search Profile Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "search_profile_id",
+          "search_profile_name",
+          "first_seen_at",
+          "last_seen_at",
+          "hit_count"
+        ],
+        "title": "OpsProvenanceHit",
+        "type": "object"
+      },
+      "OpsSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "analysis_failed": {
+            "title": "Analysis Failed",
+            "type": "integer"
+          },
+          "analysis_invalid": {
+            "title": "Analysis Invalid",
+            "type": "integer"
+          },
+          "analysis_not_analyzed": {
+            "title": "Analysis Not Analyzed",
+            "type": "integer"
+          },
+          "analysis_ready": {
+            "title": "Analysis Ready",
+            "type": "integer"
+          },
+          "analysis_running": {
+            "title": "Analysis Running",
+            "type": "integer"
+          },
+          "applications_total": {
+            "title": "Applications Total",
+            "type": "integer"
+          },
+          "followups_due": {
+            "title": "Followups Due",
+            "type": "integer"
+          },
+          "ready_to_review": {
+            "title": "Ready To Review",
+            "type": "integer"
+          },
+          "vacancies_total": {
+            "title": "Vacancies Total",
+            "type": "integer"
+          },
+          "vacancies_without_application": {
+            "title": "Vacancies Without Application",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "vacancies_total",
+          "vacancies_without_application",
+          "applications_total",
+          "analysis_not_analyzed",
+          "analysis_running",
+          "analysis_ready",
+          "analysis_invalid",
+          "analysis_failed",
+          "ready_to_review",
+          "followups_due"
+        ],
+        "title": "OpsSummary",
+        "type": "object"
+      },
+      "OpsVacancy": {
+        "additionalProperties": false,
+        "properties": {
+          "archived": {
+            "title": "Archived",
+            "type": "boolean"
+          },
+          "city": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City"
+          },
+          "company_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company Id"
+          },
+          "company_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company Name"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "description_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description Hash"
+          },
+          "experience": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Experience"
+          },
+          "first_seen_at": {
+            "title": "First Seen At",
+            "type": "string"
+          },
+          "hh_vacancy_id": {
+            "title": "Hh Vacancy Id",
+            "type": "string"
+          },
+          "hydration_state": {
+            "enum": [
+              "full",
+              "partial"
+            ],
+            "title": "Hydration State",
+            "type": "string"
+          },
+          "last_seen_at": {
+            "title": "Last Seen At",
+            "type": "string"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "salary_max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Salary Max"
+          },
+          "salary_min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Salary Min"
+          },
+          "skills": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Skills",
+            "type": "array"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "source_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Url"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "updated_at": {
+            "title": "Updated At",
+            "type": "string"
+          },
+          "vacancy_id": {
+            "title": "Vacancy Id",
+            "type": "string"
+          },
+          "work_mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Work Mode"
+          }
+        },
+        "required": [
+          "vacancy_id",
+          "hh_vacancy_id",
+          "source",
+          "source_url",
+          "title",
+          "company_id",
+          "company_name",
+          "salary_min",
+          "salary_max",
+          "currency",
+          "city",
+          "work_mode",
+          "experience",
+          "description",
+          "description_hash",
+          "skills",
+          "published_at",
+          "first_seen_at",
+          "last_seen_at",
+          "updated_at",
+          "archived",
+          "revision",
+          "hydration_state"
+        ],
+        "title": "OpsVacancy",
+        "type": "object"
+      },
+      "OpsWorkItem": {
+        "additionalProperties": false,
+        "properties": {
+          "active_follow_up_count": {
+            "title": "Active Follow Up Count",
+            "type": "integer"
+          },
+          "analysis": {
+            "$ref": "#/components/schemas/OpsAnalysis"
+          },
+          "analysis_state": {
+            "enum": [
+              "not_analyzed",
+              "running",
+              "ready",
+              "invalid",
+              "failed"
+            ],
+            "title": "Analysis State",
+            "type": "string"
+          },
+          "application_state": {
+            "title": "Application State",
+            "type": "string"
+          },
+          "applications": {
+            "items": {
+              "$ref": "#/components/schemas/OpsApplication"
+            },
+            "title": "Applications",
+            "type": "array"
+          },
+          "authority": {
+            "const": "ops",
+            "title": "Authority",
+            "type": "string"
+          },
+          "availability": {
+            "$ref": "#/components/schemas/OpsAvailability"
+          },
+          "follow_up_state": {
+            "title": "Follow Up State",
+            "type": "string"
+          },
+          "follow_ups": {
+            "items": {
+              "$ref": "#/components/schemas/OpsFollowUp"
+            },
+            "title": "Follow Ups",
+            "type": "array"
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/OpsProvenance"
+          },
+          "vacancy": {
+            "$ref": "#/components/schemas/OpsVacancy"
+          },
+          "vacancy_state": {
+            "enum": [
+              "active",
+              "archived"
+            ],
+            "title": "Vacancy State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "authority",
+          "vacancy_state",
+          "vacancy",
+          "applications",
+          "application_state",
+          "analysis",
+          "analysis_state",
+          "follow_ups",
+          "follow_up_state",
+          "active_follow_up_count",
+          "provenance",
+          "availability"
+        ],
+        "title": "OpsWorkItem",
+        "type": "object"
+      },
+      "OpsWorkItemMeta": {
+        "additionalProperties": false,
+        "properties": {
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/OpsSummary"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "view": {
+            "enum": [
+              "vacancies",
+              "applications",
+              "summary"
+            ],
+            "title": "View",
+            "type": "string"
+          }
+        },
+        "required": [
+          "request_id",
+          "total",
+          "limit",
+          "offset",
+          "view",
+          "summary"
+        ],
+        "title": "OpsWorkItemMeta",
+        "type": "object"
+      },
+      "OpsWorkItemResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/OpsWorkItem"
+            },
+            "title": "Data",
+            "type": "array"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/OpsWorkItemMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "OpsWorkItemResponse",
+        "type": "object"
+      },
       "PairConfirmData": {
         "description": "The client token is returned exactly once on successful confirm.",
         "properties": {
@@ -6155,6 +6974,320 @@
         "summary": "Migration Status",
         "tags": [
           "migration"
+        ]
+      }
+    },
+    "/api/v1/ops/work-items": {
+      "get": {
+        "description": "Return the current authoritative Ops work-item projection.\n\nThe endpoint performs a fixed number of set-based SQLite queries.  It is\nintentionally read-only and never calls HH or an analysis provider.",
+        "operationId": "ops_work_items_api_v1_ops_work_items_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "view",
+            "required": false,
+            "schema": {
+              "default": "vacancies",
+              "enum": [
+                "vacancies",
+                "applications",
+                "summary"
+              ],
+              "title": "View",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 32,
+                  "pattern": "^[a-zA-Z][a-zA-Z0-9_-]{0,31}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Source"
+            }
+          },
+          {
+            "in": "query",
+            "name": "work_mode",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "remote",
+                    "hybrid",
+                    "office",
+                    "unknown"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Work Mode"
+            }
+          },
+          {
+            "in": "query",
+            "name": "archived",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Archived"
+            }
+          },
+          {
+            "in": "query",
+            "name": "updated_after",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Updated After"
+            }
+          },
+          {
+            "in": "query",
+            "name": "search_profile_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search Profile Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Query"
+            }
+          },
+          {
+            "in": "query",
+            "name": "vacancy_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Vacancy Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source_vacancy_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Source Vacancy Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "application_status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 32,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Application Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "analysis_state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 32,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Analysis State"
+            }
+          },
+          {
+            "in": "query",
+            "name": "score_band",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 32,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Score Band"
+            }
+          },
+          {
+            "in": "query",
+            "name": "decision",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 32,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Decision"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "updated_at",
+              "enum": [
+                "updated_at",
+                "score"
+              ],
+              "title": "Sort",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "direction",
+            "required": false,
+            "schema": {
+              "default": "desc",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "title": "Direction",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpsWorkItemResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Ops Work Items",
+        "tags": [
+          "ops-read-model"
         ]
       }
     },

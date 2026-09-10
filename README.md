@@ -16,10 +16,11 @@ No auto-apply. No hidden browser-side HH requests. No external recruiter or foll
 
 “Personal dogfood” describes current product use, not repository visibility: this GitHub repository is public, while the private V4 engine package and real candidate knowledge remain outside it.
 
-The current checkout includes the Pass 3 daily-use UX polish and the Fix 1
-transport/mode-safety hardening: supported Companion launch is loopback-only,
-the effective operating mode is centralized, and Applied remains an explicit
-confirmation after the user's native HH submission.
+The current checkout includes the Pass 3 daily-use UX polish, Fix 1
+transport/mode-safety hardening, and Fix 2's authoritative Ops read model:
+supported Companion launch is loopback-only, the effective operating mode is
+centralized, Ops UI reads Companion/SQLite projections, and Applied remains an
+explicit confirmation after the user's native HH submission.
 
 ## What It Does Today
 
@@ -27,6 +28,7 @@ confirmation after the user's native HH submission.
   Candidate and Settings; legacy hashes remain compatibility aliases.
 - Reads visible vacancy and search-card data from HH.ru pages the user opened.
 - Uses the official HH read-only API through the optional local companion in Ops Mode.
+- Keeps Ops Inbox vacancy-based, including vacancies with no Application, and Ops Pipeline Application-based; no synthetic Standalone Job/Application is created for display.
 - Derives Ops capabilities only from committed Ops authority plus a valid connected Companion; Standalone remains usable when the Companion is unavailable.
 - Manages Search Profiles and deterministic Stage A triage.
 - Runs evidence-aware Full V4 analysis when the private local engine package and explicit AI configuration are available.
@@ -68,7 +70,7 @@ flowchart LR
 
 **Standalone Mode** is the extension-only workflow: WXT, Manifest V3, TypeScript and React; Dexie/IndexedDB is the canonical domain store and `chrome.storage.local` holds settings, small state and the standalone BYOK path. The effective mode is Standalone until Ops intent is enabled *and* migration has committed authority to Ops.
 
-**Ops Mode** pairs the extension with a loopback-only FastAPI companion. SQLite is canonical there; Dexie acts as cache/outbox and sync metadata. The companion keeps its operational secrets in the OS keyring, loads the private V4 package locally, and makes official HH API reads. It is not a developer cloud backend. The supported launcher is `pnpm companion:start`, which runs the project-owned `app.server` entrypoint on `127.0.0.1:8765` and rejects non-loopback binds.
+**Ops Mode** pairs the extension with a loopback-only FastAPI companion. SQLite is canonical there; Dexie acts as cache/outbox and sync metadata. The Options and Side Panel Ops surfaces read the single bounded `/api/v1/ops/work-items` projection: it is a derived view, not a third persisted authority. Inbox rows are vacancies, Pipeline rows are Applications, and vacancy/application/analysis/follow-up/provenance identities remain separate. The companion keeps its operational secrets in the OS keyring, loads the private V4 package locally, and makes official HH API reads. It is not a developer cloud backend. The supported launcher is `pnpm companion:start`, which runs the project-owned `app.server` entrypoint on `127.0.0.1:8765` and rejects non-loopback binds.
 
 ## Safety and Privacy
 

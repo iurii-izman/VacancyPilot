@@ -340,6 +340,63 @@ describe('OpsClient', () => {
     );
   });
 
+  it('reads the bounded Ops projection with one authenticated request', async () => {
+    client.setClientToken('projection-token');
+    const body = {
+      data: [],
+      meta: {
+        request_id: 'projection-request',
+        total: 0,
+        limit: 25,
+        offset: 25,
+        view: 'vacancies',
+        summary: {
+          vacancies_total: 0,
+          vacancies_without_application: 0,
+          applications_total: 0,
+          analysis_not_analyzed: 0,
+          analysis_running: 0,
+          analysis_ready: 0,
+          analysis_invalid: 0,
+          analysis_failed: 0,
+          ready_to_review: 0,
+          followups_due: 0,
+        },
+      },
+    };
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify(body), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+    const result = await client.getOpsWorkItems({
+      view: 'vacancies',
+      limit: 25,
+      offset: 25,
+      application_status: 'none',
+      analysis_state: 'not_analyzed',
+      search_profile_id: 'profile-1',
+      sort: 'score',
+      direction: 'asc',
+    });
+
+    expect(result.meta.total).toBe(0);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchSpy.mock.calls[0];
+    const parsed = new URL(String(url));
+    expect(parsed.pathname).toBe('/api/v1/ops/work-items');
+    expect(parsed.searchParams.get('application_status')).toBe('none');
+    expect(parsed.searchParams.get('analysis_state')).toBe('not_analyzed');
+    expect(parsed.searchParams.get('search_profile_id')).toBe('profile-1');
+    expect(parsed.searchParams.get('sort')).toBe('score');
+    expect(parsed.searchParams.get('direction')).toBe('asc');
+    expect((init as RequestInit).headers).toMatchObject({
+      'X-VacancyPilot-Client': 'projection-token',
+    });
+  });
+
   it('rejects authenticated requests before pairing', async () => {
     await expect(client.authenticatedGet('/migration/status')).rejects.toMatchObject({
       code: 'NOT_PAIRED',

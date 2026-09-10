@@ -28,8 +28,10 @@ canonical workspace and subview without creating data. Onboarding is a hidden
 first-run/manual flow. Discovery owns HH Search Profiles; Companion owns
 pairing, recovery, migration, account/auth and capability configuration.
 Standalone Pipeline is the Dexie/Kanban source of truth; Ops Pipeline exposes
-Companion-backed performance summaries and does not present the local board as
-canonical.
+the Companion Application workflow and does not present the local board as
+canonical. In Ops, Inbox and the Application Card use the bounded
+`/api/v1/ops/work-items` read model; a vacancy with no Application remains a
+vacancy row, while Pipeline has one row per authoritative Application.
 
 The current presentation pass keeps this route and data architecture intact.
 It consolidates daily-use hierarchy around clear page titles, compact cards,
@@ -37,6 +39,25 @@ core-versus-secondary filters, actionable empty states and explicit preview or
 confirmation actions. The mode-safety pass adds capability-derived gates at
 the UI and action boundaries without changing the product's read-only HH
 boundary.
+
+### Ops read-model boundary
+
+The Ops projection is a derived read model over the existing SQLite tables. It
+does not add a table, reconcile Dexie, or introduce a second write path. The
+single authenticated `GET /api/v1/ops/work-items` endpoint serves bounded
+vacancy, Application, and summary views with server-side filters and
+filter-before-pagination. Set-based queries load related Applications,
+EngineRuns, follow-ups, snapshots, and Search Profile hits; the browser does
+not perform vacancy-by-vacancy joins.
+
+The projection carries `vacancyState`, `applicationState`, `analysisState`,
+and `followUpState` separately. `none` Application state is not `new`, no
+analysis is not score zero, and unavailable data is not an empty authoritative
+collection. The latest persisted analysis run is shown according to its
+validity; an invalid latest run does not silently fall back to an older score.
+Search Profile provenance is a collection because a vacancy may have multiple
+authoritative hits. Standalone UI remains Dexie-authoritative, while Ops UI
+never projects Companion state into Standalone `Job` or Application records.
 
 ## Companion
 

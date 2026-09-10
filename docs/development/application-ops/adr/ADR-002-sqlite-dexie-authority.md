@@ -34,6 +34,27 @@ In **Standalone Mode**:
 - All reads/writes go through Dexie
 - No companion communication attempted
 
+### Fix 2 read-model refinement
+
+Ops UI reads the authenticated, bounded `GET /api/v1/ops/work-items`
+projection from Companion/SQLite. This is a derived view over the existing
+tables, not a persisted third authority, new table, reconciliation subsystem,
+or write endpoint. The endpoint serves the vacancy-based Inbox/card view, the
+Application-based Pipeline view, and complete summary counters using bounded
+set-based queries; server-side filters and sorting are applied before
+pagination.
+
+The projection keeps vacancy, Application, analysis, follow-up, and Search
+Profile provenance concepts separate. It carries distinct Companion Vacancy,
+HH vacancy, Standalone Job, Application, EngineRun, Search Profile, and
+FollowUp identifiers. A vacancy with no Application is not an Application with
+`new` status; no analysis is not score zero; invalid or unavailable sources
+are not converted into valid or empty state. Multiple Applications and active
+follow-ups are returned as collections rather than being assigned an
+arbitrary “current” record, and multiple provenance hits do not duplicate
+Inbox rows. Ops refresh does not write Standalone jobs or Applications, and
+switching modes never reinterprets cached Ops data as Standalone truth.
+
 The extension derives an effective mode centrally. Ops is effective only when
 the persisted user intent is enabled and authority metadata is the committed
 `ops` state. Enabled intent with `standalone` or `migration` authority remains
@@ -58,6 +79,8 @@ whenever effective mode is not Ops.
 - Dual-storage adds complexity in Ops Mode
 - Cache invalidation between SQLite and Dexie must be handled carefully
 - Migration UX must be designed for clarity (AOPS-05)
+- Ops UI requires a read-model contract so it does not accidentally coerce
+  Companion rows into Standalone domain records
 
 ## Rejected Options
 

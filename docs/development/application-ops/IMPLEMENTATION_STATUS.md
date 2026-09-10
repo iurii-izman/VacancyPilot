@@ -23,6 +23,7 @@ dated acceptance reports.
 | Standalone storage | `src/db/schema.ts`, `src/db/database.ts`, `src/db/migrations.ts` | Dexie schema v6 is canonical |
 | Ops storage | `companion/app/db/`, `companion/alembic/` | SQLite is canonical; Alembic has one current head |
 | API contract | `shared/contracts/openapi.json`, FastAPI routers | Generated OpenAPI is canonical; old planning contract was retired |
+| Ops UI read model | `companion/app/api/ops_projection.py`, `src/models/work-item.ts`, `src/components/ApplicationOpsWorkspace.tsx` | One authenticated bounded projection; derived view only, no new table or write endpoint |
 | Settings | `src/models/settings.ts`, `src/db/settings-bridge.ts` | normalized `app_settings_v1`; obsolete UI-only keys are stripped; API keys and Companion token are separate slots |
 | Engine boundary | `companion/app/engine/`, local `.local/private-engine/` | real V4 stays local/private; no candidate knowledge is tracked |
 | Application Factory | `src/components/ApplicationOpsWorkspace.tsx`, route/tests | Preview is provider-free; execute is explicit; queue never creates `APPLIED` |
@@ -47,8 +48,43 @@ dated acceptance reports.
   guards. HR extraction no longer synthesizes Applied from pre-application
   statuses.
 - Guided Apply preparation is distinct from the explicit native-HH-submission
-  confirmation. Its final local mutation is unavailable in Ops until Fix 2;
-  this is an intentional read-only limitation, not a hidden fallback.
+  confirmation. Its final local mutation remains unavailable in Ops; Fix 2
+  corrects read authority without adding that write path.
+
+## Fix 2: authoritative Ops projection
+
+OPS-AUTH-001 was reproduced in the pre-change path: Companion vacancy DTOs
+were converted into synthetic local `Job` records, which invented
+`status="new"` and dropped Application, EngineRun, follow-up, and provenance
+identity before Today, Inbox, Pipeline, and the card rendered them. That path
+is removed.
+
+The implementation uses Option B from the corrective-pass decision tree: one
+authenticated, read-only `GET /api/v1/ops/work-items` endpoint with
+`view=vacancies`, `view=applications`, and `view=summary`. It reads existing
+SQLite tables in bounded set-based queries, applies filters and sorting before
+pagination, and exposes a hand-written frontend transport type pending the
+Fix 5 generated-TypeScript pipeline. It performs no provider or HH call and
+does not mutate Dexie, SQLite, or any application state.
+
+Standalone presentation is built with `fromStandalone(Job)` and remains
+Dexie-authoritative. Ops presentation is built with `fromOps(OpsWorkItem)` and
+never accepts or returns a Standalone `Job`. Inbox has one row per Vacancy,
+including no-Application vacancies. Pipeline has one row per Application; no
+synthetic Application is created. The projection carries separate vacancy,
+Application, analysis, follow-up, and provenance fields, including distinct
+Companion Vacancy, HH vacancy, Application, EngineRun, Search Profile, and
+FollowUp IDs. Multiple Applications and active follow-ups remain collections;
+no arbitrary current record is selected. Multiple Search Profile hits are
+preserved without duplicating Inbox rows.
+
+No Application is `Not applied`, not `new`; no analysis is `Not analyzed`, not
+score zero; invalid analysis does not expose a prior valid score; and a
+Companion read failure is shown as unavailable rather than an empty child
+source. Today counters come from the complete projection summary and the
+existing analytics endpoint, never from the current Inbox page. Guided Apply
+local mutation remains unavailable in Ops. Fix 3 execution/privacy/concurrency
+work is intentionally not part of this pass.
 
 ## Options route truth
 
@@ -58,17 +94,18 @@ deterministically into those workspaces and subviews; navigation does not create
 applications or change status. Discovery owns Search Profile CRUD and preview;
 Companion owns pairing, recovery, migration, HH account/auth and capability
 configuration. Standalone Pipeline renders the existing Dexie Kanban board;
-Ops Pipeline renders Companion-backed performance summaries and never treats
-the local board as canonical. Onboarding is a hidden first-run/manual flow.
+Ops Pipeline renders the Companion Application workflow and never treats the
+local board as canonical. Onboarding is a hidden first-run/manual flow.
 
 ### Pass 3 daily-use UX polish
 
 The final presentation pass keeps the six routes and all runtime contracts
 unchanged. It improves page titles and hierarchy, compact cards and action
 priority, styled tabs and buttons, the 860px full-label sidebar breakpoint,
-Inbox filter disclosure, and actionable empty/error states. No DB, API,
-permission, private V4 or HH safety behavior changed. Production static pages
-were rendered after the changes; unpacked-extension visual acceptance remains
+Inbox filter disclosure, and actionable empty/error states. Fix 2 subsequently
+added the bounded Ops read-model route; no DB schema, permission, private V4,
+or HH safety behavior changed. Production static pages were rendered after the
+changes; unpacked-extension visual acceptance remains
 `VISUAL_ACCEPTANCE_NEEDS_HUMAN_REVIEW` until a human reloads the built extension.
 
 ## Full V4 and application safety
