@@ -349,6 +349,11 @@
             "title": "Claim Ids",
             "type": "array"
           },
+          "confirmation": {
+            "default": false,
+            "title": "Confirmation",
+            "type": "boolean"
+          },
           "force": {
             "default": false,
             "description": "When true, bypass the input-hash cache and force a new provider call.",
@@ -376,6 +381,16 @@
             ],
             "title": "Model"
           },
+          "policy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProviderInputPolicy"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "portfolio_id": {
             "anyOf": [
               {
@@ -387,6 +402,18 @@
               }
             ],
             "title": "Portfolio Id"
+          },
+          "preview_receipt": {
+            "anyOf": [
+              {
+                "maxLength": 65536,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preview Receipt"
           },
           "privacy_mode": {
             "default": "standard",
@@ -402,6 +429,18 @@
             "default": "openai",
             "title": "Provider",
             "type": "string"
+          },
+          "retry_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retry Id"
           }
         },
         "title": "AnalyzeRequest",
@@ -3396,10 +3435,47 @@
       "PayloadPreview": {
         "description": "Pre-execution payload preview for user review.",
         "properties": {
+          "budget_limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget Limit"
+          },
+          "budget_remaining": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget Remaining"
+          },
+          "budget_used": {
+            "default": 0,
+            "title": "Budget Used",
+            "type": "integer"
+          },
           "cache_hit": {
             "default": false,
             "title": "Cache Hit",
             "type": "boolean"
+          },
+          "cache_reuse_predicate": {
+            "default": "",
+            "title": "Cache Reuse Predicate",
+            "type": "string"
+          },
+          "dynamic_payload": {
+            "additionalProperties": true,
+            "title": "Dynamic Payload",
+            "type": "object"
           },
           "estimated_cost_usd": {
             "anyOf": [
@@ -3411,6 +3487,16 @@
               }
             ],
             "title": "Estimated Cost Usd"
+          },
+          "expected_initial_attempts": {
+            "default": 0,
+            "title": "Expected Initial Attempts",
+            "type": "integer"
+          },
+          "expected_max_attempts": {
+            "default": 0,
+            "title": "Expected Max Attempts",
+            "type": "integer"
           },
           "input_hash": {
             "title": "Input Hash",
@@ -3424,6 +3510,11 @@
             "title": "Model",
             "type": "string"
           },
+          "operation_kind": {
+            "default": "vacancy_analysis",
+            "title": "Operation Kind",
+            "type": "string"
+          },
           "privacy_mode": {
             "title": "Privacy Mode",
             "type": "string"
@@ -3435,6 +3526,45 @@
           "provider": {
             "title": "Provider",
             "type": "string"
+          },
+          "provider_plan_hash": {
+            "default": "",
+            "title": "Provider Plan Hash",
+            "type": "string"
+          },
+          "receipt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Receipt"
+          },
+          "receipt_expires_at": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Receipt Expires At"
+          },
+          "repair_possible": {
+            "default": true,
+            "title": "Repair Possible",
+            "type": "boolean"
+          },
+          "subject_ids": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Subject Ids",
+            "type": "object"
           },
           "token_estimate": {
             "anyOf": [
@@ -3483,6 +3613,33 @@
             "title": "Archived Or Ineligible",
             "type": "integer"
           },
+          "budget_limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget Limit"
+          },
+          "budget_remaining": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget Remaining"
+          },
+          "budget_used": {
+            "default": 0,
+            "title": "Budget Used",
+            "type": "integer"
+          },
           "cached_v4": {
             "title": "Cached V4",
             "type": "integer"
@@ -3495,6 +3652,14 @@
           "expected_provider_calls": {
             "title": "Expected Provider Calls",
             "type": "integer"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PreviewItemData"
+            },
+            "maxItems": 20,
+            "title": "Items",
+            "type": "array"
           },
           "likely_letter_work": {
             "title": "Likely Letter Work",
@@ -3543,6 +3708,134 @@
         "title": "PreviewData",
         "type": "object"
       },
+      "PreviewItemData": {
+        "properties": {
+          "budget_limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget Limit"
+          },
+          "budget_remaining": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget Remaining"
+          },
+          "budget_used": {
+            "title": "Budget Used",
+            "type": "integer"
+          },
+          "cache_hit": {
+            "title": "Cache Hit",
+            "type": "boolean"
+          },
+          "cache_reuse_predicate": {
+            "title": "Cache Reuse Predicate",
+            "type": "string"
+          },
+          "dynamic_payload": {
+            "additionalProperties": true,
+            "title": "Dynamic Payload",
+            "type": "object"
+          },
+          "expected_initial_attempts": {
+            "title": "Expected Initial Attempts",
+            "type": "integer"
+          },
+          "expected_max_attempts": {
+            "title": "Expected Max Attempts",
+            "type": "integer"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "privacy_mode": {
+            "title": "Privacy Mode",
+            "type": "string"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "provider_plan_hash": {
+            "title": "Provider Plan Hash",
+            "type": "string"
+          },
+          "receipt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Receipt"
+          },
+          "receipt_expires_at": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Receipt Expires At"
+          },
+          "vacancy_id": {
+            "title": "Vacancy Id",
+            "type": "string"
+          },
+          "what_is_not_sent": {
+            "items": {
+              "type": "string"
+            },
+            "title": "What Is Not Sent",
+            "type": "array"
+          },
+          "what_is_sent": {
+            "items": {
+              "type": "string"
+            },
+            "title": "What Is Sent",
+            "type": "array"
+          }
+        },
+        "required": [
+          "vacancy_id",
+          "provider",
+          "model",
+          "provider_plan_hash",
+          "cache_hit",
+          "expected_initial_attempts",
+          "expected_max_attempts",
+          "receipt",
+          "receipt_expires_at",
+          "privacy_mode",
+          "what_is_sent",
+          "what_is_not_sent",
+          "dynamic_payload",
+          "cache_reuse_predicate",
+          "budget_limit",
+          "budget_used",
+          "budget_remaining"
+        ],
+        "title": "PreviewItemData",
+        "type": "object"
+      },
       "ProfileListResponse": {
         "properties": {
           "data": {
@@ -3586,6 +3879,87 @@
           "meta"
         ],
         "title": "ProfileResponse",
+        "type": "object"
+      },
+      "ProviderInputPolicy": {
+        "additionalProperties": false,
+        "description": "Explicit policy supplied by the current trusted client.\n\nThe policy is part of the reviewed plan.  ``daily_request_limit`` and\n``cache_enabled`` deliberately do not participate in its semantic\nfingerprint: changing either affects coordination, not provider input.",
+        "properties": {
+          "ai_enabled": {
+            "default": false,
+            "title": "Ai Enabled",
+            "type": "boolean"
+          },
+          "allow_full_description_to_ai": {
+            "default": false,
+            "title": "Allow Full Description To Ai",
+            "type": "boolean"
+          },
+          "allow_resume_highlights_to_ai": {
+            "default": false,
+            "title": "Allow Resume Highlights To Ai",
+            "type": "boolean"
+          },
+          "cache_enabled": {
+            "default": true,
+            "title": "Cache Enabled",
+            "type": "boolean"
+          },
+          "daily_request_limit": {
+            "default": 10,
+            "maximum": 1000.0,
+            "minimum": 0.0,
+            "title": "Daily Request Limit",
+            "type": "integer"
+          },
+          "max_input_chars": {
+            "default": 3000,
+            "maximum": 12000.0,
+            "minimum": 256.0,
+            "title": "Max Input Chars",
+            "type": "integer"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "policy_version": {
+            "default": "fix3-v1",
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Policy Version",
+            "type": "string"
+          },
+          "privacy_mode": {
+            "default": "strict",
+            "enum": [
+              "standard",
+              "strict"
+            ],
+            "title": "Privacy Mode",
+            "type": "string"
+          },
+          "provider": {
+            "const": "openai",
+            "default": "openai",
+            "title": "Provider",
+            "type": "string"
+          },
+          "redact_contacts": {
+            "default": true,
+            "title": "Redact Contacts",
+            "type": "boolean"
+          }
+        },
+        "title": "ProviderInputPolicy",
         "type": "object"
       },
       "RecruiterRisk": {
@@ -3690,6 +4064,29 @@
       "SessionCreateRequest": {
         "additionalProperties": false,
         "properties": {
+          "confirmation": {
+            "default": false,
+            "title": "Confirmation",
+            "type": "boolean"
+          },
+          "policy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProviderInputPolicy"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "preview_receipts": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "maxProperties": 20,
+            "title": "Preview Receipts",
+            "type": "object"
+          },
           "vacancy_ids": {
             "items": {
               "type": "string"
@@ -3763,6 +4160,32 @@
             "minimum": 1.0,
             "title": "Max Items",
             "type": "integer"
+          },
+          "policy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProviderInputPolicy"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "preview_receipts": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "maxProperties": 20,
+            "title": "Preview Receipts",
+            "type": "object"
+          },
+          "retry_ids": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "maxProperties": 20,
+            "title": "Retry Ids",
+            "type": "object"
           }
         },
         "title": "SessionExecuteRequest",

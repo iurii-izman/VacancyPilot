@@ -17,14 +17,21 @@ from app.analysis.models import (
     EngineRunDetailResponse,
     EngineRunItem,
     PreviewResponse,
+    ProviderInputPolicy,
 )
-from app.analysis.service import AnalysisOptions, AnalysisService, EnginePackageUnavailableError
+from app.analysis.service import (
+    AnalysisOptions,
+    AnalysisService,
+    EnginePackageUnavailableError,
+    ProviderExecutionGateError,
+)
 from app.db.models import Vacancy
 from app.db.session import get_db_session_long
 from app.domain.vacancy_hydration import ensure_analysis_ready, vacancy_is_analysis_ready
 from app.hh.client import HHApiClient
 from app.hh.errors import HHApiError, HHConfigurationError
 from app.security.auth import ClientTokenDep
+from app.security.receipts import ReceiptSigner
 
 router = APIRouter(tags=['analysis'])
 
@@ -37,6 +44,22 @@ def _require_db(db: Session | None) -> Session:
     if db is None:
         raise HTTPException(status_code=503, detail='Database unavailable')
     return db
+
+
+def _receipt_signer(request: Request) -> ReceiptSigner | None:
+    """Return the bootstrap signer without initializing keyring state."""
+    return getattr(request.app.state, 'receipt_signer', None)
+
+
+def _safe_preview_policy(body: AnalyzeRequest) -> ProviderInputPolicy:
+    return body.policy or ProviderInputPolicy(
+        ai_enabled=False,
+        provider='openai',
+        model=body.model,
+        privacy_mode='strict',
+        daily_request_limit=0,
+        cache_enabled=False,
+    )
 
 
 def _run_result_to_data(result: AnalysisRunResult, cached: bool = False) -> AnalyzeData:
@@ -101,9 +124,12 @@ def vacancy_analyze(
     if vacancy is None:
         raise HTTPException(status_code=404, detail='Vacancy not found')
 
-    # Search results are intentionally lightweight. Hydrate only this selected
-    # item before compiling or executing Full V4; never fetch the whole Inbox.
-    if vacancy.source == 'hh' and not vacancy_is_analysis_ready(vacancy):
+    policy = _safe_preview_policy(body)
+
+    # Search results are intentionally lightweight. Full V4 Preview may
+    # hydrate exactly this selected item; execution never performs an
+    # unreviewed hydration that could change the reviewed plan.
+    if preview and vacancy.source == 'hh' and not vacancy_is_analysis_ready(vacancy):
         try:
             vacancy = ensure_analysis_ready(session, vacancy, client=HHApiClient()).vacancy
             session.commit()
@@ -149,26 +175,35 @@ def vacancy_analyze(
         selected_claim_ids=body.claim_ids,
         selected_case_ids=body.case_ids,
         selected_portfolio_id=body.portfolio_id,
-        privacy_mode=body.privacy_mode,
+        privacy_mode=policy.privacy_mode,
         language=body.language,
     )
 
     options = AnalysisOptions(
         provider=body.provider,
-        model=body.model,
+        model=body.model or policy.model,
         force=body.force,
-        privacy_mode=body.privacy_mode,
+        privacy_mode=policy.privacy_mode,
         language=body.language,
         claim_ids=body.claim_ids,
         case_ids=body.case_ids,
         portfolio_id=body.portfolio_id,
+        policy=policy,
+        confirmation=body.confirmation,
+        preview_receipt=body.preview_receipt,
+        retry_id=body.retry_id,
+        daily_request_limit=policy.daily_request_limit,
     )
 
-    service = AnalysisService(session)
+    service = AnalysisService(session, receipt_signer=_receipt_signer(request))
 
     if preview:
         try:
-            preview_result = service.get_preview(compiler_input, options)
+            preview_result = service.get_preview(
+                compiler_input,
+                options,
+                vacancy_id=vacancy_id,
+            )
         except EnginePackageUnavailableError:
             session.rollback()
             raise
@@ -180,6 +215,9 @@ def vacancy_analyze(
     try:
         result = service.analyze(vacancy_id, compiler_input, options)
         session.commit()
+    except ProviderExecutionGateError as exc:
+        session.rollback()
+        raise HTTPException(status_code=exc.status_code, detail=exc.code) from exc
     except EnginePackageUnavailableError:
         session.rollback()
         raise

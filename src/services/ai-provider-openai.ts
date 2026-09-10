@@ -14,6 +14,7 @@ import type {
   AIAnalysis,
   VacancyAnalysisInput,
   CoverLetterInput,
+  ProviderRequestPlan,
 } from "@/models/ai";
 import type { CoverLetterConstraints } from "@/models/cover-letter";
 import { getApiKey } from "@/db/api-key-bridge";
@@ -73,7 +74,7 @@ function generateAnalysisId(): string {
 
 // ── Prompt builders ──────────────────────────────────────────────────────
 
-function buildAnalysisSystemPrompt(): string {
+export function buildAnalysisSystemPrompt(): string {
   return [
     "Ты карьерный аналитик и job matching assistant.",
     "Используй только предоставленные данные.",
@@ -82,7 +83,7 @@ function buildAnalysisSystemPrompt(): string {
   ].join("\n");
 }
 
-function buildAnalysisUserPrompt(input: VacancyAnalysisInput): string {
+export function buildAnalysisUserPrompt(input: VacancyAnalysisInput): string {
   const profileJson = JSON.stringify(
     {
       summary: input.profile.summary,
@@ -138,7 +139,7 @@ function buildAnalysisUserPrompt(input: VacancyAnalysisInput): string {
   ].join("\n");
 }
 
-function buildCoverLetterSystemPrompt(
+export function buildCoverLetterSystemPrompt(
   constraints: CoverLetterConstraints,
 ): string {
   const rules: string[] = [
@@ -165,7 +166,7 @@ function buildCoverLetterSystemPrompt(
   return rules.join("\n");
 }
 
-function buildCoverLetterUserPrompt(input: CoverLetterInput): string {
+export function buildCoverLetterUserPrompt(input: CoverLetterInput): string {
   const parts: string[] = [];
 
   parts.push("Вакансия:");
@@ -300,8 +301,15 @@ async function callOpenAI(
   model: string,
   messages: OpenAIMessage[],
   apiKey: string,
+  options?: Record<string, unknown>,
 ): Promise<OpenAIResponse> {
-  const tokenParam = getOpenAITokenLimitParam(model, 1500);
+  const tokenParam =
+    typeof options?.max_completion_tokens === "number"
+      ? { max_completion_tokens: options.max_completion_tokens }
+      : typeof options?.max_tokens === "number"
+        ? { max_tokens: options.max_tokens }
+        : getOpenAITokenLimitParam(model, 1500);
+  const outputMode = options?.outputMode;
 
   const response = await fetch(OPENAI_API_URL, {
     method: "POST",
@@ -312,8 +320,12 @@ async function callOpenAI(
     body: JSON.stringify({
       model,
       messages,
-      temperature: 0.4,
+      temperature:
+        typeof options?.temperature === "number" ? options.temperature : 0.4,
       ...tokenParam,
+      ...(outputMode === "json"
+        ? { response_format: { type: "json_object" } }
+        : {}),
     }),
   });
 
@@ -341,7 +353,19 @@ export class OpenAILLMProvider implements LLMProvider {
     this.model = model || DEFAULT_MODEL;
   }
 
-  async analyzeVacancy(input: VacancyAnalysisInput): Promise<AIAnalysis> {
+  async preflight(): Promise<void> {
+    const apiKey = await getApiKey("openai");
+    if (!apiKey) {
+      throw new Error(
+        "OpenAI API key not configured. Add your key in Settings → AI.",
+      );
+    }
+  }
+
+  async analyzeVacancy(
+    input: VacancyAnalysisInput,
+    plan?: ProviderRequestPlan,
+  ): Promise<AIAnalysis> {
     const apiKey = await getApiKey("openai");
     if (!apiKey) {
       throw new Error(
@@ -349,19 +373,25 @@ export class OpenAILLMProvider implements LLMProvider {
       );
     }
 
-    const messages: OpenAIMessage[] = [
+    const messages: OpenAIMessage[] = plan?.messages ?? [
       { role: "system", content: buildAnalysisSystemPrompt() },
       { role: "user", content: buildAnalysisUserPrompt(input) },
     ];
 
-    const response = await callOpenAI(this.model, messages, apiKey);
+    const model = plan?.model ?? this.model;
+    const response = await callOpenAI(
+      model,
+      messages,
+      apiKey,
+      plan?.providerAffectingOptions,
+    );
     const content = response.choices[0]?.message?.content ?? "";
 
     const validationResult = parseAndValidateAnalysis(content, {
       id: generateAnalysisId(),
       provider: this.id,
-      model: this.model,
-      promptVersion: PROMPT_VERSION,
+      model,
+      promptVersion: plan?.promptVersion ?? PROMPT_VERSION,
       inputHash: "",
       jobId: "",
       profileId: "",
@@ -376,7 +406,7 @@ export class OpenAILLMProvider implements LLMProvider {
           inputTokens: response.usage.prompt_tokens,
           outputTokens: response.usage.completion_tokens,
           estimatedCostUsd: estimateCost(
-            this.model,
+            model,
             response.usage.prompt_tokens,
             response.usage.completion_tokens,
           ),
@@ -390,15 +420,18 @@ export class OpenAILLMProvider implements LLMProvider {
     return createFallbackAnalysis({
       id: generateAnalysisId(),
       provider: this.id,
-      model: this.model,
-      promptVersion: PROMPT_VERSION,
+      model,
+      promptVersion: plan?.promptVersion ?? PROMPT_VERSION,
       inputHash: "",
       jobId: "",
       profileId: "",
     });
   }
 
-  async generateCoverLetter(input: CoverLetterInput): Promise<string> {
+  async generateCoverLetter(
+    input: CoverLetterInput,
+    plan?: ProviderRequestPlan,
+  ): Promise<string> {
     const apiKey = await getApiKey("openai");
     if (!apiKey) {
       throw new Error(
@@ -406,7 +439,7 @@ export class OpenAILLMProvider implements LLMProvider {
       );
     }
 
-    const messages: OpenAIMessage[] = [
+    const messages: OpenAIMessage[] = plan?.messages ?? [
       {
         role: "system",
         content: buildCoverLetterSystemPrompt(input.constraints),
@@ -414,7 +447,12 @@ export class OpenAILLMProvider implements LLMProvider {
       { role: "user", content: buildCoverLetterUserPrompt(input) },
     ];
 
-    const response = await callOpenAI(this.model, messages, apiKey);
+    const response = await callOpenAI(
+      plan?.model ?? this.model,
+      messages,
+      apiKey,
+      plan?.providerAffectingOptions,
+    );
     const content = response.choices[0]?.message?.content ?? "";
 
     // Apply post-processing constraints (defense in depth)

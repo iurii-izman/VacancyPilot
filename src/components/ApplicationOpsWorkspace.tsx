@@ -3,12 +3,18 @@ import { db } from "@/db";
 import { EmptyState } from "@/components/EmptyState";
 import { jobRepo } from "@/db/repositories";
 import { getOpsClient } from "@/services/companion-service";
+import { loadSettings } from "@/db/settings-bridge";
+import { buildCompanionProviderPolicy } from "@/adapters/companion/provider-policy";
 import { capabilityMessage, getOpsCapabilities, type OpsCapabilities } from "@/services/ops-capabilities";
 import { NATIVE_HH_SUBMISSION_CONFIRMATION } from "@/services/applied-confirmation";
 import { tracker } from "@/services/tracker";
 import type { OpsAnalysisState, OpsFollowUp, OpsProjectionQuery, OpsSummary } from "@/adapters/companion/ops-projection-types";
-import type { FollowUpItem } from "@/adapters/companion/application-types";
+import type {
+  FollowUpItem,
+  ApplicationSessionPreview,
+} from "@/adapters/companion/application-types";
 import type { HHSearchProfile } from "@/adapters/companion/types";
+import type { FullV4PreviewResponse } from "@/adapters/companion/vacancy-types";
 import type { Job } from "@/models/job";
 import { fromOps, fromStandalone, type OpsWorkItemView, type StandaloneWorkItemView, type WorkItemViewModel } from "@/models/work-item";
 import { card, colors, compactCard, formInput, formSelect, pageIntro, pageTitle, primaryButton, secondaryButton, statusBadge, tertiaryButton, tabButtonStyle, tabListStyle } from "@/styles";
@@ -245,7 +251,7 @@ export function Inbox({ onSelect, onNavigate }: { onSelect?: (item: WorkItemView
   const [updatedAfter, setUpdatedAfter] = useState("");
   const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [preview, setPreview] = useState<{ selected: number; expected_provider_calls: number; cached_v4: number; archived_or_ineligible: number } | null>(null);
+  const [preview, setPreview] = useState<ApplicationSessionPreview | null>(null);
   const [sessionMessage, setSessionMessage] = useState<string | null>(null);
   const [sessionItems, setSessionItems] = useState<Array<{ title: string; company_name: string | null; queue_state: string }>>([]);
 
@@ -287,9 +293,10 @@ export function Inbox({ onSelect, onNavigate }: { onSelect?: (item: WorkItemView
     try {
       const currentCapabilities = await getOpsCapabilities({ force: true });
       if (!currentCapabilities.canRunApplicationFactory) { setSessionMessage(capabilityMessage("application-factory", currentCapabilities)); return; }
-      const result = await getOpsClient().previewApplicationSession(selectedIds);
+      const policy = buildCompanionProviderPolicy(await loadSettings());
+      const result = await getOpsClient().previewApplicationSession(selectedIds, policy);
       setPreview(result.data);
-      setSessionMessage("Preview ready. No provider call was made.");
+      setSessionMessage("Preview ready. No provider call was made; execution requires these receipts and the unchanged policy.");
     } catch (err) { setSessionMessage(err instanceof Error ? err.message : "Unable to create preview"); }
   };
   const confirmPrepare = async () => {
@@ -297,8 +304,25 @@ export function Inbox({ onSelect, onNavigate }: { onSelect?: (item: WorkItemView
     try {
       const currentCapabilities = await getOpsCapabilities({ force: true });
       if (!currentCapabilities.canRunApplicationFactory) { setSessionMessage(capabilityMessage("application-factory", currentCapabilities)); return; }
-      const session = await getOpsClient().createApplicationSession(selectedIds);
-      const processed = await getOpsClient().executeApplicationSession(session.data.id);
+      const policy = buildCompanionProviderPolicy(await loadSettings());
+      const previewReceipts = Object.fromEntries(
+        (preview.items ?? [])
+          .filter((item) => item.receipt)
+          .map((item) => [item.vacancy_id, item.receipt as string]),
+      );
+      const session = await getOpsClient().createApplicationSession(selectedIds, {
+        policy,
+        confirmation: true,
+        preview_receipts: previewReceipts,
+      });
+      const processed = await getOpsClient().executeApplicationSession(
+        session.data.id,
+        {
+          confirmation: true,
+          policy,
+          preview_receipts: previewReceipts,
+        },
+      );
       setSessionItems(processed.data.items);
       setSessionMessage("Confirmed session processed. Open an item to review and apply manually.");
       setPreview(null); setSelectedIds([]);
@@ -311,7 +335,7 @@ export function Inbox({ onSelect, onNavigate }: { onSelect?: (item: WorkItemView
   return <section aria-labelledby="inbox-title">
     <h2 id="inbox-title" style={pageTitle}>Inbox</h2>
     <p style={pageIntro}>{opsMode ? "One row per authoritative Companion vacancy. Application and analysis state are shown separately." : "Review imported vacancies. Full V4 analysis remains an explicit single-item action or a bounded confirmed session."}</p>
-    <div style={{ ...mutedPanelStyle, marginBottom: 14 }}><strong>{selectedIds.length} selected</strong>{" "}<button type="button" onClick={() => setSelectedIds([])} disabled={selectedIds.length === 0} style={secondaryButton}>Clear selection</button>{" "}<button type="button" onClick={() => void prepareSelected()} disabled={selectedIds.length === 0 || !capabilities?.canRunApplicationFactory} style={selectedIds.length > 0 && capabilities?.canRunApplicationFactory ? primaryButton : secondaryButton}>Preview selected</button>{!capabilities?.canRunApplicationFactory && capabilities && <div role="status" style={{ marginTop: 8, fontSize: 12 }}>{capabilityMessage("application-factory", capabilities)}</div>}{preview && <div role="status" style={{ marginTop: 8 }}>Preview: {preview.selected} selected · {preview.cached_v4} cached V4 · {preview.expected_provider_calls} possible provider calls · {preview.archived_or_ineligible} archived/ineligible. Cost estimate unavailable.</div>}{preview && <button type="button" onClick={() => void confirmPrepare()} disabled={!capabilities?.canRunApplicationFactory} style={{ ...primaryButton, marginTop: 8 }}>Confirm and process selected</button>}{sessionMessage && <div role="status" style={{ marginTop: 8 }}>{sessionMessage}</div>}{sessionItems.length > 0 && <ol aria-label="Application session queue" style={{ margin: "10px 0 0", paddingLeft: 22 }}>{sessionItems.map((item) => <li key={`${item.title}-${item.company_name ?? ""}`}>{item.title} — {item.queue_state}</li>)}</ol>}</div>
+    <div style={{ ...mutedPanelStyle, marginBottom: 14 }}><strong>{selectedIds.length} selected</strong>{" "}<button type="button" onClick={() => setSelectedIds([])} disabled={selectedIds.length === 0} style={secondaryButton}>Clear selection</button>{" "}<button type="button" onClick={() => void prepareSelected()} disabled={selectedIds.length === 0 || !capabilities?.canRunApplicationFactory} style={selectedIds.length > 0 && capabilities?.canRunApplicationFactory ? primaryButton : secondaryButton}>Preview selected</button>{!capabilities?.canRunApplicationFactory && capabilities && <div role="status" style={{ marginTop: 8, fontSize: 12 }}>{capabilityMessage("application-factory", capabilities)}</div>}{preview && <div role="status" style={{ marginTop: 8 }}>Preview: {preview.selected} selected · {preview.cached_v4} cached V4 · {preview.expected_provider_calls} possible provider calls · {preview.archived_or_ineligible} archived/ineligible. Cost estimate unavailable. Reviewed receipts: {(preview.items ?? []).filter((item) => item.receipt).length}/{preview.items?.length ?? 0}. Budget: {preview.budget_used}/{preview.budget_limit ?? "—"} used · {preview.budget_remaining ?? "—"} remaining.</div>}{preview && <details style={{ marginTop: 8 }}><summary>Privacy and exact plan disclosure</summary><div style={{ fontSize: 12, marginTop: 6 }}>{(preview.items ?? []).map((item) => <div key={item.vacancy_id} style={{ marginBottom: 8 }}><div><strong>{item.vacancy_id}</strong> · {item.provider}/{item.model} · {item.privacy_mode} · {item.receipt ? "receipt ready" : "receipt unavailable"}</div><div>Plan: {item.provider_plan_hash} · Expected attempts: {item.expected_initial_attempts} (+ bounded repair up to {item.expected_max_attempts})</div><details><summary>Redacted dynamic payload</summary><pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{JSON.stringify(item.dynamic_payload, null, 2)}</pre></details></div>)}</div></details>}{preview && <button type="button" onClick={() => void confirmPrepare()} disabled={!capabilities?.canRunApplicationFactory} style={{ ...primaryButton, marginTop: 8 }}>Confirm and process selected</button>}{sessionMessage && <div role="status" style={{ marginTop: 8 }}>{sessionMessage}</div>}{sessionItems.length > 0 && <ol aria-label="Application session queue" style={{ margin: "10px 0 0", paddingLeft: 22 }}>{sessionItems.map((item) => <li key={`${item.title}-${item.company_name ?? ""}`}>{item.title} — {item.queue_state}</li>)}</ol>}</div>
     <div style={{ ...cardStyle, marginBottom: 14 }}><div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "end" }}><label style={{ flex: "1 1 260px", fontSize: 12, color: colors.textMuted, fontWeight: 600 }}>Search title or company<input aria-label="Search vacancies" value={queryText} onChange={(event) => setQueryText(event.target.value)} style={{ ...formInput, display: "block", marginTop: 4 }} /></label><label style={{ flex: "0 1 160px", fontSize: 12, color: colors.textMuted, fontWeight: 600 }}>{opsMode ? "Application status" : "Status"}<select aria-label="Filter by status" value={status} onChange={(event) => setStatus(event.target.value)} style={{ ...formSelect, display: "block", marginTop: 4 }}><option value="all">All</option>{statusOptions.map((item) => <option key={item} value={item}>{statusLabel(item)}</option>)}</select></label><label style={{ flex: "0 1 140px", fontSize: 12, color: colors.textMuted, fontWeight: 600 }}>Decision<select aria-label="Filter by decision" value={decision} onChange={(event) => setDecision(event.target.value)} style={{ ...formSelect, display: "block", marginTop: 4 }}><option value="all">All</option><option value="apply">Apply</option><option value="consider">Consider</option><option value="skip">Skip</option><option value="needs_input">Needs input</option></select></label><button type="button" aria-expanded={showMoreFilters} onClick={() => setShowMoreFilters((value) => !value)} style={secondaryButton}>{showMoreFilters ? "Fewer filters" : "More filters"}</button></div>{showMoreFilters && <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12, paddingTop: 12, borderTop: `1px solid ${colors.borderHairline}` }}><label style={{ flex: "0 1 140px", fontSize: 12, color: colors.textMuted, fontWeight: 600 }}>Work mode<select aria-label="Filter by work mode" value={workMode} onChange={(event) => setWorkMode(event.target.value)} style={{ ...formSelect, display: "block", marginTop: 4 }}><option value="all">All</option><option value="remote">Remote</option><option value="hybrid">Hybrid</option><option value="office">Office</option></select></label><label style={{ flex: "0 1 120px", fontSize: 12, color: colors.textMuted, fontWeight: 600 }}>Score<select aria-label="Filter by score band" value={scoreBand} onChange={(event) => setScoreBand(event.target.value)} style={{ ...formSelect, display: "block", marginTop: 4 }}><option value="all">All</option><option value="high">70+</option><option value="mid">50–69</option><option value="low">&lt;50</option></select></label><label style={{ flex: "0 1 140px", fontSize: 12, color: colors.textMuted, fontWeight: 600 }}>Analysis<select aria-label="Filter by analysis status" value={analysisStatus} onChange={(event) => setAnalysisStatus(event.target.value)} style={{ ...formSelect, display: "block", marginTop: 4 }}><option value="all">All</option>{analysisOptions.map((item) => <option key={item} value={item}>{analysisLabel(item)}</option>)}</select></label><label style={{ flex: "0 1 150px", fontSize: 12, color: colors.textMuted, fontWeight: 600 }}>Updated after<input aria-label="Filter by updated date" type="date" value={updatedAfter} onChange={(event) => setUpdatedAfter(event.target.value)} style={{ ...formInput, display: "block", marginTop: 4 }} /></label>{opsMode && <label style={{ flex: "0 1 180px", fontSize: 12, color: colors.textMuted, fontWeight: 600 }}>Search profile<select aria-label="Filter by search profile" value={profileFilter} onChange={(event) => setProfileFilter(event.target.value)} style={{ ...formSelect, display: "block", marginTop: 4 }}><option value="all">All profiles</option>{searchProfiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.name}</option>)}</select></label>}<button type="button" onClick={clearFilters} style={{ ...tertiaryButton, alignSelf: "end" }}>Clear filters</button></div>}</div>
     {filtered.length === 0 ? total === 0 ? <EmptyState icon="📥" message="Inbox is empty" description="Open Discovery to sync new vacancies, or open an HH vacancy to save it here." actionLabel="Open Discovery" onAction={() => onNavigate?.("discovery")} /> : <div style={cardStyle}><strong>No vacancies match these filters.</strong><p style={{ margin: "6px 0 10px", color: colors.textMuted, fontSize: 12 }}>No automatic analysis was requested.</p><button type="button" onClick={clearFilters} style={secondaryButton}>Clear filters</button></div> : <div style={{ display: "grid", gap: 10 }}>{filtered.map((item) => { const selectionId = itemSelectionId(item); return <article key={selectionId} style={cardStyle}><div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}><div style={{ minWidth: 0, flex: 1 }}><label style={{ display: "inline-flex", gap: 6, alignItems: "center", fontSize: 11, color: colors.textMuted }}><input type="checkbox" aria-label={`Select ${item.title || "vacancy"}`} checked={selectedIds.includes(selectionId)} onChange={() => toggleSelection(selectionId)} /> Select</label><h3 style={{ margin: "4px 0 2px", fontSize: 15, color: colors.navy, overflowWrap: "anywhere" }}>{item.title || "Untitled vacancy"}</h3><div style={{ fontSize: 12, color: colors.textFaint }}>{item.companyName || "Unknown company"} · {item.source.toUpperCase()}</div></div><span style={{ ...statusBadge, background: `${scoreColor(item.score)}18`, color: scoreColor(item.score) }}>Score {item.score ?? "—"}</span></div>{isOpsView(item) ? <div style={{ fontSize: 12, marginTop: 8 }}>Application: <strong>{statusLabel(item.applicationState)}</strong> · Analysis: <strong>{analysisLabel(item.analysisState)}</strong> · updated {formatShortDate(item.updatedAt)} · {item.item.vacancy.work_mode ?? "unknown"}{item.item.provenance.hits.length > 0 && <div style={{ fontSize: 11, color: colors.textMuted, marginTop: 5 }}>Profiles: {item.item.provenance.hits.map((hit) => hit.search_profile_name).join(", ")}</div>}{item.item.availability.application === "unavailable" && <div role="status">Application state unavailable.</div>}</div> : <div style={{ fontSize: 12, marginTop: 8 }}>Status: <strong>{statusLabel(item.job.status)}</strong> · updated {formatShortDate(item.updatedAt)} · {item.job.workMode}</div>}<div style={{ ...actionRowStyle, marginTop: 10 }}><button type="button" onClick={() => onSelect?.(item)} style={primaryButton}>Open application card</button><button type="button" onClick={() => window.open(item.sourceUrl, "_blank", "noopener,noreferrer")} style={secondaryButton}>Open on HH</button></div></article>; })}</div>}
   </section>;
@@ -328,7 +352,7 @@ export function ApplicationCard({ item, onBack }: { item: WorkItemViewModel; onB
   const capabilities = useOpsCapabilities();
   const [tab, setTab] = useState("Overview");
   const [currentItem, setCurrentItem] = useState(item);
-  const [preview, setPreview] = useState<{ provider: string; model: string; token_estimate: number | null; cache_hit: boolean; what_is_sent: string[]; what_is_not_sent: string[] } | null>(null);
+  const [preview, setPreview] = useState<FullV4PreviewResponse["data"] | null>(null);
   const [run, setRun] = useState<RunDisplay | null>(() => initialRun(item));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -362,7 +386,11 @@ export function ApplicationCard({ item, onBack }: { item: WorkItemViewModel; onB
       if (!currentCapabilities.canUseFullV4) { setError(capabilityMessage("full-v4", currentCapabilities)); return; }
       const latest = isOpsView(currentItem) && !isFull ? await hydrate() : currentItem;
       if (!isOpsView(latest)) throw new Error("Ops vacancy context is unavailable");
-      const response = await getOpsClient().previewFullV4(latest.vacancyId.companionVacancyId);
+      const policy = buildCompanionProviderPolicy(await loadSettings());
+      const response = await getOpsClient().previewFullV4(
+        latest.vacancyId.companionVacancyId,
+        { policy },
+      );
       setPreview(response.data);
     } catch (err) { setError(err instanceof Error ? err.message : "Full vacancy preview failed"); }
     finally { setBusy(false); }
@@ -383,7 +411,16 @@ export function ApplicationCard({ item, onBack }: { item: WorkItemViewModel; onB
     try {
       const currentCapabilities = await refreshCapabilities();
       if (!currentCapabilities.canUseFullV4) { setError(capabilityMessage("full-v4", currentCapabilities)); return; }
-      const response = await getOpsClient().analyzeFullV4(opsItem.vacancyId.companionVacancyId);
+      if (!preview.receipt) { setError("No authenticated preview receipt is available; execution is blocked."); return; }
+      const policy = buildCompanionProviderPolicy(await loadSettings());
+      const response = await getOpsClient().analyzeFullV4(
+        opsItem.vacancyId.companionVacancyId,
+        {
+          policy,
+          confirmation: true,
+          preview_receipt: preview.receipt,
+        },
+      );
       const persisted = await getOpsClient().getFullV4Run(response.data.run_id);
       setRun({ ...response.data, status: persisted.data.status, ready: persisted.data.ready, score: persisted.data.score, decision: persisted.data.decision });
       setTab("Score");
@@ -414,7 +451,7 @@ export function ApplicationCard({ item, onBack }: { item: WorkItemViewModel; onB
     {onBack && <button type="button" onClick={onBack} style={{ ...secondaryButton, marginBottom: 14 }}>← Back to Inbox</button>}
     <div style={{ ...cardStyle, marginBottom: 14 }}><div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", alignItems: "flex-start" }}><div style={{ minWidth: 0, flex: 1 }}><h2 id="application-card-title" style={pageTitle}>{title}</h2><p style={{ ...pageIntro, marginBottom: 10 }}>{company} · {currentItem.source.toUpperCase()}</p></div><span style={{ ...statusBadge, background: colors.neutralBg, color: colors.textSecondary }}>{opsItem ? `Application: ${status}` : status}</span></div><p style={{ margin: "0 0 12px", color: colors.textMuted, fontSize: 12 }}>Vacancy readiness: <strong>{isFull ? "Full details available" : "Search preview only"}</strong>{!isFull && " — refresh to load the official full vacancy before running Full V4."}</p>{opsItem && <p style={{ margin: "0 0 12px", color: colors.textMuted, fontSize: 12 }}>Analysis: <strong>{analysisLabel(opsItem.analysisState)}</strong> · Follow-up: <strong>{opsItem.followUpState}</strong> · Applications recorded: <strong>{opsItem.item.applications.length}</strong></p>}<div style={actionRowStyle}><button type="button" onClick={() => void previewFullV4()} disabled={busy || !capabilities?.canUseFullV4} style={primaryButton}>Preview Full V4</button><button type="button" onClick={() => void refreshFullDetails()} disabled={busy || !capabilities?.canHydrateVacancy} style={secondaryButton}>Refresh vacancy</button>{preview && <button type="button" onClick={() => void executeFullV4()} disabled={busy || !capabilities?.canUseFullV4} style={primaryButton}>Confirm and run Full V4</button>}</div>{capabilities && !capabilities.canUseFullV4 && <p role="status" style={{ margin: "10px 0 0", color: colors.textMuted }}>{capabilityMessage("full-v4", capabilities)}</p>}{currentJob && currentJob.status !== "applied" && <button type="button" onClick={() => void confirmApplied()} disabled={appliedBusy || !capabilities?.canUseGuidedApplyMutation} style={{ ...secondaryButton, marginTop: 10, opacity: appliedBusy || !capabilities?.canUseGuidedApplyMutation ? 0.6 : 1 }}>I submitted this application on HH — mark Applied</button>}{opsItem && <p role="status" style={{ margin: "10px 0 0", color: colors.textMuted }}>Guided Apply local mutation is unavailable in Ops Mode. This card does not create an Application or mark Applied.</p>}{busy && <p role="status" style={{ margin: "10px 0 0", color: colors.textMuted }}>Working…</p>}{error && <p role="alert" style={{ margin: "10px 0 0", color: colors.red }}>{error}</p>}</div>
     {opsItem && <p role="status" style={{ margin: "0 0 14px", color: colors.textMuted }}>Viewing this card does not create an application or mark it Applied.</p>}
-    {preview && <div style={{ ...mutedPanelStyle, margin: "0 0 14px" }}><strong style={{ color: colors.navy }}>Preview only — no provider call was made.</strong><p>Target: {preview.provider}/{preview.model}. Expected provider call: {preview.cache_hit ? 0 : 1} (cache hit: {preview.cache_hit ? "yes" : "no"}).</p><p style={{ marginBottom: 0 }}>Payload readiness: full vacancy text loaded; privacy disclosure applies. Sent: {preview.what_is_sent.join(", ") || "none"}.</p></div>}
+    {preview && <div style={{ ...mutedPanelStyle, margin: "0 0 14px" }}><strong style={{ color: colors.navy }}>Preview only — no provider call was made.</strong><p>Target: {preview.provider}/{preview.model}. Expected provider call: {preview.cache_hit ? 0 : 1} (cache hit: {preview.cache_hit ? "yes" : "no"}).</p><p style={{ marginBottom: 0 }}>Plan: {preview.provider_plan_hash}. Privacy: {preview.privacy_mode}. Receipt: {preview.receipt ? "authenticated and ready" : "unavailable — execution is blocked"}.</p><p style={{ marginBottom: 0 }}>Budget: {preview.budget_used}/{preview.budget_limit ?? "—"} used · {preview.budget_remaining ?? "—"} remaining; bounded repair may add one attempt.</p><p style={{ marginBottom: 0 }}>Sent: {preview.what_is_sent.join(", ") || "none"}. Not sent: {preview.what_is_not_sent.join(", ") || "none"}.</p>{preview.dynamic_payload && <details><summary>Exact redacted dynamic payload</summary><pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{JSON.stringify(preview.dynamic_payload, null, 2)}</pre></details>}</div>}
     <div role="tablist" aria-label="Application card sections" style={tabListStyle}>{tabs.map((itemName) => <button key={itemName} type="button" role="tab" aria-selected={tab === itemName} onClick={() => setTab(itemName)} style={tabButtonStyle(tab === itemName)}>{itemName}</button>)}</div><div role="tabpanel" style={{ ...cardStyle, marginBottom: 0 }}>
       {tab === "Overview" && <><h3>Overview</h3><p>Source: {currentItem.source}. Work mode: {opsItem?.item.vacancy.work_mode ?? currentJob?.workMode ?? "unknown"}. Last seen: {formatShortDate(currentItem.lastSeenAt)}.</p>{opsItem ? <p>Application state: <strong>{status}</strong>. Analysis state: <strong>{analysisLabel(opsItem.analysisState)}</strong>. Full V4: {run ? `persisted (${run.status}${run.ready ? ", ready" : ", not ready"})` : "not run"}.</p> : <p>Full V4: {run ? `persisted (${run.status}${run.ready ? ", ready" : ", not ready"})` : "not run"}.</p>}<p>Viewing this card is read-only except for explicit vacancy hydration, preview, and confirmed Full V4 actions.</p></>}
       {tab === "Vacancy" && <><h3>Vacancy</h3><p style={{ whiteSpace: "pre-wrap" }}>{description || "Full vacancy description is not available."}</p><button type="button" onClick={() => window.open(sourceUrl, "_blank", "noopener,noreferrer")}>Open source vacancy</button>{skills.length > 0 && <p>Skills: {skills.join(", ")}</p>}</>}

@@ -1,5 +1,5 @@
 /**
- * Dexie schema v6 — single source of truth for IndexedDB stores and indexes.
+ * Dexie schema v7 — single source of truth for IndexedDB stores and indexes.
  *
  * Schema follows the master specification and the current Dexie migration
  * tests; the migration history below is executable authority.
@@ -12,6 +12,8 @@
  * v5 adds visitMarks store for local vacancy visit tracking.
  * v6 adds syncOutbox, opsCache, and opsMeta stores for AOPS-05 migration cache
  *     and outbox.
+ * v7 adds aiExecution and aiBudget stores for Fix 3 semantic single-flight and
+ *     atomic provider-attempt coordination.
  */
 
 export const SCHEMA_V1 = {
@@ -60,9 +62,18 @@ export const SCHEMA_V6 = {
   opsMeta: "&key",
 } as const;
 
-/** Table names derived from the current schema version (v6). */
-export type TableName = keyof typeof SCHEMA_V6;
+/** v7 adds local semantic single-flight and atomic AI attempt coordination. */
+export const SCHEMA_V7 = {
+  ...SCHEMA_V6,
+  aiExecution:
+    "&operationKey, providerPlanHash, operationKind, provider, model, state, createdAt",
+  aiBudget:
+    "&id, [scope+dayKey], operationKey, state, attemptNumber, createdAt",
+} as const;
 
-export const TABLE_NAMES = Object.keys(SCHEMA_V6) as TableName[];
+/** Table names derived from the current schema version (v7). */
+export type TableName = keyof typeof SCHEMA_V7;
 
-export const SCHEMA_VERSION = 6;
+export const TABLE_NAMES = Object.keys(SCHEMA_V7) as TableName[];
+
+export const SCHEMA_VERSION = 7;

@@ -46,6 +46,7 @@ export interface CacheStoreBaseParams {
   provider: string;
   model: string;
   promptVersion: string;
+  providerPlanHash?: string;
 }
 
 export interface CacheStoreParams extends CacheStoreBaseParams {
@@ -80,6 +81,7 @@ export async function checkAnalysisCache(
   model: string,
   promptVersion: string,
   cacheEnabled: boolean,
+  providerPlanHash?: string,
 ): Promise<AnalysisCacheCheckResult> {
   const inputHash = computeAnalysisInputHash(input);
 
@@ -99,6 +101,7 @@ export async function checkAnalysisCache(
     provider,
     model,
     promptVersion,
+    providerPlanHash,
     getCachedAnalysisByMetaKey,
   );
 
@@ -114,6 +117,7 @@ export async function checkCoverLetterCache(
   model: string,
   promptVersion: string,
   cacheEnabled: boolean,
+  providerPlanHash?: string,
 ): Promise<CoverLetterCacheCheckResult> {
   const inputHash = computeCoverLetterInputHash(input);
 
@@ -133,6 +137,7 @@ export async function checkCoverLetterCache(
     provider,
     model,
     promptVersion,
+    providerPlanHash,
     getCachedCoverLetterByMetaKey,
   );
 
@@ -159,6 +164,7 @@ export async function storeAnalysisCache(
     provider,
     model,
     promptVersion,
+    providerPlanHash: params.providerPlanHash,
     resultRefId: analysis.id,
     createdAt: new Date().toISOString(),
   });
@@ -184,6 +190,7 @@ export async function storeCoverLetterCache(
     provider,
     model,
     promptVersion,
+    providerPlanHash: params.providerPlanHash,
     resultRefId,
     createdAt: new Date().toISOString(),
   });
@@ -251,6 +258,7 @@ async function checkCacheEntry<T>(
   provider: string,
   model: string,
   promptVersion: string,
+  providerPlanHash: string | undefined,
   loader: (key: string) => Promise<T | null>,
 ): Promise<CacheCheckResult<T>> {
   const candidates = await db.aiCache.where({ inputHash, kind }).toArray();
@@ -258,7 +266,8 @@ async function checkCacheEntry<T>(
     (entry) =>
       entry.provider === provider &&
       entry.model === model &&
-      entry.promptVersion === promptVersion,
+      entry.promptVersion === promptVersion &&
+      (providerPlanHash === undefined || entry.providerPlanHash === providerPlanHash),
   );
 
   if (!match) {

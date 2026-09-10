@@ -95,6 +95,27 @@ export type {
   CoverLetterAiGenerationResult,
 } from "./cover-letter-ai";
 
+export {
+  prepareVacancyAnalysisAiRequest,
+  previewVacancyAnalysisPayload,
+  buildVacancyAnalysisAiCostSummary,
+  generateVacancyAnalysisAi,
+  generateVacancyAnalysis,
+} from "./vacancy-analysis-ai";
+export type {
+  VacancyAnalysisAiRequest,
+  PreparedVacancyAnalysisAiRequest,
+  VacancyAnalysisAiGenerationResult,
+} from "./vacancy-analysis-ai";
+
+export {
+  buildProviderRequestPlan,
+  buildStandaloneOperationKey,
+  providerPolicyFromSettings,
+  policyFingerprint,
+} from "./ai-plan";
+export type { ProviderInputPolicy, ProviderRequestPlan } from "@/models/ai";
+
 // AI validation
 export {
   parseAndValidateAnalysis,
@@ -177,6 +198,10 @@ export {
   checkAiBudget,
   recordAiRequest,
   eventTypeForKind,
+  reserveAiProviderAttempt,
+  releaseAiAttemptBeforeDispatch,
+  completeAiProviderExecution,
+  markAiProviderOutcomeUnknown,
 } from "./ai-budget";
 export type {
   PricingEntry,
@@ -184,4 +209,7 @@ export type {
   BudgetStatus,
   BudgetGateResult,
   AiRequestKind,
+  ProviderExecutionKind,
+  AiProviderAttemptReservation,
+  AiExecutionError,
 } from "./ai-budget";

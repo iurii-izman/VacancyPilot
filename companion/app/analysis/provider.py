@@ -47,6 +47,10 @@ class LLMProvider(abc.ABC):
         """Default model for this provider."""
         ...
 
+    def preflight(self) -> None:
+        """Validate local provider readiness before reserving a call budget."""
+        return None
+
     @abc.abstractmethod
     async def analyze_vacancy(self, request: AnalysisRequest) -> ProviderResponse:
         """Send a compiled prompt to the LLM and return the raw response."""
@@ -102,6 +106,11 @@ class OpenAIProvider(LLMProvider):
             )
         return key
 
+    def preflight(self) -> None:
+        # Keyring failure is a pre-dispatch failure: the coordinator may
+        # release the claim without consuming a provider-attempt budget.
+        self._get_api_key()
+
     async def analyze_vacancy(self, request: AnalysisRequest) -> ProviderResponse:
         """Send the compiled prompt to OpenAI and return the raw response."""
         api_key = self._get_api_key()
@@ -113,7 +122,11 @@ class OpenAIProvider(LLMProvider):
         ]
 
         model = request.model or self._model
-        token_param = self._token_limit_param(model, 2000)
+        options = request.provider_affecting_options
+        token_limit = options.get('token_limit', 2000)
+        if not isinstance(token_limit, int) or token_limit < 1:
+            token_limit = 2000
+        token_param = self._token_limit_param(model, token_limit)
 
         try:
             async with httpx.AsyncClient(timeout=httpx.Timeout(120.0)) as client:
@@ -126,8 +139,16 @@ class OpenAIProvider(LLMProvider):
                     json={
                         'model': model,
                         'messages': messages,
-                        'temperature': 0.4,
-                        'response_format': {'type': 'json_object'},
+                        'temperature': (
+                            options.get('temperature', 0.4)
+                            if isinstance(options.get('temperature', 0.4), (int, float))
+                            else 0.4
+                        ),
+                        **(
+                            {'response_format': {'type': 'json_object'}}
+                            if options.get('structured_output', True)
+                            else {}
+                        ),
                         **token_param,
                     },
                 )
@@ -138,8 +159,8 @@ class OpenAIProvider(LLMProvider):
                 meta=ProviderMeta(
                     provider=self.provider_id,
                     model=model,
-                    prompt_version=request.provider or '',
-                    input_hash='',
+                    prompt_version=request.prompt_version,
+                    input_hash=request.provider_plan_hash,
                     latency_ms=elapsed,
                 ),
                 error='PROVIDER_TIMEOUT: OpenAI API request timed out after 120s',
@@ -151,8 +172,8 @@ class OpenAIProvider(LLMProvider):
                 meta=ProviderMeta(
                     provider=self.provider_id,
                     model=model,
-                    prompt_version=request.provider or '',
-                    input_hash='',
+                    prompt_version=request.prompt_version,
+                    input_hash=request.provider_plan_hash,
                     latency_ms=elapsed,
                 ),
                 error='PROVIDER_CONNECT_ERROR: Cannot reach OpenAI API (network or DNS)',
@@ -166,8 +187,8 @@ class OpenAIProvider(LLMProvider):
                 meta=ProviderMeta(
                     provider=self.provider_id,
                     model=model,
-                    prompt_version=request.provider or '',
-                    input_hash='',
+                    prompt_version=request.prompt_version,
+                    input_hash=request.provider_plan_hash,
                     latency_ms=elapsed,
                 ),
                 error='AUTH_ERROR: OpenAI API key is invalid or expired',
@@ -178,8 +199,8 @@ class OpenAIProvider(LLMProvider):
                 meta=ProviderMeta(
                     provider=self.provider_id,
                     model=model,
-                    prompt_version=request.provider or '',
-                    input_hash='',
+                    prompt_version=request.prompt_version,
+                    input_hash=request.provider_plan_hash,
                     latency_ms=elapsed,
                 ),
                 error='RATE_ERROR: OpenAI rate limit exceeded',
@@ -195,8 +216,8 @@ class OpenAIProvider(LLMProvider):
                 meta=ProviderMeta(
                     provider=self.provider_id,
                     model=model,
-                    prompt_version=request.provider or '',
-                    input_hash='',
+                    prompt_version=request.prompt_version,
+                    input_hash=request.provider_plan_hash,
                     latency_ms=elapsed,
                 ),
                 error=f'PROVIDER_ERROR({response.status_code}): {err_msg[:300]}',
@@ -210,8 +231,8 @@ class OpenAIProvider(LLMProvider):
                 meta=ProviderMeta(
                     provider=self.provider_id,
                     model=model,
-                    prompt_version=request.provider or '',
-                    input_hash='',
+                    prompt_version=request.prompt_version,
+                    input_hash=request.provider_plan_hash,
                     latency_ms=elapsed,
                 ),
                 error='PROVIDER_PARSE_ERROR: response is not valid JSON',
@@ -224,8 +245,8 @@ class OpenAIProvider(LLMProvider):
                 meta=ProviderMeta(
                     provider=self.provider_id,
                     model=model,
-                    prompt_version=request.provider or '',
-                    input_hash='',
+                    prompt_version=request.prompt_version,
+                    input_hash=request.provider_plan_hash,
                     latency_ms=elapsed,
                 ),
                 error='PROVIDER_EMPTY: no choices returned',
@@ -242,8 +263,8 @@ class OpenAIProvider(LLMProvider):
             meta=ProviderMeta(
                 provider=self.provider_id,
                 model=model,
-                prompt_version=request.provider or '',
-                input_hash=request.provider or '',
+                prompt_version=request.prompt_version,
+                input_hash=request.provider_plan_hash,
                 token_input=token_input,
                 token_output=token_output,
                 estimated_cost_usd=estimated_cost,
@@ -285,7 +306,14 @@ class OpenAIProvider(LLMProvider):
         ]
 
         model = request.model or self._model
-        token_param = self._token_limit_param(model, 2000)
+        options = request.provider_affecting_options
+        token_limit = options.get('token_limit', 2000)
+        if not isinstance(token_limit, int) or token_limit < 1:
+            token_limit = 2000
+        repair_temperature = options.get('repair_temperature', 0.3)
+        if not isinstance(repair_temperature, (int, float)):
+            repair_temperature = 0.3
+        token_param = self._token_limit_param(model, token_limit)
 
         try:
             async with httpx.AsyncClient(timeout=httpx.Timeout(120.0)) as client:
@@ -298,7 +326,7 @@ class OpenAIProvider(LLMProvider):
                     json={
                         'model': model,
                         'messages': messages,
-                        'temperature': 0.3,  # Lower temperature for repairs
+                        'temperature': repair_temperature,
                         # Keep repair in the same structured-output mode as the
                         # initial request; otherwise the bounded repair path is
                         # needlessly exposed to JSON/schema drift.
@@ -313,8 +341,8 @@ class OpenAIProvider(LLMProvider):
                 meta=ProviderMeta(
                     provider=self.provider_id,
                     model=model,
-                    prompt_version='',
-                    input_hash='',
+                    prompt_version=request.prompt_version,
+                    input_hash=request.provider_plan_hash,
                     latency_ms=elapsed,
                 ),
                 error='PROVIDER_TIMEOUT: OpenAI API repair request timed out',
@@ -326,8 +354,8 @@ class OpenAIProvider(LLMProvider):
                 meta=ProviderMeta(
                     provider=self.provider_id,
                     model=model,
-                    prompt_version='',
-                    input_hash='',
+                    prompt_version=request.prompt_version,
+                    input_hash=request.provider_plan_hash,
                     latency_ms=elapsed,
                 ),
                 error='PROVIDER_CONNECT_ERROR: Cannot reach OpenAI API',
@@ -341,8 +369,8 @@ class OpenAIProvider(LLMProvider):
                 meta=ProviderMeta(
                     provider=self.provider_id,
                     model=model,
-                    prompt_version='',
-                    input_hash='',
+                    prompt_version=request.prompt_version,
+                    input_hash=request.provider_plan_hash,
                     latency_ms=elapsed,
                 ),
                 error=f'PROVIDER_ERROR({response.status_code}): repair request failed',
@@ -356,8 +384,8 @@ class OpenAIProvider(LLMProvider):
                 meta=ProviderMeta(
                     provider=self.provider_id,
                     model=model,
-                    prompt_version='',
-                    input_hash='',
+                    prompt_version=request.prompt_version,
+                    input_hash=request.provider_plan_hash,
                     latency_ms=elapsed,
                 ),
                 error='PROVIDER_PARSE_ERROR: repair response is not valid JSON',
@@ -370,8 +398,8 @@ class OpenAIProvider(LLMProvider):
                 meta=ProviderMeta(
                     provider=self.provider_id,
                     model=model,
-                    prompt_version='',
-                    input_hash='',
+                    prompt_version=request.prompt_version,
+                    input_hash=request.provider_plan_hash,
                     latency_ms=elapsed,
                 ),
                 error='PROVIDER_EMPTY: no choices returned in repair',
@@ -384,8 +412,8 @@ class OpenAIProvider(LLMProvider):
             meta=ProviderMeta(
                 provider=self.provider_id,
                 model=model,
-                prompt_version='',
-                input_hash='',
+                prompt_version=request.prompt_version,
+                input_hash=request.provider_plan_hash,
                 token_input=usage.get('prompt_tokens'),
                 token_output=usage.get('completion_tokens'),
                 estimated_cost_usd=_estimate_openai_cost(

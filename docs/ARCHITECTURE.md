@@ -18,7 +18,7 @@ HH pages opened by the user
 The WXT Manifest V3 extension uses TypeScript and React. Standalone Mode keeps
 the domain in Dexie/IndexedDB. `chrome.storage.local` holds normalized settings,
 small UI state, the standalone BYOK path, and the separately stored Companion
-client token. The current Dexie schema is v6 and its migration history is
+client token. The current Dexie schema is v7 and its migration history is
 executable authority.
 
 The Options app exposes exactly six primary routes: Today, Discovery, Inbox,
@@ -81,6 +81,20 @@ The Companion stores sensitive material through the OS keyring, loads the
 private engine from `.local/private-engine/` into
 `.local/data/companion/engine/`, and uses `.local/data/companion/vacancypilot.db`
 for operational data. Those paths are ignored and must never be committed.
+
+### Provider execution and privacy boundary
+
+Both AI modes compile a canonical provider plan from current authoritative
+input and the explicit AI/privacy policy. Preview is provider-free and shows
+the exact redacted dynamic payload, plan hash, privacy summary, cache predicate,
+expected attempts, budget limit and authenticated receipt. Execute rechecks the
+current plan and policy, requires explicit confirmation, then performs a
+semantic single-flight claim and atomic attempt reservation before dispatch.
+SQLite is canonical for the Companion execution/attempt ledger; Dexie is
+canonical for the Standalone ledger. A bounded repair is the only automatic
+second attempt, SDK retries are disabled, and post-dispatch uncertainty is
+durable `outcome_unknown` with no automatic retry. Raw provider output is
+transient repair input only and is not persisted, logged or exported.
 
 ## External boundaries
 

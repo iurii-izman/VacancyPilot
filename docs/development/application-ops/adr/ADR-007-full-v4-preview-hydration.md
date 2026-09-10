@@ -51,6 +51,11 @@ read-only hydration.
 - Regression tests cover provider calls, hydration calls and persistence,
   Application/APPLIED invariants, HH write absence, already-Full vacancies and
   repeated-preview idempotency.
+- Fix 3 adds a second, independent execution boundary after this readiness
+  decision: the provider-free payload is compiled into a canonical plan and
+  authenticated receipt, then Execute must revalidate current input/privacy
+  policy before any provider attempt. This does not widen the hydration
+  exception or turn Application Factory Preview into a mutating flow.
 
 ## Rejected alternative
 

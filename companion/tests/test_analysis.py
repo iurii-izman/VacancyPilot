@@ -101,7 +101,15 @@ class TestAnalysisEndToEnd:
 
         resp = client_with_db.post(
             f'/api/v1/vacancies/{vacancy_id}/analyze?preview=true',
-            json={'language': 'en'},
+            json={
+                'language': 'en',
+                'policy': {
+                    'ai_enabled': True,
+                    'provider': 'openai',
+                    'privacy_mode': 'standard',
+                    'allow_full_description_to_ai': True,
+                },
+            },
             headers=_headers(),
         )
         assert resp.status_code == 200, resp.text

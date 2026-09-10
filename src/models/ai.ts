@@ -42,6 +42,41 @@ export interface AIRequestCache {
   resultRefId: string;
   createdAt: string;
   expiresAt?: string;
+  /** Exact provider plan fingerprint; legacy cache rows may omit it. */
+  providerPlanHash?: string;
+}
+
+export type AIPrivacyMode = "standard" | "strict";
+
+export interface ProviderInputPolicy {
+  policyVersion: string;
+  aiEnabled: boolean;
+  provider: LLMProvider["id"];
+  model?: string;
+  privacyMode: AIPrivacyMode;
+  allowResumeHighlightsToAI: boolean;
+  allowFullDescriptionToAI: boolean;
+  redactContacts: boolean;
+  maxInputChars: number;
+  dailyRequestLimit: number;
+  cacheEnabled: boolean;
+}
+
+export interface ProviderRequestPlan {
+  operationKind: "vacancy_analysis" | "cover_letter";
+  subjectIds: Record<string, string>;
+  provider: LLMProvider["id"];
+  model: string;
+  messages: Array<{ role: "system" | "user"; content: string }>;
+  responseSchemaVersion: string;
+  providerAffectingOptions: Record<string, unknown>;
+  compilerFingerprint: string;
+  repairPolicyFingerprint: string;
+  privacyPolicyFingerprint: string;
+  authoritativeInputFingerprint: string;
+  providerPlanHash: string;
+  promptVersion: string;
+  dynamicPayload: Record<string, unknown>;
 }
 
 // --- AI provider input contracts ---
@@ -85,6 +120,7 @@ export interface CoverLetterInput {
 
 export interface LLMProvider {
   id: 'openai' | 'deepseek' | 'openrouter' | 'mock';
-  analyzeVacancy(input: VacancyAnalysisInput): Promise<AIAnalysis>;
-  generateCoverLetter(input: CoverLetterInput): Promise<string>;
+  preflight?(): Promise<void> | void;
+  analyzeVacancy(input: VacancyAnalysisInput, plan?: ProviderRequestPlan): Promise<AIAnalysis>;
+  generateCoverLetter(input: CoverLetterInput, plan?: ProviderRequestPlan): Promise<string>;
 }

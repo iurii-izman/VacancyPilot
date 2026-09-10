@@ -111,6 +111,25 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException) 
     )
     if exc.detail == 'PAIRING_NOT_CONFIGURED':
         error_code, message = ('PAIRING_NOT_CONFIGURED', 'No existing pairing is configured')
+    fix3_messages = {
+        'CONFIRMATION_REQUIRED': 'Explicit confirmation is required before provider calls',
+        'PROVIDER_POLICY_REQUIRED': 'An explicit current AI/privacy policy is required',
+        'AI_PERMISSION_REQUIRED': 'AI execution is disabled by the current policy',
+        'PROVIDER_POLICY_MISMATCH': 'The reviewed provider policy is stale',
+        'PREVIEW_RECEIPT_REQUIRED': 'A current authenticated preview receipt is required',
+        'PREVIEW_RECEIPT_INVALID': 'The preview receipt is invalid',
+        'PREVIEW_RECEIPT_EXPIRED': 'The preview receipt has expired',
+        'PREVIEW_RECEIPT_STALE': 'The preview receipt no longer matches current input',
+        'RECEIPT_SIGNING_KEY_UNAVAILABLE': 'Preview receipt signing is unavailable',
+        'PROVIDER_OPERATION_IN_FLIGHT': 'The provider operation is already in flight',
+        'PROVIDER_OUTCOME_UNKNOWN': 'The previous provider outcome is unknown; retry is blocked',
+        'AI_BUDGET_EXCEEDED': 'The current AI budget does not allow another provider attempt',
+        'PROVIDER_NOT_READY': 'The configured provider is not ready; no provider call was made',
+        'PROVIDER_OPERATION_COMPLETE': 'This semantic provider operation has already completed',
+        'PROVIDER_RESULT_UNAVAILABLE': 'The completed provider result is unavailable',
+    }
+    if isinstance(exc.detail, str) and exc.detail in fix3_messages:
+        error_code, message = exc.detail, fix3_messages[exc.detail]
     # Letter import validation is a documented machine-readable outcome.  Do
     # not reflect user-provided provider text; expose only this fixed code.
     if exc.status_code == 422 and exc.detail == 'IMPORT_INVALID':

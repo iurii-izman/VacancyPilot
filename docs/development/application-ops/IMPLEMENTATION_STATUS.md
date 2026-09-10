@@ -20,13 +20,13 @@ dated acceptance reports.
 | Area | Current authority | Truth |
 | --- | --- | --- |
 | Extension | `wxt.config.ts`, `entrypoints/`, `src/` | MV3 with `storage`, `sidePanel`, `activeTab`; no required HH host permission |
-| Standalone storage | `src/db/schema.ts`, `src/db/database.ts`, `src/db/migrations.ts` | Dexie schema v6 is canonical |
+| Standalone storage | `src/db/schema.ts`, `src/db/database.ts`, `src/db/migrations.ts` | Dexie schema v7 is canonical |
 | Ops storage | `companion/app/db/`, `companion/alembic/` | SQLite is canonical; Alembic has one current head |
 | API contract | `shared/contracts/openapi.json`, FastAPI routers | Generated OpenAPI is canonical; old planning contract was retired |
 | Ops UI read model | `companion/app/api/ops_projection.py`, `src/models/work-item.ts`, `src/components/ApplicationOpsWorkspace.tsx` | One authenticated bounded projection; derived view only, no new table or write endpoint |
 | Settings | `src/models/settings.ts`, `src/db/settings-bridge.ts` | normalized `app_settings_v1`; obsolete UI-only keys are stripped; API keys and Companion token are separate slots |
 | Engine boundary | `companion/app/engine/`, local `.local/private-engine/` | real V4 stays local/private; no candidate knowledge is tracked |
-| Application Factory | `src/components/ApplicationOpsWorkspace.tsx`, route/tests | Preview is provider-free; execute is explicit; queue never creates `APPLIED` |
+| Application Factory | `src/components/ApplicationOpsWorkspace.tsx`, route/tests | Preview is provider-free and side-effect-free; execute is explicit; queue never creates `APPLIED` |
 | HH boundary | content scripts, Companion HH routes, release-safety tests | read-only DOM/API access; no HH form writes or hidden page requests |
 
 ## Fix 1: transport and mode safety
@@ -83,8 +83,43 @@ score zero; invalid analysis does not expose a prior valid score; and a
 Companion read failure is shown as unavailable rather than an empty child
 source. Today counters come from the complete projection summary and the
 existing analytics endpoint, never from the current Inbox page. Guided Apply
-local mutation remains unavailable in Ops. Fix 3 execution/privacy/concurrency
-work is intentionally not part of this pass.
+local mutation remains unavailable in Ops.
+
+## Fix 3: execution, privacy and concurrency boundary
+
+The provider path is bound to the exact reviewed input. The shared Companion
+and standalone paths compile a canonical provider plan from current
+authoritative vacancy/profile/resume data and the current explicit AI/privacy
+policy. The plan hash covers exact provider messages, provider/model,
+provider-affecting options, compiler/repair fingerprints, selected subject IDs,
+and privacy/input fingerprints; budget-limit and cache-only changes do not
+change the hash.
+
+The execution sequence is:
+
+```text
+authoritative input + policy → canonical plan/hash → provider-free Preview
+→ authenticated receipt → explicit confirmation → current-plan/policy checks
+→ semantic single-flight claim → atomic budget reservation
+→ durable dispatching → provider attempt → one bounded repair if allowed
+→ sanitized persisted result
+```
+
+Missing or invalid execution policy, stale receipts, changed plan/privacy
+inputs, disabled AI, duplicate semantic operations, and exhausted budgets fail
+closed before dispatch. Preview does not call a provider or initialize/write
+receipt signing state. Companion receipt signing is bootstrapped from a
+dedicated OS-keyring secret. Companion SQLite owns the execution/attempt ledger;
+Standalone Dexie owns its equivalent coordination ledger within Standalone.
+Provider SDK retries are disabled, real attempts are counted atomically, and a
+post-dispatch timeout is outcome-unknown rather than automatically retried.
+
+Provider-bound data is allowlist-first, recursively redacted before truncation,
+and disclosed as an exact redacted dynamic payload. Raw provider output is a
+transient in-memory repair input only: it is not persisted, logged, or included
+in exports. Full V4 Preview retains the ADR-007 one-vacancy read-only hydration
+exception; Application Factory Preview remains fully provider-free and
+side-effect-free.
 
 ## Options route truth
 

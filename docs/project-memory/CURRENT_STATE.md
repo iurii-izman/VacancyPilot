@@ -1,8 +1,9 @@
 # Current State
 
-Reviewed checkout: branch `hotfix/hh-vacancy-hydration-v4-card`, Fix 2
-authoritative Ops read-model correction on top of the Pass 3 daily-use UX
-polish and Fix 1 transport/mode-safety baseline.
+Reviewed checkout: branch `hotfix/hh-vacancy-hydration-v4-card`, Fix 3
+execution/privacy/concurrency hardening on top of the Fix 2 authoritative Ops
+read-model correction, Pass 3 daily-use UX polish, and Fix 1 transport/mode-
+safety baseline.
 The worktree was clean at audit preflight. This document is the current
 runtime/status snapshot; dated acceptance reports are historical evidence.
 
@@ -70,6 +71,36 @@ only, and its final local mutation plus HR/application/timeline Dexie writes
 remain unavailable in effective Ops. Fix 2 corrects read authority; it does
 not add an Ops write path.
 
+## Fix 3 execution, privacy and concurrency
+
+Executable AI operations are bound to current authoritative input and the
+current explicit AI/privacy policy through one canonical provider plan. The
+plan hash covers the exact provider messages, provider/model, provider-affecting
+options, compiler and repair fingerprints, selected subject IDs, and privacy/
+input fingerprints. Budget-limit and cache-only changes do not make a reviewed
+plan stale.
+
+```text
+authoritative input + policy → canonical plan/hash → provider-free Preview
+→ authenticated receipt → explicit confirmation → current-plan/policy checks
+→ semantic single-flight claim → atomic budget reservation
+→ durable dispatching → provider attempt → bounded repair → sanitized result
+```
+
+Missing or invalid execution policy, stale receipts, changed privacy/input
+semantics, disabled AI, duplicate operations, and exhausted budgets fail closed
+before dispatch. Preview does not call a provider or initialize/write receipt
+signing state. Companion receipts use a dedicated OS-keyring secret; SQLite
+owns the Companion execution/attempt ledger and Standalone Dexie owns its own
+coordination ledger. Provider SDK retries are disabled, and a post-dispatch
+timeout is outcome-unknown rather than automatically retried.
+
+Provider-bound data is allowlist-first, recursively redacted before truncation,
+and disclosed as an exact redacted dynamic payload. Raw provider output is a
+transient in-memory repair input only: it is not persisted, logged, or exported.
+Full V4 Preview retains the ADR-007 one-vacancy read-only hydration exception;
+Application Factory Preview remains fully provider-free and side-effect-free.
+
 ## Surface truth
 
 Options has six primary routes: Today, Discovery, Inbox, Pipeline, Candidate
@@ -104,15 +135,15 @@ Standalone truth.
 Settings are normalized and persisted under `app_settings_v1`; stale removed
 UI-only keys are stripped on load, while API keys and the Companion token use
 separate local storage slots. Deferred n8n/event/export fields remain only for
-compatibility and redaction. The current Dexie schema is v6, with Dexie
+compatibility and redaction. The current Dexie schema is v7, with Dexie
 migrations in `src/db/migrations.ts`; Companion schema changes are Alembic
 migrations with one current head.
 
 ## Deferred / incomplete
 
 - AOPS-14 Interview Pack: deferred, not started.
-- Fix 3 execution/privacy/concurrency findings remain unresolved; Fix 2 does
-  not change those boundaries.
+- Fix 4/5 follow-on work, including generated client-contract plumbing and
+  broader post-R5 product work, remains deferred.
 - Full canonical AOPS-15 analytics/production pilot: incomplete; only the
   bounded R5 slice is accepted.
 - Backup/recovery redesign, public release, V4.1 and new providers: backlog or

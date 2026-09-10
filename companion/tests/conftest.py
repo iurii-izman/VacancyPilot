@@ -18,6 +18,7 @@ from app.db.base import Base
 from app.db.engine import create_engine
 from app.main import create_app
 from app.security.auth import ClientTokenDep
+from app.security.receipts import ReceiptSigner
 
 # ── Temporary SQLite database fixtures ─────────────────────────────────
 
@@ -115,7 +116,12 @@ def reset_security_state() -> Generator[None, None, None]:
 @pytest.fixture(scope='session')
 def app() -> FastAPI:
     """Return a configured FastAPI application instance."""
-    instance = create_app(initialize_db=False)
+    # Test-only deterministic signer.  Production creates/loads this key at
+    # Companion bootstrap; Preview itself never initializes keyring state.
+    instance = create_app(
+        initialize_db=False,
+        receipt_signer=ReceiptSigner(b'test-only-fix3-receipt-key'),
+    )
     _add_security_test_route(instance)
     return instance
 
@@ -141,7 +147,10 @@ async def async_client(app: FastAPI) -> AsyncGenerator[AsyncClient, None]:
 def app_with_db(db_engine: Engine) -> Generator[FastAPI, None, None]:
     """Return a FastAPI app whose health endpoint uses the temporary DB."""
     Base.metadata.create_all(db_engine)
-    app = create_app(initialize_db=False)
+    app = create_app(
+        initialize_db=False,
+        receipt_signer=ReceiptSigner(b'test-only-fix3-receipt-key'),
+    )
     _add_security_test_route(app)
     app.state.db_engine = db_engine
     yield app

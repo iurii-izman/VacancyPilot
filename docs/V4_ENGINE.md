@@ -28,6 +28,27 @@ Full V4 output is persisted only after validation. Evidence references remain
 distinct from generated text: a cover letter is a draft and never evidence.
 When the decision is `SKIP`, no letter is generated.
 
+## Provider execution contract
+
+Preview and Execute are bound to a canonical provider plan compiled from the
+current authoritative vacancy/profile/resume input and explicit AI/privacy
+policy. The plan hash covers the exact provider messages, provider/model,
+provider-affecting options, compiler and repair fingerprints, subject IDs and
+privacy/input fingerprints. Preview discloses the exact redacted dynamic
+payload, expected attempt count, cache predicate, budget limit and an
+authenticated short-lived receipt; it does not call a provider or initialize
+receipt key material.
+
+Execute requires explicit confirmation, a valid receipt for the same plan and
+the current AI permission. It then claims the semantic operation and reserves
+the real provider attempt atomically before durable dispatch. Same-plan
+duplicates share one persisted result, one bounded repair may consume one
+additional attempt, provider SDK retries are disabled, and a dispatch timeout
+is outcome-unknown rather than automatically retried. Raw provider output is a
+transient repair input only and is not persisted, logged or exported. Unknown
+fields are not forwarded; allowed dynamic leaves are recursively redacted
+before truncation.
+
 ## Application boundary
 
 The bounded R5 flow is:

@@ -12,8 +12,8 @@ import {
 import { VacancyDatabase } from "./database";
 
 describe("schema constant", () => {
-  it("has exactly 15 tables (v6)", () => {
-    expect(TABLE_NAMES).toHaveLength(15);
+  it("has exactly 17 tables (v7)", () => {
+    expect(TABLE_NAMES).toHaveLength(17);
   });
 
   it("includes all required table names", () => {
@@ -33,6 +33,8 @@ describe("schema constant", () => {
       "syncOutbox",
       "opsCache",
       "opsMeta",
+      "aiExecution",
+      "aiBudget",
     ]);
   });
 
@@ -146,8 +148,8 @@ describe("schema constant", () => {
     expect(SCHEMA_V3.events).toBe(SCHEMA_V2.events);
   });
 
-  it("schema version is 6", () => {
-    expect(SCHEMA_VERSION).toBe(6);
+  it("schema version is 7", () => {
+    expect(SCHEMA_VERSION).toBe(7);
   });
   it("v4 adds hrTimeline table", () => {
     const spec = SCHEMA_V4.hrTimeline;
@@ -222,5 +224,7 @@ describe("VacancyDatabase", () => {
     expect(instance.syncOutbox).toBeDefined();
     expect(instance.opsCache).toBeDefined();
     expect(instance.opsMeta).toBeDefined();
+    expect(instance.aiExecution).toBeDefined();
+    expect(instance.aiBudget).toBeDefined();
   });
 });

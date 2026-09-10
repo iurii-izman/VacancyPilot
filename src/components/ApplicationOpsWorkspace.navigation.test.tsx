@@ -75,6 +75,25 @@ vi.mock("@/services/companion-service", () => ({
   }),
 }));
 
+vi.mock("@/db/settings-bridge", () => ({
+  loadSettings: vi.fn().mockResolvedValue({
+    privacy: {
+      aiEnabled: true,
+      strictPrivacyMode: true,
+      allowResumeHighlightsToAI: false,
+      allowFullDescriptionToAI: false,
+      redactContacts: true,
+    },
+    ai: {
+      provider: "openai",
+      model: "gpt-4o",
+      dailyRequestLimit: 10,
+      maxInputChars: 3000,
+      enableCache: true,
+    },
+  }),
+}));
+
 vi.mock("@/services/ops-capabilities", () => ({
   getOpsCapabilities: vi.fn().mockResolvedValue({
     mode: { effectiveMode: "ops", requestedOpsMode: true, authorityMode: "ops" },
@@ -165,7 +184,10 @@ describe("Application Workspace navigation", () => {
     });
 
     expect(hydrateVacancy).not.toHaveBeenCalled();
-    expect(previewFullV4).toHaveBeenCalledWith(opsItem.vacancy.vacancy_id);
+    expect(previewFullV4).toHaveBeenCalledWith(
+      opsItem.vacancy.vacancy_id,
+      expect.objectContaining({ policy: expect.any(Object) }),
+    );
     expect(container.textContent).toContain("Preview only — no provider call was made.");
   });
 

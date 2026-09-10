@@ -98,6 +98,32 @@ export interface VacancyDetailResponse {
   meta: Record<string, string>;
 }
 
+/** Explicit AI/privacy policy sent with a reviewed Companion operation. */
+export interface CompanionProviderPolicy {
+  policy_version: string;
+  ai_enabled: boolean;
+  provider: "openai";
+  model?: string | null;
+  privacy_mode: "standard" | "strict";
+  allow_resume_highlights_to_ai: boolean;
+  allow_full_description_to_ai: boolean;
+  redact_contacts: boolean;
+  max_input_chars: number;
+  daily_request_limit: number;
+  cache_enabled: boolean;
+}
+
+export interface FullV4PreviewRequest {
+  policy?: CompanionProviderPolicy;
+}
+
+export interface FullV4AnalyzeRequest {
+  policy: CompanionProviderPolicy;
+  confirmation: boolean;
+  preview_receipt: string;
+  retry_id?: string;
+}
+
 export type FullV4PreviewResponse = {
   data: {
     provider: string;
@@ -111,6 +137,18 @@ export type FullV4PreviewResponse = {
     language: string;
     what_is_sent: string[];
     what_is_not_sent: string[];
+    provider_plan_hash: string;
+    operation_kind: string;
+    subject_ids: Record<string, string>;
+    dynamic_payload: Record<string, unknown>;
+    expected_initial_attempts: number;
+    expected_max_attempts: number;
+    receipt: string | null;
+    receipt_expires_at: number | null;
+    cache_reuse_predicate: string;
+    budget_limit: number | null;
+    budget_used: number;
+    budget_remaining: number | null;
   };
   meta: Record<string, string>;
 };

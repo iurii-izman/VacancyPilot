@@ -28,6 +28,10 @@ class SecretSlot:
     HH_REFRESH_TOKEN: str = 'vacancypilot_hh_refresh_token'
     AI_KEY: str = 'vacancypilot_ai_key'
     PAIRING_MATERIAL: str = 'vacancypilot_pairing_material'
+    # Dedicated receipt MAC key.  It is never derived from or equal to the
+    # browser client token, which keeps receipt invalidation and pairing
+    # rotation independent.
+    RECEIPT_SIGNING_KEY: str = 'vacancypilot_receipt_signing_key'
 
 
 # ── Abstract keyring ─────────────────────────────────────────────────────

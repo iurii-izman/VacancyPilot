@@ -65,8 +65,14 @@ function csvRow(cells: unknown[]): string {
 export async function exportAllJson(): Promise<ExportEnvelope> {
   const data: Record<string, unknown[]> = {};
 
-  // Collect all Dexie table data (TABLE_NAMES reflects the current schema v6)
+  // Provider execution coordination is ephemeral control-plane state. It
+  // contains owner tokens and budget reservations, so it must not become a
+  // user export or a second persistence path for execution metadata.
+  const nonExportableTables = new Set(["aiExecution", "aiBudget"]);
+
+  // Collect all Dexie table data (TABLE_NAMES reflects the current schema v7)
   for (const name of TABLE_NAMES) {
+    if (nonExportableTables.has(name)) continue;
     const table = db.table(name as TableName);
     data[name] = await table.toArray();
   }

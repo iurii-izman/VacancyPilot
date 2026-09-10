@@ -18,6 +18,7 @@ import type {
 import {
   redactBaseText,
   redactContacts,
+  redactProviderValue,
   truncateDescription,
 } from "./redaction";
 
@@ -61,31 +62,45 @@ export function buildVacancyAnalysisInput(
 
   const rawDescription = includeDescription ? job.descriptionClean : "";
   const applyPrivacy = createPrivacyRedactor(settings);
+  const maxInputChars = boundedMaxInputChars(settings.ai.maxInputChars);
+  const sanitize = (value: unknown, maxStringChars?: number): string =>
+    String(
+      redactProviderValue(value, {
+        redactContacts: settings.privacy.redactContacts,
+        maxStringChars,
+      }),
+    );
 
   return {
     job: {
-      title: job.title,
-      company: job.companyName,
-      salaryRaw: job.salaryRaw,
-      city: job.city,
-      workMode: job.workMode,
-      experienceRaw: job.experienceRaw,
-      skills: job.skills,
+      title: sanitize(job.title, 500),
+      company: sanitize(job.companyName, 500),
+      salaryRaw: sanitizeOptional(job.salaryRaw, 200, settings.privacy.redactContacts),
+      city: sanitizeOptional(job.city, 200, settings.privacy.redactContacts),
+      workMode: sanitize(job.workMode, 64),
+      experienceRaw: sanitizeOptional(job.experienceRaw, 500, settings.privacy.redactContacts),
+      skills: job.skills.slice(0, 50).map((skill) => sanitize(skill, 200)),
       descriptionClean: rawDescription
         ? truncateDescription(
             applyPrivacy(rawDescription),
-            settings.ai.maxInputChars || 3000,
+            maxInputChars,
           )
         : "",
     },
     profile: {
       summary: applyPrivacy(profile.summary),
-      targetTitles: profile.targetTitles,
-      mustHaveSkills: profile.mustHaveSkills,
-      niceToHaveSkills: profile.niceToHaveSkills,
+      targetTitles: profile.targetTitles
+        .slice(0, 20)
+        .map((value) => sanitize(value, 200)),
+      mustHaveSkills: profile.mustHaveSkills
+        .slice(0, 30)
+        .map((value) => sanitize(value, 200)),
+      niceToHaveSkills: profile.niceToHaveSkills
+        .slice(0, 30)
+        .map((value) => sanitize(value, 200)),
     },
     resumeHighlights: includeResumeHighlights
-      ? applyPrivacy(resume!.highlightsText)
+      ? truncateDescription(applyPrivacy(resume!.highlightsText), maxInputChars)
       : undefined,
     strictPrivacy: isStrict,
   };
@@ -130,6 +145,13 @@ export function buildCoverLetterInput(
   const isStrict = settings.privacy.strictPrivacyMode;
   const topRequirements = deriveTopRequirements(job, profile);
   const applyPrivacy = createPrivacyRedactor(settings);
+  const sanitize = (value: unknown, maxStringChars?: number): string =>
+    String(
+      redactProviderValue(value, {
+        redactContacts: settings.privacy.redactContacts,
+        maxStringChars,
+      }),
+    );
 
   // Gate resumeHighlights behind privacy settings (same logic as buildVacancyAnalysisInput).
   const includeResumeHighlights =
@@ -140,16 +162,19 @@ export function buildCoverLetterInput(
 
   return {
     job: {
-      title: job.title,
-      company: job.companyName,
-      topRequirements,
-      skills: job.skills,
+      title: sanitize(job.title, 500),
+      company: sanitize(job.companyName, 500),
+      topRequirements: sanitize(topRequirements, 800),
+      skills: job.skills.slice(0, 50).map((skill) => sanitize(skill, 200)),
     },
     profile: {
       summary: applyPrivacy(profile.summary),
     },
     resumeHighlights: includeResumeHighlights
-      ? applyPrivacy(resume!.highlightsText)
+      ? truncateDescription(
+          applyPrivacy(resume!.highlightsText),
+          boundedMaxInputChars(settings.ai.maxInputChars),
+        )
       : "",
     mode: options?.mode ?? profile.letterPrefs.defaultMode,
     constraints:
@@ -171,6 +196,24 @@ function createPrivacyRedactor(
       ? redactContacts(baseRedacted)
       : baseRedacted;
   };
+}
+
+function boundedMaxInputChars(value: number): number {
+  return Math.max(256, Math.min(12_000, Number.isFinite(value) ? value : 3_000));
+}
+
+function sanitizeOptional(
+  value: unknown,
+  maxStringChars: number,
+  redactContactsEnabled: boolean,
+): string | undefined {
+  if (value === undefined || value === null) return undefined;
+  return String(
+    redactProviderValue(value, {
+      redactContacts: redactContactsEnabled,
+      maxStringChars,
+    }),
+  );
 }
 
 /**

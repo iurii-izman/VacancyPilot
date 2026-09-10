@@ -26,6 +26,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.analysis.models import ProviderInputPolicy
 from app.analysis.provider import FakeProvider, _default_fake_response
 from app.db.models import Application, Vacancy, VacancySnapshot
 from app.security.auth import hash_client_token
@@ -38,6 +39,17 @@ _ENGINE_FIXTURES = Path(__file__).resolve().parent / 'engine_fixtures' / 'valid-
 
 def _headers() -> dict[str, str]:
     return {'X-VacancyPilot-Client': TOKEN}
+
+
+def _policy() -> dict[str, object]:
+    return ProviderInputPolicy(
+        ai_enabled=True,
+        provider='openai',
+        privacy_mode='standard',
+        allow_full_description_to_ai=True,
+        daily_request_limit=10,
+        cache_enabled=True,
+    ).model_dump()
 
 
 def _register_token(token: str, session: Session) -> None:
@@ -113,9 +125,21 @@ def _analyze(
     provider: FakeProvider,
 ) -> dict:
     monkeypatch.setattr('app.analysis.service.create_provider', lambda *a, **k: provider)
+    preview = client_with_db.post(
+        f'/api/v1/vacancies/{vacancy_id}/analyze?preview=true',
+        json={'policy': _policy()},
+        headers=_headers(),
+    )
+    assert preview.status_code == 200, preview.text
+    receipt = preview.json()['data']['receipt']
     resp = client_with_db.post(
         f'/api/v1/vacancies/{vacancy_id}/analyze',
-        json={'force': True},
+        json={
+            'force': True,
+            'confirmation': True,
+            'preview_receipt': receipt,
+            'policy': _policy(),
+        },
         headers=_headers(),
     )
     assert resp.status_code == 200, resp.text
@@ -135,7 +159,9 @@ class TestEngineAvailabilityGating:
         vacancy_id = _ingest_vacancy(client_with_db)['data']['vacancy_id']
 
         resp = client_with_db.post(
-            f'/api/v1/vacancies/{vacancy_id}/analyze', json={}, headers=_headers()
+            f'/api/v1/vacancies/{vacancy_id}/analyze',
+            json={'confirmation': True, 'policy': _policy(), 'preview_receipt': 'unused'},
+            headers=_headers(),
         )
         assert resp.status_code == 409, resp.text
         assert 'ENGINE_PACKAGE_MISSING' in resp.json()['error']['message']
@@ -167,7 +193,9 @@ class TestEngineAvailabilityGating:
         vacancy_id = _ingest_vacancy(client_with_db)['data']['vacancy_id']
 
         resp = client_with_db.post(
-            f'/api/v1/vacancies/{vacancy_id}/analyze', json={}, headers=_headers()
+            f'/api/v1/vacancies/{vacancy_id}/analyze',
+            json={'confirmation': True, 'policy': _policy(), 'preview_receipt': 'unused'},
+            headers=_headers(),
         )
         assert resp.status_code == 409, resp.text
         assert 'ENGINE_PACKAGE_INVALID' in resp.json()['error']['message']
@@ -416,7 +444,7 @@ class TestValidationAndReliability:
         run = db_session.get(EngineRun, data['run_id'])
         assert run is not None
         assert run.engine_hash != ''
-        assert run.raw_output is not None
+        assert run.raw_output is None
         usages = db_session.query(EvidenceUsage).filter(EvidenceUsage.engine_run_id == run.id).all()
         assert len(usages) == 2
         assert {u.evidence_level for u in usages} == {'E4', 'E3'}

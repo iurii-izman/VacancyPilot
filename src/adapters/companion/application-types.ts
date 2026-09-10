@@ -1,3 +1,5 @@
+import type { CompanionProviderPolicy } from './vacancy-types';
+
 export type ApplicationStatus =
   | 'new' | 'saved' | 'analyzed' | 'ready_to_send' | 'applied' | 'hr_replied'
   | 'interview' | 'test_task' | 'offer' | 'rejected_by_company'
@@ -62,8 +64,35 @@ export interface ApplicationSessionPreview {
   cached_v4: number; need_full_v4: number; valid_letters: number;
   likely_letter_work: number; archived_or_ineligible: number;
   expected_provider_calls: number; cost_estimate_available: boolean; message: string;
+  budget_limit: number | null; budget_used: number; budget_remaining: number | null;
+  items?: ApplicationSessionPreviewItem[];
+}
+export interface ApplicationSessionPreviewItem {
+  vacancy_id: string;
+  provider: string;
+  model: string;
+  provider_plan_hash: string;
+  cache_hit: boolean;
+  expected_initial_attempts: number;
+  expected_max_attempts: number;
+  receipt: string | null;
+  receipt_expires_at: number | null;
+  privacy_mode: string;
+  what_is_sent: string[];
+  what_is_not_sent: string[];
+  dynamic_payload: Record<string, unknown>;
+  cache_reuse_predicate: string;
+  budget_limit: number | null;
+  budget_used: number;
+  budget_remaining: number | null;
 }
 export interface ApplicationSessionPreviewResponse { data: ApplicationSessionPreview; meta: Record<string, unknown>; }
+
+export interface ApplicationSessionCreateOptions {
+  policy: CompanionProviderPolicy;
+  confirmation: boolean;
+  preview_receipts: Record<string, string>;
+}
 
 export interface AnalyticsSummary {
   state: 'NO_DATA' | 'SMALL_SAMPLE' | 'SUFFICIENT_FOR_DESCRIPTIVE_VIEW';

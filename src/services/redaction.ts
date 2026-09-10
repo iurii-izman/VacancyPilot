@@ -94,6 +94,45 @@ export function redactBaseText(text: string): string {
 }
 
 /**
+ * Recursively redact provider-bound values.  Callers must perform the
+ * allowlist projection before invoking this helper; this function protects
+ * every nested string leaf and always redacts before truncating.
+ */
+export function redactProviderValue(
+  value: unknown,
+  options: { redactContacts: boolean; maxStringChars?: number },
+  depth = 0,
+): unknown {
+  if (depth > 8) return "[nested value omitted]";
+
+  if (typeof value === "string") {
+    const redacted = options.redactContacts
+      ? redactText(value)
+      : redactBaseText(value);
+    return options.maxStringChars
+      ? truncateDescription(redacted, options.maxStringChars)
+      : redacted;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) =>
+      redactProviderValue(item, options, depth + 1),
+    );
+  }
+
+  if (value !== null && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([key, item]) => [
+        key,
+        redactProviderValue(item, options, depth + 1),
+      ]),
+    );
+  }
+
+  return value;
+}
+
+/**
  * Truncate description to a maximum character count while keeping whole words.
  *
  * @param text — the text to truncate

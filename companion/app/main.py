@@ -36,6 +36,7 @@ from app.config import settings
 from app.db import Base  # noqa: F401 — register models with metadata
 from app.db.engine import create_engine
 from app.observability.request_context import RequestContextMiddleware
+from app.security.keyring import OSKeyring
 from app.security.middleware import (
     BodySizeLimitMiddleware,
     ContentTypeMiddleware,
@@ -43,6 +44,7 @@ from app.security.middleware import (
     get_configured_origins,
     validate_loopback_bind,
 )
+from app.security.receipts import ReceiptSigner, ensure_receipt_signing_key
 
 
 @asynccontextmanager
@@ -66,6 +68,12 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     if app.state.initialize_db:
         owned_engine = create_engine()
         app.state.db_engine = owned_engine
+    if getattr(app.state, 'receipt_signer', None) is None:
+        # Receipt keys are created only during Companion bootstrap.  Preview
+        # handlers never call the keyring write path.
+        backend = OSKeyring()
+        if ensure_receipt_signing_key(backend):
+            app.state.receipt_signer = ReceiptSigner.from_keyring(backend)
     try:
         yield
     finally:
@@ -74,7 +82,11 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             del app.state.db_engine
 
 
-def create_app(*, initialize_db: bool = True) -> FastAPI:
+def create_app(
+    *,
+    initialize_db: bool = True,
+    receipt_signer: ReceiptSigner | None = None,
+) -> FastAPI:
     """Build and return the configured FastAPI application.
 
     Does not bind a socket or make network calls.
@@ -88,6 +100,7 @@ def create_app(*, initialize_db: bool = True) -> FastAPI:
         redoc_url=None,
     )
     app.state.initialize_db = initialize_db
+    app.state.receipt_signer = receipt_signer
 
     # Starlette executes the last added middleware first. CORS is outermost
     # so valid OPTIONS preflights are answered before JSON enforcement.

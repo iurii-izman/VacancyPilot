@@ -101,6 +101,25 @@ vi.mock("./ai-budget", async () => {
       remaining: 10,
       isExhausted: false,
     })),
+    reserveAiProviderAttempt: vi.fn(async (params: {
+      operationKey: string;
+      operationKind: "vacancy_analysis" | "cover_letter";
+      provider: string;
+      model: string;
+      providerPlanHash: string;
+    }) => ({
+      reservationId: "attempt_1",
+      operationKey: params.operationKey,
+      operationKind: params.operationKind,
+      provider: params.provider,
+      model: params.model,
+      providerPlanHash: params.providerPlanHash,
+      ownerToken: "owner_1",
+      attemptNumber: 1,
+      dayKey: "2026-09-10",
+    })),
+    completeAiProviderExecution: vi.fn(async () => undefined),
+    markAiProviderOutcomeUnknown: vi.fn(async () => undefined),
     recordAiRequest: vi.fn(async () => "event_1"),
   };
 });

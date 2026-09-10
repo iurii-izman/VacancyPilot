@@ -30,7 +30,16 @@ import type {
   HHSearchPreviewResponse,
   HHVacancySyncResponse,
 } from './types';
-import type { VacancyListFilters, VacancyListResponse, VacancyDetailResponse, FullV4PreviewResponse, FullV4AnalyzeResponse, FullV4PersistedRunResponse } from './vacancy-types';
+import type {
+  VacancyListFilters,
+  VacancyListResponse,
+  VacancyDetailResponse,
+  FullV4PreviewResponse,
+  FullV4AnalyzeResponse,
+  FullV4PersistedRunResponse,
+  FullV4PreviewRequest,
+  FullV4AnalyzeRequest,
+} from './vacancy-types';
 import type { OpsProjectionQuery, OpsWorkItemResponse } from './ops-projection-types';
 import type {
   ApplicationListResponse,
@@ -39,8 +48,10 @@ import type {
   FollowUpResponse,
   ApplicationSessionPreviewResponse,
   ApplicationSessionResponse,
+  ApplicationSessionCreateOptions,
   AnalyticsResponse,
 } from './application-types';
+import type { CompanionProviderPolicy } from './vacancy-types';
 import { isCompatibleApiVersion } from './types';
 
 // ── Constants ──────────────────────────────────────────────────────────────
@@ -376,12 +387,35 @@ export class OpsClient {
     return this.authenticatedPost<VacancyDetailResponse>(`/vacancies/${encodeURIComponent(id)}/hydrate`, {}, signal);
   }
 
-  async previewFullV4(id: string, signal?: AbortSignal): Promise<FullV4PreviewResponse> {
-    return this.authenticatedPost<FullV4PreviewResponse>(`/vacancies/${encodeURIComponent(id)}/analyze?preview=true`, {}, signal);
+  async previewFullV4(
+    id: string,
+    bodyOrSignal?: FullV4PreviewRequest | AbortSignal,
+    signal?: AbortSignal,
+  ): Promise<FullV4PreviewResponse> {
+    const body = isAbortSignal(bodyOrSignal) ? {} : bodyOrSignal ?? {};
+    const requestSignal = isAbortSignal(bodyOrSignal) ? bodyOrSignal : signal;
+    return this.authenticatedPost<FullV4PreviewResponse>(
+      `/vacancies/${encodeURIComponent(id)}/analyze?preview=true`,
+      body,
+      requestSignal,
+    );
   }
 
-  async analyzeFullV4(id: string, signal?: AbortSignal): Promise<FullV4AnalyzeResponse> {
-    return this.authenticatedPost<FullV4AnalyzeResponse>(`/vacancies/${encodeURIComponent(id)}/analyze`, {}, signal, { timeoutMs: FULL_V4_TIMEOUT_MS });
+  async analyzeFullV4(
+    id: string,
+    bodyOrSignal?: FullV4AnalyzeRequest | AbortSignal,
+    signal?: AbortSignal,
+  ): Promise<FullV4AnalyzeResponse> {
+    const body = isAbortSignal(bodyOrSignal)
+      ? { confirmation: false } as unknown as FullV4AnalyzeRequest
+      : bodyOrSignal ?? { confirmation: false } as unknown as FullV4AnalyzeRequest;
+    const requestSignal = isAbortSignal(bodyOrSignal) ? bodyOrSignal : signal;
+    return this.authenticatedPost<FullV4AnalyzeResponse>(
+      `/vacancies/${encodeURIComponent(id)}/analyze`,
+      body,
+      requestSignal,
+      { timeoutMs: FULL_V4_TIMEOUT_MS },
+    );
   }
 
   async getFullV4Run(id: string, signal?: AbortSignal): Promise<FullV4PersistedRunResponse> {
@@ -410,16 +444,60 @@ export class OpsClient {
     return this._request<FollowUpResponse>('PATCH', `/followups/${encodeURIComponent(id)}`, body, signal, true);
   }
 
-  async previewApplicationSession(vacancyIds: string[], signal?: AbortSignal): Promise<ApplicationSessionPreviewResponse> {
-    return this.authenticatedPost<ApplicationSessionPreviewResponse>('/application-sessions/preview', { vacancy_ids: vacancyIds }, signal);
+  async previewApplicationSession(
+    vacancyIds: string[],
+    policyOrSignal?: CompanionProviderPolicy | AbortSignal,
+    signal?: AbortSignal,
+  ): Promise<ApplicationSessionPreviewResponse> {
+    const policy = isAbortSignal(policyOrSignal) ? undefined : policyOrSignal;
+    const requestSignal = isAbortSignal(policyOrSignal) ? policyOrSignal : signal;
+    return this.authenticatedPost<ApplicationSessionPreviewResponse>(
+      '/application-sessions/preview',
+      { vacancy_ids: vacancyIds, ...(policy ? { policy } : {}) },
+      requestSignal,
+    );
   }
 
-  async createApplicationSession(vacancyIds: string[], signal?: AbortSignal): Promise<ApplicationSessionResponse> {
-    return this.authenticatedPost<ApplicationSessionResponse>('/application-sessions', { vacancy_ids: vacancyIds }, signal);
+  async createApplicationSession(
+    vacancyIds: string[],
+    policyOrSignal?: CompanionProviderPolicy | ApplicationSessionCreateOptions | AbortSignal,
+    signal?: AbortSignal,
+  ): Promise<ApplicationSessionResponse> {
+    let body: Record<string, unknown> = { vacancy_ids: vacancyIds };
+    if (policyOrSignal && !isAbortSignal(policyOrSignal)) {
+      if ('policy' in policyOrSignal && 'confirmation' in policyOrSignal) {
+        body = { vacancy_ids: vacancyIds, ...policyOrSignal };
+      } else {
+        body = { vacancy_ids: vacancyIds, policy: policyOrSignal };
+      }
+    }
+    const requestSignal = isAbortSignal(policyOrSignal) ? policyOrSignal : signal;
+    return this.authenticatedPost<ApplicationSessionResponse>(
+      '/application-sessions',
+      body,
+      requestSignal,
+    );
   }
 
-  async executeApplicationSession(id: string, signal?: AbortSignal): Promise<ApplicationSessionResponse> {
-    return this.authenticatedPost<ApplicationSessionResponse>(`/application-sessions/${encodeURIComponent(id)}/execute`, { confirmation: true }, signal);
+  async executeApplicationSession(
+    id: string,
+    bodyOrSignal?: {
+      confirmation: boolean;
+      policy: CompanionProviderPolicy;
+      preview_receipts: Record<string, string>;
+      retry_ids?: Record<string, string>;
+    } | AbortSignal,
+    signal?: AbortSignal,
+  ): Promise<ApplicationSessionResponse> {
+    const body = isAbortSignal(bodyOrSignal)
+      ? { confirmation: false }
+      : bodyOrSignal ?? { confirmation: false };
+    const requestSignal = isAbortSignal(bodyOrSignal) ? bodyOrSignal : signal;
+    return this.authenticatedPost<ApplicationSessionResponse>(
+      `/application-sessions/${encodeURIComponent(id)}/execute`,
+      body,
+      requestSignal,
+    );
   }
 
   async getApplicationSession(id: string, signal?: AbortSignal): Promise<ApplicationSessionResponse> {
@@ -454,6 +532,12 @@ export class CompanionError extends Error {
     this.httpStatus = httpStatus;
     this.details = details;
   }
+}
+
+function isAbortSignal(value: unknown): value is AbortSignal {
+  return (
+    typeof AbortSignal !== 'undefined' && value instanceof AbortSignal
+  );
 }
 
 // ── AbortSignal merging ────────────────────────────────────────────────────

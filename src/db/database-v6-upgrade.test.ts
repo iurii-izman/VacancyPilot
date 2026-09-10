@@ -12,8 +12,8 @@ afterEach(async () => {
   await Dexie.delete(databaseName);
 });
 
-describe("Dexie v5 to v6 upgrade", () => {
-  it("preserves existing rows while adding the three Ops stores", async () => {
+describe("Dexie v5 to v7 upgrade", () => {
+  it("preserves existing rows while adding Ops and Fix 3 stores", async () => {
     const oldDatabase = new Dexie(databaseName);
     oldDatabase.version(5).stores(SCHEMA_V5);
     await oldDatabase.open();
@@ -37,6 +37,9 @@ describe("Dexie v5 to v6 upgrade", () => {
     });
     expect(upgraded.tables.map((table) => table.name)).toEqual(
       expect.arrayContaining(["syncOutbox", "opsCache", "opsMeta"]),
+    );
+    expect(upgraded.tables.map((table) => table.name)).toEqual(
+      expect.arrayContaining(["aiExecution", "aiBudget"]),
     );
     upgraded.close();
   });
