@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 /**
  * Tests for the GuidedApplyWorkspace safety boundaries.
@@ -64,52 +66,37 @@ vi.mock("@/db/repositories", () => ({
 // ── Tests ──
 
 describe("GuidedApplyWorkspace — safety boundaries", () => {
+  const source = readFileSync(join(__dirname, "GuidedApplyWorkspace.tsx"), "utf8");
+
   beforeEach(() => {
     vi.clearAllMocks();
     mockChromeSendMessage.mockResolvedValue({ success: true });
   });
 
   it("does not perform DOM writes to HH form fields", () => {
-    // The component uses no document.createElement for form fields,
-    // no .value assignment on input elements, no .innerHTML on HH DOM.
-    // This is verified by code review — the component only uses React state
-    // and clipboard API. No DOM form fill code exists in the module.
-    //
-    // Structural check: the component file should not contain patterns like:
-    //   document.querySelector, input.value =, textarea.value =
-    // We verify this by checking the source code.
-    expect(true).toBe(true); // Validated by code review
+    expect(source).not.toMatch(/document\.querySelector(?:All)?/);
+    expect(source).not.toMatch(/(?:input|form)\.value\s*=/);
+    expect(source).not.toMatch(/\.innerHTML\s*=/);
+    expect(source).toContain('document.createElement("textarea")');
   });
 
   it("does not use synthetic DOM events on HH forms", () => {
-    // The component file must not contain:
-    //   new Event(), dispatchEvent(), .click() on non-React elements
-    //   .submit() on forms
-    // This is a structural invariant checked at review time.
-    expect(true).toBe(true); // Validated by code review
+    expect(source).not.toMatch(/dispatchEvent|new\s+Event\s*\(|\.submit\s*\(|requestSubmit|\.click\s*\(/);
   });
 
   it("uses clipboard API or execCommand fallback for copy", () => {
-    // The copyToClipboard function in GuidedApplyWorkspace.tsx uses:
-    //   navigator.clipboard.writeText() (primary)
-    //   document.execCommand("copy") (fallback)
-    // Neither writes to HH DOM.
-    expect(true).toBe(true); // Validated by code review
+    expect(source).toContain("navigator.clipboard.writeText");
+    expect(source).toContain('document.execCommand("copy")');
   });
 
   it("does not call chrome.tabs.create or open hidden tabs", () => {
-    // The component has no chrome.tabs.create, chrome.tabs.update,
-    // or window.open calls — it's purely a side panel UI.
-    // The only chrome API call is runtime.sendMessage for MARK_APPLIED.
-    expect(true).toBe(true); // Validated by code review
+    expect(source).not.toMatch(/chrome\.tabs\.(create|update)/);
+    expect(source).not.toMatch(/window\.open\s*\(/);
+    expect(source).toContain("chrome.runtime.sendMessage");
   });
 
   it("does not trigger form submit actions", () => {
-    // No code in the component calls .submit(), .requestSubmit(),
-    // or clicks submit buttons. The review checklist step
-    // is purely informational text — it instructs the user, it does not
-    // perform any automated action.
-    expect(true).toBe(true); // Validated by code review
+    expect(source).not.toMatch(/\.submit\s*\(|requestSubmit|type=["']submit["']/);
   });
 });
 

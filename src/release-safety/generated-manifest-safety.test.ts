@@ -6,8 +6,8 @@
  * overly broad content script matches, and missing required fields
  * that static config analysis might miss.
  *
- * If the build output is not present, these tests are skipped with
- * a clear message (CI should run `pnpm build` before tests).
+ * If the build output is not present, local unit runs skip these artifact
+ * assertions. Release audit mode fails closed instead.
  */
 
 import { describe, it, expect } from "vitest";
@@ -43,25 +43,14 @@ function readManifest(): Record<string, unknown> {
 // ── Tests ────────────────────────────────────────────────────────────────
 
 describe("generated manifest audit", () => {
-  it("generated manifest.json exists in build output", () => {
-    if (!manifestExists()) {
-      if (isReleaseAudit) {
-        throw new Error(
-          "[generated-manifest-audit] RELEASE_AUDIT=true but .output/chrome-mv3/manifest.json not found. " +
-            "Run `pnpm build` first.",
-        );
-      }
-      console.warn(
-        "[generated-manifest-audit] .output/chrome-mv3/manifest.json not found. " +
-          "Run `pnpm build` first to generate it.",
-      );
-      // Skip instead of fail — build may not have been run yet in local dev.
-      // In CI, the build step must precede tests.
-      expect(true).toBe(true);
-      return;
-    }
-    expect(manifestExists()).toBe(true);
-  });
+  const hasManifest = manifestExists();
+
+  it.skipIf(!hasManifest && !isReleaseAudit)(
+    "generated manifest.json exists in build output",
+    () => {
+      expect(manifestExists()).toBe(true);
+    },
+  );
 
   describe("manifest structure (generated)", () => {
     // Only run these tests if the manifest exists

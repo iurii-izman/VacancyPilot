@@ -14,6 +14,8 @@ import {
   invalidateCompanionStatusCache,
 } from '@/services/companion-service';
 import { getOperatingMode } from '@/services/operating-mode';
+import { flushOutboxOnReconnect } from '@/services/outbox-service';
+import { vacancyIntakeTransport } from '@/services/ops-intake';
 import type { CompanionStatus } from '@/adapters/companion/types';
 // ── Status mapping ─────────────────────────────────────────────────────────
 
@@ -90,12 +92,6 @@ export function OpsStatusDot({ onOpenSettings }: OpsStatusDotProps): ReactNode {
       // entries so captures made while offline are delivered idempotently.
       if (result.status === 'connected') {
         try {
-          const { flushOutboxOnReconnect } = await import(
-            '@/services/outbox-service'
-          );
-          const { vacancyIntakeTransport } = await import(
-            '@/services/ops-intake'
-          );
           await flushOutboxOnReconnect(vacancyIntakeTransport);
         } catch {
           // Connection status is authoritative here. A failed outbox flush is

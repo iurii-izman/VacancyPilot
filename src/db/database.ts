@@ -19,6 +19,9 @@ import {
   SCHEMA_V5,
   SCHEMA_V6,
   SCHEMA_V7,
+  assertDexieMigrationCoverage,
+  DEXIE_MIGRATION_COVERAGE,
+  SCHEMA_VERSION,
 } from "./schema";
 
 export interface AIExecutionCoordination {
@@ -82,13 +85,14 @@ export class VacancyDatabase extends Dexie {
 
   constructor(name = "VacancyPilotDB") {
     super(name);
+    assertDexieMigrationCoverage(SCHEMA_VERSION, DEXIE_MIGRATION_COVERAGE);
     this.version(1).stores(SCHEMA_V1);
-    this.version(2).stores(SCHEMA_V2);
-    this.version(3).stores(SCHEMA_V3);
-    this.version(4).stores(SCHEMA_V4);
-    this.version(5).stores(SCHEMA_V5);
-    this.version(6).stores(SCHEMA_V6);
-    this.version(7).stores(SCHEMA_V7);
+    this.version(2).stores(SCHEMA_V2).upgrade(() => undefined);
+    this.version(3).stores(SCHEMA_V3).upgrade(() => undefined);
+    this.version(4).stores(SCHEMA_V4).upgrade(() => undefined);
+    this.version(5).stores(SCHEMA_V5).upgrade(() => undefined);
+    this.version(6).stores(SCHEMA_V6).upgrade(() => undefined);
+    this.version(7).stores(SCHEMA_V7).upgrade(() => undefined);
   }
 }
 

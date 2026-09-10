@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -23,8 +22,6 @@ def test_analytics_zero_data_is_explicit(client_with_db: TestClient, db_session:
     response = client_with_db.get(
         '/api/v1/analytics/application-summary', headers={'X-VacancyPilot-Client': token}
     )
-    if response.status_code == 404:
-        pytest.skip('R5-B analytics route is not present on the R5-A branch')
     assert response.status_code == 200
     data = response.json()['data']
     assert data['state'] == 'NO_DATA'

@@ -467,6 +467,7 @@ describe("saveMigrationCheckpoint", () => {
       retained_in_backup: 0,
       checkpoint: "ckpt-save-1",
       summary: "Done",
+      breakdown: [],
     };
 
     await saveMigrationCheckpoint(snapshot, importResult);
@@ -493,6 +494,7 @@ describe("saveMigrationCheckpoint", () => {
       conflicts: 0,
       retained_in_backup: 0,
       summary: "Rolled back",
+      breakdown: [],
     };
 
     await saveMigrationCheckpoint(snapshot, importResult);

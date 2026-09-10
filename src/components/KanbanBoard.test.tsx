@@ -1,4 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 /**
  * Tests for KanbanBoard queue transitions and stage rendering.
@@ -161,29 +163,24 @@ describe("KanbanBoard — allowed transitions", () => {
 });
 
 describe("KanbanBoard — safety boundaries", () => {
+  const source = readFileSync(join(__dirname, "KanbanBoard.tsx"), "utf8");
+
   it("does not auto-process queue — all moves are explicit user actions", () => {
-    // The KanbanBoard only moves jobs via handleMoveJob, which is triggered
-    // by the user clicking a "Move ▾" dropdown button. There is no
-    // setInterval, no setTimeout-based auto-processing, no background
-    // processing loop.
-    expect(true).toBe(true); // Validated by code review
+    expect(source).not.toMatch(/\bsetInterval\s*\(/);
+    expect(source).toMatch(/handleMoveJob/);
+    expect(source).toMatch(/onMoveJob\(job\.id,\s*targetStatus\)/);
   });
 
   it("does not open hidden browser tabs", () => {
-    // The board opens vacancies via window.open(user click), never via
-    // chrome.tabs.create. No hidden tab automation exists.
-    expect(true).toBe(true); // Validated by code review
+    expect(source).not.toMatch(/chrome\.tabs\.(create|update)/);
   });
 
   it("does not send webhooks on status change", () => {
-    // handleMoveJob calls jobRepo.save() and updateStatusChange().
-    // No webhook/network calls are triggered on manual stage transitions.
-    expect(true).toBe(true); // Validated by code review
+    expect(source).not.toMatch(/\bfetch\s*\(/);
+    expect(source).not.toMatch(/webhook/i);
   });
 
   it("status changes record explicit source: 'user'", () => {
-    // createStatusChange is called with source: "user", documenting
-    // that every kanban move is a manual user action.
-    expect(true).toBe(true); // Validated by code review
+    expect(source).toMatch(/createStatusChange\(job\.status,\s*toStatus,\s*["']user["']\)/);
   });
 });

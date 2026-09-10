@@ -38,7 +38,20 @@ const {
   ensureMigrationsBootstrapped,
 } = await import("./migrations");
 
-import { SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4, SCHEMA_V5, SCHEMA_V6, SCHEMA_V7, SCHEMA_VERSION, TABLE_NAMES } from "./schema";
+import {
+  SCHEMA_V1,
+  SCHEMA_V2,
+  SCHEMA_V3,
+  SCHEMA_V4,
+  SCHEMA_V5,
+  SCHEMA_V6,
+  SCHEMA_V7,
+  SCHEMA_VERSION,
+  TABLE_NAMES,
+  MIN_SUPPORTED_SCHEMA_VERSION,
+  DEXIE_MIGRATION_COVERAGE,
+  assertDexieMigrationCoverage,
+} from "./schema";
 
 beforeEach(() => {
   metaStore.clear();
@@ -196,5 +209,31 @@ describe("schema chain integrity", () => {
         expect(v).toHaveProperty(table);
       }
     }
+  });
+});
+
+describe("explicit Dexie migration coverage", () => {
+  it("covers every literal transition from v1 through the current schema", () => {
+    expect(DEXIE_MIGRATION_COVERAGE.map((entry) => entry.toVersion)).toEqual([
+      1, 2, 3, 4, 5, 6, 7,
+    ]);
+    expect(MIN_SUPPORTED_SCHEMA_VERSION).toBe(1);
+    expect(() => assertDexieMigrationCoverage(SCHEMA_VERSION)).not.toThrow();
+  });
+
+  it("fails closed when a future schema version has no migration entry", () => {
+    expect(() => assertDexieMigrationCoverage(SCHEMA_VERSION + 1)).toThrow(
+      "Missing Dexie migration coverage for v8",
+    );
+  });
+
+  it("fails closed for a broken non-sequential transition", () => {
+    const broken = [
+      ...DEXIE_MIGRATION_COVERAGE.slice(0, -1),
+      { fromVersion: 5, toVersion: 7, kind: "schema-only" as const },
+    ];
+    expect(() => assertDexieMigrationCoverage(SCHEMA_VERSION, broken)).toThrow(
+      "must be sequential",
+    );
   });
 });
