@@ -18,7 +18,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm build",
-    "test:release": "pnpm build && vitest run --config vitest.release.config.ts src/release-safety",
+    "test:release": "pnpm build && pnpm zip && pnpm release:artifacts && pnpm release:test",
     "companion:format-check": "uv run --project companion --extra dev ruff format --check companion/",
     "companion:format": "uv run --project companion --extra dev ruff format companion/",
     "companion:lint": "uv run --project companion --extra dev ruff check companion/",
@@ -26,8 +26,13 @@
     "companion:test": "uv run --project companion --extra dev pytest companion/tests/ -v",
     "companion:openapi": "uv run --project companion python -m app.openapi",
     "companion:openapi-check": "uv run --project companion python -m app.openapi --check",
+    "contracts:generate": "node scripts/contracts.mjs generate",
+    "contracts:check": "node scripts/contracts.mjs check",
+    "workflows:check": "uv run --project companion python scripts/check-workflows.py",
+    "release:artifacts": "uv run --project companion python scripts/check-release-artifacts.py",
     "verify:companion": "pnpm companion:format-check && pnpm companion:lint && pnpm companion:typecheck && pnpm companion:test && pnpm companion:openapi-check",
-    "verify:all": "pnpm verify && pnpm verify:companion"
+    "release:test": "vitest run --config vitest.release.config.ts src/release-safety",
+    "verify:all": "pnpm workflows:check && pnpm contracts:check && pnpm verify && pnpm test:release && pnpm verify:companion"
   },
   "dependencies": {
     "dexie": "^4.4.5",
@@ -44,6 +49,7 @@
     "eslint": "^10.9.1",
     "fake-indexeddb": "^6.2.5",
     "happy-dom": "^20.11.12",
+    "openapi-typescript": "7.13.0",
     "typescript": "^6.0.0",
     "typescript-eslint": "^8.68.0",
     "vitest": "^3.2.6",

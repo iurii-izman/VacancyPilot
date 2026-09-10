@@ -1,4 +1,5 @@
 export { OpsClient, CompanionError } from './ops-client';
+export type { components, operations } from './wire-types';
 export {
   isCompatibleApiVersion,
   EXPECTED_API_VERSION,
@@ -33,6 +34,7 @@ export type {
   VacancyIntakeResponse,
   VacancyListItem,
   VacancyListMeta,
+  VacancyListFilters,
   VacancyListResponse,
   VacancyDetailResponse,
   VacancyTriageRequest,
