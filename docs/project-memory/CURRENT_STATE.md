@@ -102,6 +102,17 @@ transient in-memory repair input only: it is not persisted, logged, or exported.
 Full V4 Preview retains the ADR-007 one-vacancy read-only hydration exception;
 Application Factory Preview remains fully provider-free and side-effect-free.
 
+## COMP-BUDGET-001 bounded hotfix
+
+The Companion budget-denial settlement is corrected in the current hotfix
+checkout and focused regression tests: denial commits durable
+`budget_blocked`/non-in-flight state with sanitized `AI_BUDGET_EXCEEDED`,
+dispatches zero provider calls, creates zero attempt rows before dispatch, and
+does not make same-key retries wait on false in-flight state. When repair is
+denied, the initial consumed attempt remains recorded and no repair attempt is
+created. This bounded record does not close the Final Re-Audit globally or
+claim visual/live-provider acceptance or public-release readiness.
+
 ## Surface truth
 
 Options has six primary routes: Today, Discovery, Inbox, Pipeline, Candidate

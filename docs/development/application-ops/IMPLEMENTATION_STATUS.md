@@ -125,6 +125,24 @@ in exports. Full V4 Preview retains the ADR-007 one-vacancy read-only hydration
 exception; Application Factory Preview remains fully provider-free and
 side-effect-free.
 
+## COMP-BUDGET-001 bounded hotfix
+
+The Companion budget-denial settlement is corrected in the current hotfix
+checkout and focused regression tests:
+
+- status: corrected;
+- provider dispatch on budget denial: `0`;
+- initial-denial provider-attempt rows: `0`; an already consumed initial
+  attempt remains consumed when repair is denied;
+- settlement: durable `budget_blocked` / non-in-flight with sanitized
+  `AI_BUDGET_EXCEEDED`;
+- same-key retry: no false in-flight wait while the current budget remains
+  exhausted.
+
+This is a bounded hotfix record only. It does not close the Final Re-Audit
+globally and does not claim visual acceptance, live-provider V4 acceptance, or
+public-release readiness.
+
 ## Fix 4: data lifecycle and local security boundary
 
 Fix 4 is accepted for the current private local dogfood scope. The exact

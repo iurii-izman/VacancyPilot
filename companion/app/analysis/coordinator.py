@@ -53,6 +53,8 @@ class ClaimResult:
 
 @dataclass(frozen=True)
 class AttemptResult:
+    """Result of the committed provider-attempt reservation decision."""
+
     execution_id: str
     attempt_id: str | None
     attempt_number: int
@@ -69,10 +71,6 @@ class ProviderOperationInFlightError(ProviderCoordinationError):
 
 
 class ProviderOutcomeUnknownError(ProviderCoordinationError):
-    pass
-
-
-class ProviderBudgetExceededError(ProviderCoordinationError):
     pass
 
 
@@ -306,7 +304,17 @@ class ProviderCoordinator:
                         'id': execution_id,
                     },
                 )
-                raise ProviderBudgetExceededError('AI_BUDGET_EXCEEDED')
+                # Budget denial is a durable business outcome, not an
+                # exceptional transaction failure.  Returning normally lets
+                # the transaction context commit the non-in-flight state
+                # before the service translates it into its public error.
+                return AttemptResult(
+                    execution_id=execution_id,
+                    attempt_id=None,
+                    attempt_number=number,
+                    allowed=False,
+                    reason='AI_BUDGET_EXCEEDED',
+                )
 
             attempt_id = secrets.token_hex(16)
             connection.execute(

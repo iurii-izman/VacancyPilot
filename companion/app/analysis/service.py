@@ -24,7 +24,6 @@ from sqlalchemy.orm import Session
 
 from app.analysis.compiler import _policy_fingerprint, compile_prompt
 from app.analysis.coordinator import (
-    ProviderBudgetExceededError,
     ProviderCoordinator,
     ProviderOperationInFlightError,
     ProviderOutcomeUnknownError,
@@ -171,8 +170,6 @@ class AnalysisService:
                 provider=compiled.provider,
                 model=compiled.model,
             )
-        except ProviderBudgetExceededError as exc:
-            raise ProviderExecutionGateError('AI_BUDGET_EXCEEDED', str(exc), 429) from exc
         except ProviderOutcomeUnknownError as exc:
             raise ProviderExecutionGateError('PROVIDER_OUTCOME_UNKNOWN', str(exc), 409) from exc
         except ProviderOperationInFlightError as exc:
@@ -252,17 +249,19 @@ class AnalysisService:
                 503,
             ) from exc
 
-        try:
-            attempt = coordinator.reserve_and_mark_dispatching(
-                execution_id=claim.execution_id,
-                owner_token=claim.owner_token,
-                scope='companion',
-                day_key=_day_key(),
-                daily_limit=policy.daily_request_limit,
-                attempt_number=1,
+        attempt = coordinator.reserve_and_mark_dispatching(
+            execution_id=claim.execution_id,
+            owner_token=claim.owner_token,
+            scope='companion',
+            day_key=_day_key(),
+            daily_limit=policy.daily_request_limit,
+        )
+        if not attempt.allowed:
+            raise ProviderExecutionGateError(
+                attempt.reason or 'AI_BUDGET_EXCEEDED',
+                'The current provider-attempt budget is exhausted.',
+                429,
             )
-        except ProviderBudgetExceededError as exc:
-            raise ProviderExecutionGateError('AI_BUDGET_EXCEEDED', str(exc), 429) from exc
 
         run_result = self._run_analysis(
             vacancy_id=vacancy_id,
@@ -677,9 +676,11 @@ class AnalysisService:
                     day_key=_day_key(),
                     daily_limit=daily_request_limit,
                 )
+                if not attempt.allowed:
+                    return self._append_validation_error(
+                        run_result, attempt.reason or 'AI_BUDGET_EXCEEDED'
+                    )
                 attempt_number = attempt.attempt_number
-            except ProviderBudgetExceededError:
-                return self._append_validation_error(run_result, 'AI_BUDGET_EXCEEDED')
             except Exception:
                 # A failed reservation has no dispatch authority and therefore
                 # cannot justify an automatic retry or an unknown send.
@@ -775,9 +776,11 @@ class AnalysisService:
                     day_key=_day_key(),
                     daily_limit=daily_request_limit,
                 )
+                if not attempt.allowed:
+                    return self._append_validation_error(
+                        run_result, attempt.reason or 'AI_BUDGET_EXCEEDED'
+                    )
                 attempt_number = attempt.attempt_number
-            except ProviderBudgetExceededError:
-                return self._append_validation_error(run_result, 'AI_BUDGET_EXCEEDED')
             except Exception:
                 return run_result
         try:
