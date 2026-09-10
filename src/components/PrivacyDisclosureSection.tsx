@@ -194,10 +194,14 @@ export function PrivacyDisclosureSection(): ReactNode {
         <h3 style={cardHeading}>Your Controls</h3>
         <ul style={listStyle}>
           <li>
-            <strong>Export</strong> — export all data as CSV or JSON at any time
+            <strong>Export</strong> — export supported browser-local categories as
+            CSV or JSON at any time. Companion SQLite, keyring secrets, private
+            engine files, and AI execution-control state are not exported.
           </li>
           <li>
-            <strong>Delete all</strong> — delete all local data with one action
+            <strong>Delete all</strong> — clear the extension&apos;s browser-local
+            data with one action. In Ops Mode this does not delete Companion
+            SQLite records, keyring secrets, or private engine files.
           </li>
           <li>
             <strong>AI cache clear</strong> — clear cached AI responses

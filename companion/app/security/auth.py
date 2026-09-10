@@ -18,9 +18,13 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db_session
 from app.security.pairing import hash_client_token
-from app.security.rate_limit import PROTECTED_RATE_LIMIT, RateLimiter
+from app.security.rate_limit import PROTECTED_RATE_LIMIT, RateLimitConfig, RateLimiter
 
 _client_header = APIKeyHeader(name='X-VacancyPilot-Client', auto_error=False)
+# This limiter runs before Argon2/bcrypt-style token verification. It is keyed
+# only by the loopback peer and coarse route class, never by attacker input.
+PREAUTH_RATE_LIMIT = RateLimitConfig(max_requests=60, window_seconds=60, max_keys=64)
+_preauth_limiter = RateLimiter(config=PREAUTH_RATE_LIMIT)
 _protected_limiter = RateLimiter(config=PROTECTED_RATE_LIMIT)
 
 
@@ -36,6 +40,12 @@ def _require_client_header(
     the human-readable token elsewhere.
     """
     from app.security.pairing import get_pairing_service
+
+    peer = request.client.host if request.client else 'unknown'
+    path_parts = request.url.path.strip('/').split('/')
+    route_class = '/'.join(path_parts[:3]) or 'root'
+    if not _preauth_limiter.allow(f'{peer}|{route_class}'):
+        raise HTTPException(status_code=429, detail='Too many authentication attempts')
 
     if db is None:
         raise HTTPException(status_code=503, detail='Database unavailable')

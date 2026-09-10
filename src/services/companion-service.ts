@@ -25,6 +25,7 @@ import { setOpsModeIntent } from '@/services/operating-mode';
 // ── Singleton client ───────────────────────────────────────────────────────
 
 let _opsClient: OpsClient | null = null;
+let companionClientStateGeneration = 0;
 
 export const COMPANION_STATUS_CACHE_TTL_MS = 5_000;
 
@@ -39,6 +40,14 @@ let statusCache: {
   expiresAt: number;
 } | null = null;
 let statusProbeInFlight: Promise<CompanionStatusResult> | null = null;
+
+/** Clear browser-side Companion client state without revoking remote pairing. */
+export function resetCompanionClientState(): void {
+  companionClientStateGeneration += 1;
+  _opsClient = null;
+  statusCache = null;
+  statusProbeInFlight = null;
+}
 
 /** Invalidate the shared status snapshot after a pairing/configuration change. */
 export function invalidateCompanionStatusCache(): void {
@@ -58,6 +67,7 @@ export function getOpsClient(): OpsClient {
  * Call this once at extension startup.
  */
 export async function initCompanionClient(): Promise<void> {
+  const generation = companionClientStateGeneration;
   const settings = await loadSettings();
 
   // Create a new client with the configured URL
@@ -65,6 +75,7 @@ export async function initCompanionClient(): Promise<void> {
 
   // Inject stored client token
   const token = await loadClientToken();
+  if (generation !== companionClientStateGeneration) return;
   if (token) {
     _opsClient.setClientToken(token);
   }
@@ -85,12 +96,16 @@ export async function initCompanionClient(): Promise<void> {
  *    - Unexpected error → ``error``.
  */
 async function probeCompanionStatus(): Promise<CompanionStatusResult> {
+  const generation = companionClientStateGeneration;
   const settings = await loadSettings();
   if (!settings.companion.opsModeEnabled) {
     return { status: 'unavailable' };
   }
 
   await initCompanionClient();
+  if (generation !== companionClientStateGeneration) {
+    return { status: 'unavailable', error: 'Companion state was reset during status detection' };
+  }
   const client = getOpsClient();
   const hasToken = client.hasToken;
 
@@ -112,7 +127,13 @@ async function probeCompanionStatus(): Promise<CompanionStatusResult> {
         // The browser token may have been lost or the companion may have been
         // paired from another extension install. Clear only the stale local
         // copy; the server-side pairing remains recoverable via terminal code.
+        if (generation !== companionClientStateGeneration) {
+          return { status: 'unavailable', error: 'Companion state was reset during status detection' };
+        }
         await deleteClientToken();
+        if (generation !== companionClientStateGeneration) {
+          return { status: 'unavailable', error: 'Companion state was reset during status detection' };
+        }
         client.clearClientToken();
         return {
           status: 'unpaired',
@@ -154,17 +175,20 @@ export async function detectCompanionStatus(options: { force?: boolean } = {}): 
     return statusCache.value;
   }
 
+  const generation = companionClientStateGeneration;
   const probe = probeCompanionStatus();
   statusProbeInFlight = probe;
   try {
     const result = await probe;
-    statusCache = {
-      value: result,
-      expiresAt: Date.now() + COMPANION_STATUS_CACHE_TTL_MS,
-    };
+    if (generation === companionClientStateGeneration) {
+      statusCache = {
+        value: result,
+        expiresAt: Date.now() + COMPANION_STATUS_CACHE_TTL_MS,
+      };
+    }
     return result;
   } finally {
-    statusProbeInFlight = null;
+    if (statusProbeInFlight === probe) statusProbeInFlight = null;
   }
 }
 

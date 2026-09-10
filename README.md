@@ -16,11 +16,14 @@ No auto-apply. No hidden browser-side HH requests. No external recruiter or foll
 
 “Personal dogfood” describes current product use, not repository visibility: this GitHub repository is public, while the private V4 engine package and real candidate knowledge remain outside it.
 
-The current checkout includes the Pass 3 daily-use UX polish, Fix 1
-transport/mode-safety hardening, and Fix 2's authoritative Ops read model:
-supported Companion launch is loopback-only, the effective operating mode is
+The current checkout includes Fix 4 data-lifecycle and local-security
+hardening on top of the Pass 3 daily-use UX polish, Fix 1 transport/mode
+safety, Fix 2's authoritative Ops read model, and Fix 3's execution boundary.
+Supported Companion launch is loopback-only, the effective operating mode is
 centralized, Ops UI reads Companion/SQLite projections, and Applied remains an
-explicit confirmation after the user's native HH submission.
+explicit confirmation after the user's native HH submission. Fix 4 does not
+make the product a public-release candidate; the local Companion server
+identity risk remains an explicitly documented public-release gate.
 
 ## What It Does Today
 
@@ -36,7 +39,9 @@ explicit confirmation after the user's native HH submission.
 - Provides the R5 Application Factory: preview, explicit confirmation and a resumable manual preparation queue. Queue preparation never creates `APPLIED`.
 - Tracks applications, pipeline events, follow-ups and explicit manual `APPLIED` confirmation.
 - Provides bounded descriptive conversion/performance views with provenance and small-sample/non-causation warnings.
-- Exports and deletes local data, with storage scope depending on Standalone versus Ops Mode.
+- Exports supported browser-local categories and deletes extension-local data,
+  with scope depending on Standalone versus Ops Mode; the extension does not
+  silently delete Companion SQLite, keyring secrets or the private engine.
 
 ## What It Does Not Do
 
@@ -71,6 +76,14 @@ flowchart LR
 **Standalone Mode** is the extension-only workflow: WXT, Manifest V3, TypeScript and React; Dexie/IndexedDB is the canonical domain store and `chrome.storage.local` holds settings, small state and the standalone BYOK path. The effective mode is Standalone until Ops intent is enabled *and* migration has committed authority to Ops.
 
 **Ops Mode** pairs the extension with a loopback-only FastAPI companion. SQLite is canonical there; Dexie acts as cache/outbox and sync metadata. The Options and Side Panel Ops surfaces read the single bounded `/api/v1/ops/work-items` projection: it is a derived view, not a third persisted authority. Inbox rows are vacancies, Pipeline rows are Applications, and vacancy/application/analysis/follow-up/provenance identities remain separate. The companion keeps its operational secrets in the OS keyring, loads the private V4 package locally, and makes official HH API reads. It is not a developer cloud backend. The supported launcher is `pnpm companion:start`, which runs the project-owned `app.server` entrypoint on `127.0.0.1:8765` and rejects non-loopback binds.
+
+Fix 4 adds a reset write barrier, exhaustive extension-namespace clearing,
+explicit Standalone per-vacancy cascades, canonical HTTPS HH vacancy URLs,
+fresh live Side Panel context, and a closed Shadow DOM search badge. The
+Companion HH sync contract requires explicit scope and bounds fan-out to 50
+profiles and 2,000 items per operation. Legacy Companion `engine_runs.raw_output`
+is audited by a dry-run-first maintenance utility; the current runtime does
+not depend on that field.
 
 ## Safety and Privacy
 
@@ -147,6 +160,7 @@ See the [current roadmap](docs/ROADMAP.md).
 - [Project Memory Lite](docs/project-memory/README.md) — startup map for future agents and developers
 - [Current state](docs/project-memory/CURRENT_STATE.md) — accepted runtime baseline and operating mode
 - [Application Ops status](docs/development/application-ops/IMPLEMENTATION_STATUS.md) — current implementation and validation
+- [Fix 4 data-security acceptance](docs/development/FIX4_DATA_SECURITY_ACCEPTANCE.md) — exact local data scope, findings and verification
 - [Architecture](docs/ARCHITECTURE.md) and [V4 engine boundary](docs/V4_ENGINE.md)
 - [Master specification](docs/Техническое%20заданиеV.1.md)
 - [Daily-use readiness](docs/development/application-ops/r5/R5_DAILY_USE_READINESS.md)

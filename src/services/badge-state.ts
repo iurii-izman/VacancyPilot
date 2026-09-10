@@ -7,6 +7,8 @@
  * badge key construction, persistence, and cleanup.
  */
 
+import { withWriteGuard } from './reset-guard';
+
 /** Stable prefix for badge state keys in chrome.storage.local. */
 export const BADGE_KEY_PREFIX = "badge_v1_hh_";
 
@@ -33,7 +35,7 @@ export async function persistBadgeState(
 ): Promise<void> {
   try {
     const key = badgeStorageKey(vacancyId);
-    await chrome.storage.local.set({ [key]: state });
+    await withWriteGuard(() => chrome.storage.local.set({ [key]: state }));
   } catch {
     // Non-critical.
   }
@@ -44,21 +46,25 @@ export async function persistBadgeState(
  */
 export async function removeBadgeState(
   sourceVacancyId: string,
+  options: { allowDuringReset?: boolean } = {},
 ): Promise<void> {
-  await chrome.storage.local.remove(
-    `${BADGE_KEY_PREFIX}${sourceVacancyId}`,
-  );
+  const remove = () =>
+    chrome.storage.local.remove(`${BADGE_KEY_PREFIX}${sourceVacancyId}`);
+  if (options.allowDuringReset) await remove();
+  else await withWriteGuard(remove);
 }
 
 /**
  * Remove all badge state keys from chrome.storage.local.
  */
 export async function removeAllBadgeStates(): Promise<void> {
-  const all = await chrome.storage.local.get(null);
-  const badgeKeys = Object.keys(all).filter((k) =>
-    k.startsWith(BADGE_KEY_PREFIX),
-  );
-  if (badgeKeys.length > 0) {
-    await chrome.storage.local.remove(badgeKeys);
-  }
+  await withWriteGuard(async () => {
+    const all = await chrome.storage.local.get(null);
+    const badgeKeys = Object.keys(all).filter((k) =>
+      k.startsWith(BADGE_KEY_PREFIX),
+    );
+    if (badgeKeys.length > 0) {
+      await chrome.storage.local.remove(badgeKeys);
+    }
+  });
 }

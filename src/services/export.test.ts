@@ -21,9 +21,17 @@ import { defaultSettings, saveSettings } from "@/db/settings-bridge";
 // ── Mocks ──────────────────────────────────────────────────────────────────
 
 const mockStorage = new Map<string, unknown>();
+const operatingModeMock = vi.hoisted(() => ({
+  getOperatingMode: vi.fn(),
+}));
 
 beforeEach(() => {
   mockStorage.clear();
+  operatingModeMock.getOperatingMode.mockResolvedValue({
+    effectiveMode: "standalone",
+    requestedOpsMode: false,
+    authorityMode: "standalone",
+  });
   // Clear mock Dexie tables between tests
   for (const key of Object.keys(mockTables)) {
     delete mockTables[key];
@@ -66,9 +74,14 @@ vi.stubGlobal("chrome", {
           mockStorage.delete(key);
         }
       },
+      clear: async () => {
+        mockStorage.clear();
+      },
     },
   },
 });
+
+vi.mock("@/services/operating-mode", () => operatingModeMock);
 
 // Mock Dexie database — IndexedDB is not available in vitest (Node environment),
 // so we mock the relevant operations.
@@ -197,6 +210,8 @@ vi.mock("@/db", () => {
     "opsCache",
     "opsMeta",
     "meta",
+    "aiExecution",
+    "aiBudget",
   ];
 
   const db = {
@@ -245,6 +260,12 @@ vi.mock("@/db", () => {
     },
     get meta() {
       return makeTable("meta");
+    },
+    get aiExecution() {
+      return makeTable("aiExecution");
+    },
+    get aiBudget() {
+      return makeTable("aiBudget");
     },
   };
 
@@ -550,6 +571,43 @@ describe("generateJobsCsv", () => {
     // 23 columns defined in JOB_CSV_COLUMNS
     expect(columns.length).toBe(23);
   });
+
+  it("neutralizes formula-like strings without changing typed numbers", () => {
+    const csv = generateJobsCsv([
+      {
+        id: "hh_1",
+        sourceVacancyId: "123",
+        title: "=HYPERLINK(\"https://example.test\",\"open\")",
+        companyName: " +cmd",
+        companyId: "\t@SUM(A1:A2)",
+        status: "viewed",
+        city: "\u0001-1+1",
+        workMode: "remote",
+        salaryRaw: "-1+1",
+        salaryMin: -1,
+        salaryMax: null,
+        salaryCurrency: "RUB",
+        experienceRaw: null,
+        employmentType: null,
+        schedule: null,
+        skills: ["Привет"],
+        firstSeenAt: "",
+        lastSeenAt: "",
+        updatedAt: "",
+        sourceUrl: "",
+        selectedProfileId: "",
+      },
+    ]);
+
+    const row = csv.split("\r\n")[1] ?? "";
+    expect(row).toContain("'=HYPERLINK");
+    expect(row).toContain("' +cmd");
+    expect(row).toContain("'\t@SUM");
+    expect(row).toContain("'\u0001-1+1");
+    expect(row).toContain("'-1+1");
+    expect(row).toContain(",-1,,");
+    expect(row).toContain("Привет");
+  });
 });
 
 // ── Delete All Data Tests ─────────────────────────────────────────────────
@@ -577,15 +635,15 @@ describe("deleteAllData", () => {
     expect(mockTables.visitMarks).toHaveLength(0);
   });
 
-  it("removes known product keys from chrome.storage.local", async () => {
+  it("clears the extension storage namespace and restores clean defaults", async () => {
     mockStorage.set("app_settings_v1", { schemaVersion: 1 });
     mockStorage.set("some_other_key", "should survive");
 
     await deleteAllData();
 
-    expect(mockStorage.has("app_settings_v1")).toBe(false);
-    // Other keys should NOT be deleted
-    expect(mockStorage.get("some_other_key")).toBe("should survive");
+    expect(mockStorage.has("app_settings_v1")).toBe(true);
+    expect(mockStorage.get("app_settings_v1")).toMatchObject({ schemaVersion: 1 });
+    expect(mockStorage.has("some_other_key")).toBe(false);
   });
 
   it("does not throw when tables are already empty", async () => {
@@ -602,8 +660,19 @@ describe("deleteAllData", () => {
 
     expect(mockStorage.has("badge_v1_hh_12345")).toBe(false);
     expect(mockStorage.has("badge_v1_hh_67890")).toBe(false);
-    expect(mockStorage.has("app_settings_v1")).toBe(false);
-    expect(mockStorage.get("some_other_key")).toBe("should survive");
+    expect(mockStorage.has("app_settings_v1")).toBe(true);
+    expect(mockStorage.get("some_other_key")).toBeUndefined();
+  });
+
+  it("blocks global reset while a provider execution has unknown outcome", async () => {
+    seedTable("jobs", [{ id: "hh_1" }]);
+    seedTable("aiExecution", [{ operationKey: "op_1", state: "dispatching" }]);
+
+    await expect(deleteAllData()).rejects.toMatchObject({
+      code: "RESET_BLOCKED_OUTCOME_UNKNOWN",
+    });
+    expect(mockTables.jobs).toHaveLength(1);
+    expect(mockTables.aiExecution).toHaveLength(1);
   });
 });
 
@@ -679,6 +748,75 @@ describe("deleteJobData", () => {
       "Job not found: missing",
     );
   });
+
+  it("cascades linked AI, Labs, outbox, Ops cache, and metadata while preserving unrelated rows", async () => {
+    seedTable("jobs", [
+      { id: "hh_1", sourceVacancyId: "12345" },
+      { id: "hh_2", sourceVacancyId: "67890" },
+    ]);
+    seedTable("aiCache", [
+      { id: "cache_a", resultRefId: "analysis_a" },
+      { id: "cache_l", resultRefId: "letter_a" },
+      { id: "cache_keep", resultRefId: "analysis_keep" },
+    ]);
+    seedTable("meta", [
+      { key: "ai_analysis_analysis_a", value: { id: "analysis_a", jobId: "hh_1" } },
+      { key: "ai_cover_letter_letter_a", value: { jobId: "hh_1", letter: "draft" } },
+      { key: "ai_analysis_analysis_keep", value: { id: "analysis_keep", jobId: "hh_2" } },
+      { key: "unrelated", value: { jobId: "hh_1", note: "not a managed cache row" } },
+    ]);
+    seedTable("labsActions", [
+      { id: "lab_a", jobId: "hh_1" },
+      { id: "lab_keep", jobId: "hh_2" },
+    ]);
+    seedTable("syncOutbox", [
+      { id: "out_a", payload: { jobId: "hh_1" }, status: "pending" },
+      { id: "out_keep", payload: { jobId: "hh_2" }, status: "retrying" },
+    ]);
+    seedTable("opsCache", [
+      { key: "ops_a", entityId: "hh_1", payload: {} },
+      { key: "ops_keep", entityId: "hh_2", payload: {} },
+    ]);
+
+    const result = await deleteJobData("hh_1");
+
+    expect(result.cacheEntriesDeleted).toBe(2);
+    expect(result.outboxEntriesDeleted).toBe(1);
+    expect(result.labsEntriesDeleted).toBe(1);
+    expect(mockTables.aiCache.map((row) => (row as { id: string }).id)).toEqual(["cache_keep"]);
+    expect(mockTables.meta.map((row) => (row as { key: string }).key)).toEqual([
+      "ai_analysis_analysis_keep",
+      "unrelated",
+    ]);
+    expect(mockTables.labsActions.map((row) => (row as { id: string }).id)).toEqual(["lab_keep"]);
+    expect(mockTables.syncOutbox.map((row) => (row as { id: string }).id)).toEqual(["out_keep"]);
+    expect(mockTables.opsCache.map((row) => (row as { key: string }).key)).toEqual(["ops_keep"]);
+  });
+
+  it("blocks per-job deletion when a linked outbox operation is in flight", async () => {
+    seedTable("jobs", [{ id: "hh_1", sourceVacancyId: "12345" }]);
+    seedTable("syncOutbox", [
+      { id: "out_a", payload: { source_vacancy_id: "12345" }, status: "dispatching" },
+    ]);
+
+    await expect(deleteJobData("hh_1")).rejects.toMatchObject({
+      code: "RESET_BLOCKED_OUTCOME_UNKNOWN",
+    });
+    expect(mockTables.jobs).toHaveLength(1);
+    expect(mockTables.syncOutbox).toHaveLength(1);
+  });
+
+  it("does not offer per-job deletion while Ops is authoritative", async () => {
+    operatingModeMock.getOperatingMode.mockResolvedValue({
+      effectiveMode: "ops",
+      requestedOpsMode: true,
+      authorityMode: "companion",
+    });
+    seedTable("jobs", [{ id: "hh_1", sourceVacancyId: "12345" }]);
+
+    await expect(deleteJobData("hh_1")).rejects.toThrow("OPS_LOCAL_DELETE_ONLY");
+    expect(mockTables.jobs).toHaveLength(1);
+  });
 });
 
 describe("deleteAiCacheAndEventLog", () => {
@@ -722,7 +860,7 @@ describe("getDataCounts", () => {
 
     expect(counts.jobs).toBe(0);
     expect(counts.companies).toBe(0);
-    expect(Object.keys(counts).length).toBe(15);
+    expect(Object.keys(counts).length).toBe(17);
   });
 
   it("returns correct counts", async () => {

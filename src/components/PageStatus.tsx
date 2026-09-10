@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
+import { parseCanonicalHhVacancyUrl } from "@/services/hh-vacancy-url";
 import { colors, fontSizes } from "../styles";
 
 export type PageStatusInfo =
@@ -9,18 +10,6 @@ export type PageStatusInfo =
 /**
  * Synchronous check whether a URL looks like an HH.ru vacancy page.
  */
-function isVacancyUrl(url: string): boolean {
-  try {
-    const parsed = new URL(url);
-    return (
-      (parsed.hostname === "hh.ru" || parsed.hostname.endsWith(".hh.ru")) &&
-      /^\/vacancy\/\d+/i.test(parsed.pathname)
-    );
-  } catch {
-    return false;
-  }
-}
-
 /**
  * Show whether the active browser tab is on a recognized vacancy page.
  * Used in the popup to display "page detected / not detected" status.
@@ -39,10 +28,16 @@ export function usePageStatus(): PageStatusInfo {
         });
         if (cancelled) return;
 
-        if (tab?.id !== undefined && tab?.url && isVacancyUrl(tab.url)) {
-          const match = tab.url.match(/\/vacancy\/(\d+)/);
-          const vacancyId = match ? match[1] : "";
-          setInfo({ kind: "vacancy", url: tab.url, tabId: tab.id, vacancyId });
+        const canonical = tab?.url
+          ? parseCanonicalHhVacancyUrl(tab.url)
+          : null;
+        if (tab?.id !== undefined && canonical) {
+          setInfo({
+            kind: "vacancy",
+            url: canonical.url,
+            tabId: tab.id,
+            vacancyId: canonical.vacancyId,
+          });
         } else {
           setInfo({ kind: "not-detected" });
         }

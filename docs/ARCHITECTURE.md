@@ -82,6 +82,38 @@ private engine from `.local/private-engine/` into
 `.local/data/companion/engine/`, and uses `.local/data/companion/vacancypilot.db`
 for operational data. Those paths are ignored and must never be committed.
 
+## Fix 4 local data and UI security boundary
+
+The extension's destructive reset runs behind a process-wide write barrier. It
+waits for already-admitted browser writes, blocks new writes, clears every
+Dexie table, clears the extension's `chrome.storage.local` and
+`chrome.storage.session` namespaces, resets Companion client state and
+restores safe Standalone defaults. Epoch checks prevent stale asynchronous
+loads from repopulating UI state after reset. This is an extension-local reset:
+it does not clear Companion SQLite, the OS keyring, the private engine package,
+HH/provider data, browser history, cache or passwords. In effective Ops,
+authoritative Companion data is therefore not presented as deleted by this
+button. Standalone per-vacancy deletion is a structured cascade; it refuses
+in-flight/unknown linked work and is unavailable while Ops is authoritative.
+
+The search badge is rendered in a closed Shadow DOM with a generic,
+state-independent host. Vacancy state is not encoded in page-owned classes,
+attributes, titles, ARIA, text or global styles, and the content script never
+hides or dims HH cards. Quick actions are extension-owned, require a trusted
+event, use a canonical HH vacancy reference, and are validated again by the
+background authority. All HH vacancy navigation uses the canonical HTTPS
+`hh.ru/vacancy/<numeric-id>` form; stored or extracted query/fragment values,
+lookalike hosts, userinfo and unsafe schemes are rejected.
+
+Companion HH sync requires explicit selected-profile or explicit all-enabled
+scope, caps each operation at 50 profiles and 2,000 items, refuses duplicate
+scope and coalesces identical concurrent scopes. Follow-up timestamps are
+validated before mutation. Pre-auth requests are bounded before token
+verification, sanitized engine status is cached with short TTLs, and OAuth
+state is purged/capped/consumed atomically. Legacy provider-body cleanup is
+handled only by the recognized-path, dry-run-first scrub utility documented in
+the Fix 4 acceptance report.
+
 ### Provider execution and privacy boundary
 
 Both AI modes compile a canonical provider plan from current authoritative

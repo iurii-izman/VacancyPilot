@@ -152,6 +152,60 @@ describe("loadSettings", () => {
     expect((loaded.ai as Record<string, unknown>).enableStreaming).toBeUndefined();
     expect((loaded.companion as Record<string, unknown>).lastConnectedAt).toBeUndefined();
   });
+
+  it("normalizes malformed values field-by-field and drops unknown nested data", async () => {
+    await chrome.storage.local.set({
+      app_settings_v1: {
+        schemaVersion: 999,
+        onboardingCompleted: "yes",
+        general: {
+          defaultProfileId: { secret: "should-drop" },
+          rejectedSearchCardBehavior: "unexpected",
+          nested: { score: 99 },
+        },
+        privacy: {
+          aiEnabled: 1,
+          strictPrivacyMode: false,
+          unknownNested: { providerPayload: "should-drop" },
+        },
+        ai: {
+          dailyRequestLimit: -1,
+          maxInputChars: "huge",
+          provider: "unknown-provider",
+          model: "valid-model",
+        },
+        n8n: {
+          enabledEvents: ["status.changed", { raw: "drop" }, "x".repeat(101)],
+          dailyEventLimit: 10_001,
+          webhookUrl: "https://user-configured.example.test/webhook",
+        },
+        companion: {
+          opsModeEnabled: true,
+          baseUrl: "https://attacker.example.test/companion",
+        },
+        unknownTopLevel: { raw: "drop" },
+      },
+    });
+
+    const loaded = await loadSettings();
+
+    expect(loaded.schemaVersion).toBe(1);
+    expect(loaded.onboardingCompleted).toBe(false);
+    expect(loaded.general.defaultProfileId).toBeUndefined();
+    expect(loaded.general.rejectedSearchCardBehavior).toBe("dim");
+    expect(loaded.privacy.aiEnabled).toBe(false);
+    expect(loaded.privacy.strictPrivacyMode).toBe(false);
+    expect(loaded.ai.dailyRequestLimit).toBe(10);
+    expect(loaded.ai.maxInputChars).toBe(3000);
+    expect(loaded.ai.provider).toBeUndefined();
+    expect(loaded.ai.model).toBe("valid-model");
+    expect(loaded.n8n.enabledEvents).toEqual(["status.changed"]);
+    expect(loaded.n8n.dailyEventLimit).toBe(10);
+    expect(loaded.n8n.webhookUrl).toBe("https://user-configured.example.test/webhook");
+    expect(loaded.companion.baseUrl).toBe("http://127.0.0.1:8765/api/v1");
+    expect((loaded as unknown as Record<string, unknown>).unknownTopLevel).toBeUndefined();
+    expect((loaded.general as Record<string, unknown>).nested).toBeUndefined();
+  });
 });
 
 describe("saveSettings", () => {

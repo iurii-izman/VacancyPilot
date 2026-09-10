@@ -1061,7 +1061,10 @@ class AnalysisService:
             prompt_version=run.prompt_version,
             input_hash=run.input_hash,
             structured_result=structured,
-            raw_output=run.raw_output,
+            # Legacy rows may still contain a provider body. Current runtime
+            # reads never rehydrate that column; raw text exists only on the
+            # transient repair path returned by _with_transient_raw().
+            raw_output=None,
             validation_errors=validation_errors,
             token_input=run.token_input,
             token_output=run.token_output,

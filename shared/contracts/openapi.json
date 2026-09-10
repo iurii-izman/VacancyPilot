@@ -5207,13 +5207,17 @@
       "VacancySyncRequest": {
         "additionalProperties": false,
         "properties": {
+          "all_enabled": {
+            "default": false,
+            "title": "All Enabled",
+            "type": "boolean"
+          },
           "profile_ids": {
             "anyOf": [
               {
                 "items": {
                   "type": "string"
                 },
-                "maxItems": 50,
                 "type": "array"
               },
               {

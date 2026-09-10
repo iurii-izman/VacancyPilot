@@ -1,14 +1,17 @@
 /**
- * Search badge rendering helpers — ITER-034.
+ * Search badge rendering helpers.
  *
- * Pure DOM rendering functions for compact search-result badges.
- * No chrome.* API calls, no network — pure data → DOM transformation.
- * Content script injects and orchestrates; this module renders.
+ * Search cards belong to HH's page DOM, so local VacancyPilot state is never
+ * written to the card itself. The production badge is a generic host with a
+ * closed shadow root; score/status/view text and action controls live only in
+ * that extension-owned root.
  */
 
 import type { RawSearchItemDTO } from "@/adapters/types";
-
-// ── Badge state shape (mirrors BadgeState from badge-state.ts) ──────────────
+import {
+  extractHhVacancyIdFromHref,
+  isCanonicalHhVacancyReference,
+} from "./hh-vacancy-url";
 
 export interface SearchBadgeState {
   score?: number;
@@ -18,7 +21,7 @@ export interface SearchBadgeState {
   hidden?: boolean;
 }
 
-interface SearchBadgeControls {
+export interface SearchBadgeControls {
   showViewed?: boolean;
   showSavedRejected?: boolean;
   showScore?: boolean;
@@ -33,8 +36,6 @@ interface SearchBadgePart {
   role?: string;
 }
 
-// ── Work mode labels ───────────────────────────────────────────────────────
-
 const WORK_MODE_LABELS: Record<string, string> = {
   remote: "УД",
   hybrid: "Гиб",
@@ -46,8 +47,6 @@ const WORK_MODE_CSS: Record<string, string> = {
   hybrid: "vp-sb-wm--hybrid",
   office: "vp-sb-wm--office",
 };
-
-// ── Status icons ───────────────────────────────────────────────────────────
 
 const STATUS_LABELS: Record<string, string> = {
   saved: "VP saved",
@@ -64,7 +63,6 @@ const STATUS_LABELS: Record<string, string> = {
   blacklist: "VP rejected",
 };
 
-/** Full human-readable status labels for accessibility title/aria-label. */
 const STATUS_LABELS_FULL: Record<string, string> = {
   saved: "Saved",
   viewed: "Viewed",
@@ -80,13 +78,126 @@ const STATUS_LABELS_FULL: Record<string, string> = {
   blacklist: "Blacklisted",
 };
 
+const SEARCH_BADGE_SHADOW_CSS = `
+  :host {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+  .vp-sb-container {
+    display: inline-flex;
+    gap: 3px;
+    align-items: center;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    font-size: 10px;
+    line-height: 1;
+    white-space: nowrap;
+  }
+  .vp-sb-score {
+    background: #4a90d9;
+    color: #fff;
+    border-radius: 8px;
+    padding: 1px 5px;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 16px;
+    min-width: 18px;
+    text-align: center;
+  }
+  .vp-sb-score--high { background: #2a8; }
+  .vp-sb-score--mid { background: #e6a817; color: #333; }
+  .vp-sb-score--low { background: #c44; }
+  .vp-sb-status {
+    font-size: 10px;
+    color: #666;
+    max-width: 86px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .vp-sb-neutral {
+    color: #6b7280;
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 1px 5px;
+    font-size: 10px;
+    line-height: 14px;
+  }
+  .vp-sb-view-count {
+    font-size: 9px;
+    color: #4a90d9;
+    border: 1px solid #cfe0f6;
+    background: #f4f8fd;
+    border-radius: 8px;
+    padding: 0 4px;
+    line-height: 14px;
+  }
+  .vp-sb-wm {
+    font-size: 9px;
+    color: #999;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    padding: 0 3px;
+    line-height: 14px;
+  }
+  .vp-sb-wm--remote { color: #2a8; border-color: #2a8; }
+  .vp-sb-wm--hybrid { color: #e6a817; border-color: #e6a817; }
+  .vp-sb-wm--office { color: #888; border-color: #ccc; }
+  .vp-sb-actions {
+    display: inline-flex;
+    gap: 2px;
+    margin-left: 2px;
+  }
+  .vp-sb-action {
+    all: initial;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    font-size: 11px;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    color: #666;
+    background: transparent;
+  }
+  :host(:hover) .vp-sb-action,
+  .vp-sb-action:focus-visible { opacity: 1; }
+  .vp-sb-action:hover { background: #f0f0f0; border-color: #ccc; }
+  .vp-sb-action--save:hover { color: #2a8; border-color: #2a8; }
+  .vp-sb-action--reject:hover { color: #c44; border-color: #c44; }
+  .vp-sb-action:focus-visible {
+    outline: 2px solid #4a90d9;
+    outline-offset: 1px;
+  }
+`;
+
+const badgeRoots = new WeakMap<HTMLElement, ShadowRoot>();
+
+/**
+ * Gate privileged search-card actions at the extension-owned event boundary.
+ * Synthetic page events have isTrusted=false and must never reach the runtime
+ * message path, even when their payload looks like a valid card.
+ */
+export function canRunSearchQuickAction(
+  event: Pick<Event, "isTrusted">,
+  sourceId: string,
+  sourceUrl: string | null | undefined,
+): boolean {
+  return event.isTrusted === true && isCanonicalHhVacancyReference(sourceId, sourceUrl);
+}
+
 function shouldShowStatus(
   status: string,
   controls?: SearchBadgeControls,
 ): boolean {
-  if (status === "viewed") {
-    return controls?.showViewed !== false;
-  }
+  if (status === "viewed") return controls?.showViewed !== false;
   if (
     status === "saved" ||
     status === "rejected_by_me" ||
@@ -106,8 +217,6 @@ function escapeHtml(value: string | number): string {
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
 }
-
-// ── Score color classes ───────────────────────────────────────────────────
 
 function scoreClass(score: number): string {
   if (score >= 80) return "vp-sb-score--high";
@@ -200,7 +309,6 @@ function createBadgeContainer(
 
   const container = doc.createElement("span");
   container.className = "vp-sb-container";
-
   for (const part of parts) {
     const piece = doc.createElement("span");
     piece.className = part.className;
@@ -210,16 +318,9 @@ function createBadgeContainer(
     if (part.role) piece.setAttribute("role", part.role);
     container.appendChild(piece);
   }
-
   return container;
 }
 
-// ── Public API ─────────────────────────────────────────────────────────────
-
-/**
- * Build the HTML content string for a single search badge.
- * Returns empty string when there is nothing to show.
- */
 export function buildSearchBadgeHTML(
   card: RawSearchItemDTO,
   state: SearchBadgeState | undefined,
@@ -232,164 +333,20 @@ export function buildSearchBadgeHTML(
       part.ariaLabel ? `aria-label="${escapeHtml(part.ariaLabel)}"` : null,
       part.role ? `role="${escapeHtml(part.role)}"` : null,
     ].filter((attr): attr is string => attr !== null);
-
     return `<span ${attrs.join(" ")}>${escapeHtml(part.text)}</span>`;
   });
-
-  if (parts.length === 0) return "";
-
-  return `<span class="vp-sb-container">${parts.join("")}</span>`;
+  return parts.length === 0
+    ? ""
+    : `<span class="vp-sb-container">${parts.join("")}</span>`;
 }
 
-/**
- * Inject scoped search badge styles into the document <head>.
- * Idempotent — does nothing if styles already exist.
- */
-export function injectSearchBadgeStyles(doc: Document): void {
-  if (doc.getElementById("vp-search-badge-styles")) return;
-
-  const style = doc.createElement("style");
-  style.id = "vp-search-badge-styles";
-  style.textContent = `
-    /* VacancyPilot search badge host — inline wrapper on each card */
-    .vp-sb-host {
-      display: inline-flex;
-      align-items: center;
-      margin-left: 6px;
-      vertical-align: middle;
-    }
-
-    /* Container for badge pieces */
-    .vp-sb-container {
-      display: inline-flex;
-      gap: 3px;
-      align-items: center;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-      font-size: 10px;
-      line-height: 1;
-      white-space: nowrap;
-    }
-
-    /* Score pill */
-    .vp-sb-score {
-      background: #4a90d9;
-      color: #fff;
-      border-radius: 8px;
-      padding: 1px 5px;
-      font-size: 10px;
-      font-weight: 600;
-      line-height: 16px;
-      min-width: 18px;
-      text-align: center;
-    }
-    .vp-sb-score--high { background: #2a8; }
-    .vp-sb-score--mid  { background: #e6a817; color: #333; }
-    .vp-sb-score--low  { background: #c44; }
-
-    /* Status text */
-    .vp-sb-status {
-      font-size: 10px;
-      color: #666;
-      max-width: 86px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .vp-sb-neutral {
-      color: #6b7280;
-      background: #f3f4f6;
-      border: 1px solid #e5e7eb;
-      border-radius: 8px;
-      padding: 1px 5px;
-      font-size: 10px;
-      line-height: 14px;
-    }
-
-    .vp-sb-view-count {
-      font-size: 9px;
-      color: #4a90d9;
-      border: 1px solid #cfe0f6;
-      background: #f4f8fd;
-      border-radius: 8px;
-      padding: 0 4px;
-      line-height: 14px;
-    }
-
-    /* Work mode pill */
-    .vp-sb-wm {
-      font-size: 9px;
-      color: #999;
-      border: 1px solid #ddd;
-      border-radius: 3px;
-      padding: 0 3px;
-      line-height: 14px;
-    }
-    .vp-sb-wm--remote { color: #2a8; border-color: #2a8; }
-    .vp-sb-wm--hybrid { color: #e6a817; border-color: #e6a817; }
-    .vp-sb-wm--office { color: #888; border-color: #ccc; }
-
-    /* Quick action buttons */
-    .vp-sb-actions {
-      display: inline-flex;
-      gap: 2px;
-      margin-left: 2px;
-    }
-    .vp-sb-action {
-      all: initial;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 16px;
-      height: 16px;
-      border: 1px solid transparent;
-      border-radius: 3px;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-      font-size: 11px;
-      line-height: 1;
-      cursor: pointer;
-      opacity: 0;
-      transition: opacity 0.15s ease;
-      color: #666;
-      background: transparent;
-    }
-    .vp-sb-host:hover .vp-sb-action {
-      opacity: 1;
-    }
-    .vp-sb-action:hover {
-      background: #f0f0f0;
-      border-color: #ccc;
-    }
-    .vp-sb-action--save:hover {
-      color: #2a8;
-      border-color: #2a8;
-    }
-    .vp-sb-action--reject:hover {
-      color: #c44;
-      border-color: #c44;
-    }
-
-    /* Keyboard focus — visible outline for accessibility */
-    .vp-sb-action:focus-visible {
-      opacity: 1;
-      outline: 2px solid #4a90d9;
-      outline-offset: 1px;
-    }
-
-    /* Search card-level presentation states */
-    .vp-sb-card--dimmed {
-      opacity: 0.55;
-    }
-    .vp-sb-card--hidden {
-      display: none !important;
-    }
-  `;
-  doc.head.appendChild(style);
+/** Compatibility no-op: production styles are scoped inside closed roots. */
+export function injectSearchBadgeStyles(_doc: Document): void {
+  // Intentionally empty.
+  void _doc;
 }
 
-/**
- * Create a badge host element for a single search card.
- * Does NOT attach it to the DOM — caller positions it.
- */
+/** Create a generic, state-independent host with an extension-owned closed root. */
 export function createBadgeHost(
   card: RawSearchItemDTO,
   state: SearchBadgeState | undefined,
@@ -401,23 +358,22 @@ export function createBadgeHost(
 
   const host = doc.createElement("span");
   host.className = "vp-sb-host";
-  host.appendChild(container);
+  const shadow = host.attachShadow({ mode: "closed" });
+  const style = doc.createElement("style");
+  style.textContent = SEARCH_BADGE_SHADOW_CSS;
+  shadow.append(style, container);
+  badgeRoots.set(host, shadow);
   return host;
 }
 
-/**
- * Attach a badge to a search card element by inserting it into the
- * best available header slot. Replaces any existing host so rerenders
- * do not leak stale badge state.
- */
 export function attachBadgeToCard(
   cardEl: Element | null,
   badge: HTMLElement,
 ): void {
   if (!cardEl) return;
-
-  // Find the card's header area — prefer dedicated header class, fall back to first h3.
-  const titleLink = cardEl.querySelector('a[href*="/vacancy/"], a[href*="%2Fvacancy%2F"], a[href*="%2fvacancy%2f"]');
+  const titleLink = cardEl.querySelector(
+    'a[href*="/vacancy/"], a[href*="%2Fvacancy%2F"], a[href*="%2fvacancy%2f"]',
+  );
   const titleHeader = titleLink?.closest(
     ".serp-item__header, .vacancy-serp-item__header, h3",
   );
@@ -427,46 +383,28 @@ export function attachBadgeToCard(
     cardEl.querySelector("h3") ??
     cardEl.querySelector(".vacancy-serp-item__header") ??
     cardEl;
-
   if (!target) return;
 
   const existing = cardEl.querySelector(".vp-sb-host");
-  if (existing) {
-    existing.replaceWith(badge);
-    return;
-  }
-
-  target.appendChild(badge);
+  if (existing) existing.replaceWith(badge);
+  else target.appendChild(badge);
 }
 
-/**
- * Apply card-level presentation state for search highlighting.
- */
+/** Remove legacy card mutations; never add private state to HH card DOM. */
 export function applySearchCardState(
   cardEl: Element | null,
-  state: SearchBadgeState | undefined,
-  enabled = true,
+  _state: SearchBadgeState | undefined,
+  _enabled = true,
 ): void {
-  if (!cardEl) return;
-
-  cardEl.classList.remove("vp-sb-card--dimmed", "vp-sb-card--hidden");
-  if (!enabled) return;
-
-  if (state?.hidden) {
-    cardEl.classList.add("vp-sb-card--hidden");
-    return;
-  }
-
-  if (state?.dimmed) {
-    cardEl.classList.add("vp-sb-card--dimmed");
-  }
+  void _state;
+  void _enabled;
+  cardEl?.classList.remove("vp-sb-card--dimmed", "vp-sb-card--hidden");
 }
 
 export function clearSearchBadgeRenderState(doc: Document): void {
   for (const host of Array.from(doc.querySelectorAll(".vp-sb-host"))) {
     host.remove();
   }
-
   for (const card of Array.from(
     doc.querySelectorAll(".vp-sb-card--dimmed, .vp-sb-card--hidden"),
   )) {
@@ -474,12 +412,8 @@ export function clearSearchBadgeRenderState(doc: Document): void {
   }
 }
 
-/**
- * Build a map from vacancy ID → card Element using title link href parsing.
- */
 export function buildCardElementMap(elements: Element[]): Map<string, Element> {
   const map = new Map<string, Element>();
-
   const titleSelectors = [
     '[data-qa="serp-item__title"]',
     "a.serp-item__title",
@@ -489,30 +423,22 @@ export function buildCardElementMap(elements: Element[]): Map<string, Element> {
   ];
 
   for (const el of elements) {
-    for (const sel of titleSelectors) {
+    for (const selector of titleSelectors) {
       try {
-        const link = el.querySelector(sel);
-        if (link) {
-          const href = link.getAttribute("href");
-          const match = href?.match(/\/vacancy\/(\d+)/i);
-          if (match) {
-            map.set(match[1], el);
-            break;
-          }
+        const link = el.querySelector(selector);
+        const id = extractHhVacancyIdFromHref(link?.getAttribute("href"));
+        if (id) {
+          map.set(id, el);
+          break;
         }
       } catch {
         continue;
       }
     }
   }
-
   return map;
 }
 
-/**
- * Find search card container elements in the document.
- * Uses the same selector groups as HHAdapter.findSearchCards.
- */
 export function findSearchCardElements(doc: Document): Element[] {
   const selectors = [
     '[data-qa="vacancy-serp-item"]',
@@ -520,7 +446,6 @@ export function findSearchCardElements(doc: Document): Element[] {
     '[data-qa="vacancy-serp"]',
     "div.vacancy-serp-item",
   ];
-
   for (const selector of selectors) {
     try {
       const elements = Array.from(doc.querySelectorAll(selector));
@@ -529,16 +454,9 @@ export function findSearchCardElements(doc: Document): Element[] {
       continue;
     }
   }
-
   return [];
 }
 
-// ── Quick action buttons (ITER-035) ────────────────────────────────────────
-
-/**
- * Create a quick-save button element.
- * Does NOT attach event listeners — callers wire the click handler.
- */
 export function createSaveButton(doc: Document = document): HTMLButtonElement {
   const btn = doc.createElement("button");
   btn.className = "vp-sb-action vp-sb-action--save";
@@ -549,10 +467,6 @@ export function createSaveButton(doc: Document = document): HTMLButtonElement {
   return btn;
 }
 
-/**
- * Create a quick-reject button element.
- * Does NOT attach event listeners — callers wire the click handler.
- */
 export function createRejectButton(
   doc: Document = document,
 ): HTMLButtonElement {
@@ -565,11 +479,6 @@ export function createRejectButton(
   return btn;
 }
 
-/**
- * Append save and reject action buttons to a badge host element.
- * Returns the wrapper span so callers can add event listeners
- * to individual buttons.
- */
 export function appendActionButtons(
   badgeHost: HTMLElement,
   doc: Document = document,
@@ -580,13 +489,13 @@ export function appendActionButtons(
 } {
   const wrapper = doc.createElement("span");
   wrapper.className = "vp-sb-actions";
-
   const saveBtn = createSaveButton(doc);
   const rejectBtn = createRejectButton(doc);
+  wrapper.append(saveBtn, rejectBtn);
 
-  wrapper.appendChild(saveBtn);
-  wrapper.appendChild(rejectBtn);
-  badgeHost.appendChild(wrapper);
-
+  // The fallback is only for isolated unit callers that construct a plain
+  // host. Production hosts always use the closed root stored above.
+  const target: ShadowRoot | HTMLElement = badgeRoots.get(badgeHost) ?? badgeHost;
+  target.appendChild(wrapper);
   return { wrapper, saveBtn, rejectBtn };
 }

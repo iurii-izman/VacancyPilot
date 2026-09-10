@@ -49,6 +49,7 @@ import {
 } from "@/services/delete-all";
 import { getActionLog, getRemainingDailyBudget } from "@/services/labs-control";
 import { loadSettings, saveSettings } from "@/db/settings-bridge";
+import { getOperatingMode } from "@/services/operating-mode";
 import { db, ensureMigrationsBootstrapped } from "@/db";
 import type { JobStatus } from "@/models/job";
 import type { LabsActionLog } from "@/models/labs-action-log";
@@ -674,8 +675,9 @@ function ExportSection(): ReactNode {
         Export Your Data
       </h2>
       <p style={{ margin: "0 0 16px", fontSize: 12, color: "#666" }}>
-        Download your vacancies, cover letters, settings, and event history. API
-        keys and secrets are never included in exports.
+        Download supported browser-local vacancy, profile, letter, settings, and
+        event categories. API keys, secrets, execution-control state, and
+        Companion SQLite/keyring/private-engine data are never included.
       </p>
 
       {errorMsg && (
@@ -701,8 +703,8 @@ function ExportSection(): ReactNode {
             JSON Export
           </h3>
           <p style={{ fontSize: 11, color: "#888", margin: "0 0 12px" }}>
-            Full data archive with version envelope — suitable for backup,
-            migration, or import into another VacancyPilot instance.
+            Versioned browser-local data export for inspection or user-managed
+            backup. It is not a complete Companion backup or import package.
           </p>
           <button
             type="button"
@@ -741,9 +743,9 @@ function ExportSection(): ReactNode {
           <h3 style={{ fontSize: 14, fontWeight: 600, margin: "0 0 4px" }}>
             CSV Export — Jobs
           </h3>
-          <p style={{ fontSize: 11, color: "#888", margin: "0 0 12px" }}>
-            Spreadsheet-friendly job history with scores, statuses, and
-            timestamps. Opens in Excel, Google Sheets, or any CSV viewer.
+            <p style={{ fontSize: 11, color: "#888", margin: "0 0 12px" }}>
+            Browser-local job history with scores, statuses, and timestamps.
+            Formula-like text is neutralized for spreadsheet safety.
           </p>
           <button
             type="button"
@@ -796,6 +798,7 @@ function PrivacySection(): ReactNode {
   const [cacheDeleteStatus, setCacheDeleteStatus] =
     useState<InlineActionStatus>("idle");
   const [cacheDeleteMessage, setCacheDeleteMessage] = useState("");
+  const [effectiveMode, setEffectiveMode] = useState<"standalone" | "ops">("standalone");
 
   const refreshCounts = useCallback(async () => {
     try {
@@ -811,6 +814,10 @@ function PrivacySection(): ReactNode {
       void refreshCounts();
     }
   }, [refreshCounts, step]);
+
+  useEffect(() => {
+    void getOperatingMode().then((mode) => setEffectiveMode(mode.effectiveMode)).catch(() => setEffectiveMode("standalone"));
+  }, []);
 
   const totalRows = Object.values(dataCounts).reduce((a, b) => a + b, 0);
   const hasAnyData = totalRows > 0;
@@ -904,7 +911,10 @@ function PrivacySection(): ReactNode {
           marginBottom: 16,
         }}
       >
-        <div
+        {effectiveMode === "ops" ? <div style={{ padding: 16, border: "1px solid #e0e0e0", borderRadius: 8, background: "#fafafa" }}>
+          <h3 style={{ fontSize: 14, fontWeight: 600, margin: "0 0 4px" }}>Delete One Job</h3>
+          <p style={{ fontSize: 12, color: "#666", margin: 0 }}>Per-vacancy deletion is unavailable while Ops Mode is authoritative. Use Companion/SQLite lifecycle controls; this page can still clear browser-local data globally.</p>
+        </div> : <div
           style={{
             padding: 16,
             border: "1px solid #e0e0e0",
@@ -982,7 +992,7 @@ function PrivacySection(): ReactNode {
               {jobDeleteMessage}
             </p>
           )}
-        </div>
+        </div>}
 
         <div
           style={{
@@ -1120,9 +1130,9 @@ function PrivacySection(): ReactNode {
         {step === "warn-export" && (
           <>
             <p style={{ fontSize: 12, color: "#666", margin: "0 0 12px" }}>
-              ⚠️ You are about to permanently delete all your VacancyPilot data.
-              This includes vacancies, cover letters, profiles, settings, and
-              event history.
+              ⚠️ You are about to permanently delete this extension&apos;s
+              browser-local data. This includes vacancies, cover letters,
+              profiles, settings, and event history.
             </p>
             <p style={{ fontSize: 12, color: "#666", margin: "0 0 12px" }}>
               We strongly recommend exporting your data first from the
@@ -1168,8 +1178,9 @@ function PrivacySection(): ReactNode {
           <>
             <p style={{ fontSize: 12, color: "#666", margin: "0 0 12px" }}>
               🔴 Final confirmation: this action{" "}
-              <strong>cannot be undone</strong>. All local data will be wiped
-              immediately.
+              <strong>cannot be undone</strong>. All extension-local browser
+              data will be wiped immediately. In Ops Mode, Companion SQLite,
+              keyring secrets, and private engine files are not modified.
             </p>
             <div style={{ display: "flex", gap: 8 }}>
               <button
@@ -1216,7 +1227,8 @@ function PrivacySection(): ReactNode {
         {step === "done" && (
           <>
             <p style={{ fontSize: 12, color: "#2a8", margin: "0 0 8px" }}>
-              All VacancyPilot data has been deleted from this browser.
+              All VacancyPilot extension data has been deleted from this browser.
+              Companion data, if present, was not modified.
             </p>
             <button
               type="button"

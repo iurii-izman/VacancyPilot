@@ -4,6 +4,11 @@ import { db } from "@/db/database";
 import { jobRepo } from "@/db/repositories";
 import { createStatusChange } from "./status-transitions";
 import { createEventLogEntry } from "./event-log-helper";
+import {
+  canonicalizeHhVacancyUrl,
+  isCanonicalHhVacancyReference,
+} from "./hh-vacancy-url";
+import { assertResetWritable, withWriteGuard } from "./reset-guard";
 
 const SOURCE_HH = "hh" as const;
 
@@ -130,14 +135,18 @@ export function buildJobFromDTO(dto: RawVacancyDTO): Job {
   if (!sourceVacancyId) {
     throw new Error("Cannot build vacancy: sourceVacancyId is missing");
   }
+  if (!isCanonicalHhVacancyReference(sourceVacancyId, dto.sourceUrl)) {
+    throw new Error("Cannot build vacancy: sourceUrl is not a canonical HH vacancy URL");
+  }
   const now = new Date().toISOString();
   const descriptionClean = dto.descriptionText ?? "";
+  const sourceUrl = canonicalizeHhVacancyUrl(dto.sourceUrl) as string;
 
   return {
     id: buildJobId(sourceVacancyId),
     source: SOURCE_HH,
     sourceVacancyId,
-    sourceUrl: dto.sourceUrl,
+    sourceUrl,
     canonicalUrl: undefined,
 
     title: dto.title ?? "",
@@ -181,8 +190,10 @@ async function persistEvent(
   jobId: string,
   payload: Record<string, unknown>,
 ): Promise<void> {
-  const entry = createEventLogEntry(type, payload, { jobId });
-  await db.events.put(entry);
+  await withWriteGuard(async () => {
+    const entry = createEventLogEntry(type, payload, { jobId });
+    await db.events.put(entry);
+  });
 }
 
 // ---- Public tracker API ----
@@ -200,9 +211,13 @@ export const tracker = {
    * Returns the saved Job.
    */
   async saveFromDTO(dto: RawVacancyDTO): Promise<Job> {
+    assertResetWritable();
     const sourceVacancyId = (dto.sourceVacancyId ?? "").trim();
     if (!sourceVacancyId) {
       throw new Error("Cannot save vacancy: sourceVacancyId is missing");
+    }
+    if (!isCanonicalHhVacancyReference(sourceVacancyId, dto.sourceUrl)) {
+      throw new Error("Cannot save vacancy: sourceUrl is not a canonical HH vacancy URL");
     }
 
     const existing = await findExistingJob(sourceVacancyId);
@@ -210,8 +225,10 @@ export const tracker = {
     if (existing) {
       const now = new Date().toISOString();
       const descriptionClean = dto.descriptionText ?? existing.descriptionClean;
+      const sourceUrl = canonicalizeHhVacancyUrl(dto.sourceUrl);
       const updated: Job = {
         ...existing,
+        sourceUrl: sourceUrl ?? existing.sourceUrl,
         title: dto.title ?? existing.title,
         companyName: dto.companyName ?? existing.companyName,
         // Upgrade companyId when a real employer ID becomes available
@@ -275,6 +292,7 @@ export const tracker = {
     newStatus: JobStatus,
     note?: string,
   ): Promise<Job | null> {
+    assertResetWritable();
     const job = await jobRepo.getById(jobId);
     if (!job) return null;
 

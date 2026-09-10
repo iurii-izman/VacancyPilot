@@ -2,6 +2,7 @@ import { defineBackground } from "wxt/utils/define-background";
 import {
   quickSaveSearchCard,
   quickRejectSearchCard,
+  isValidQuickActionCard,
 } from "@/services/search-actions";
 import type { RawSearchItemDTO } from "@/adapters/types";
 import { recordVacancyVisit } from "@/services/visit-marks";
@@ -19,12 +20,16 @@ import {
   resolveSearchHighlightControls,
 } from "@/services/search-highlights";
 import {
-  contextMatchesTab,
   contextStorageKey,
   extractVacancyIdFromUrl,
   sidePanelBindingStorageKey,
   type VacancyContext,
 } from "@/services/vacancy-context";
+import {
+  canonicalizeHhVacancyUrl,
+  isCanonicalHhVacancyReference,
+  isHhSearchUrl,
+} from "@/services/hh-vacancy-url";
 
 interface SidePanelContext {
   tabId: number;
@@ -37,6 +42,7 @@ interface PageContext {
   success: boolean;
   pageKind?: SidePanelContext["pageKind"];
   vacancyId?: string;
+  url?: string;
 }
 
 async function bootBackground(): Promise<void> {
@@ -114,6 +120,35 @@ export default defineBackground(() => {
     await chrome.storage.session.remove(contextStorageKey(tabId));
   }
 
+  // A reset can race with an already-started context refresh or popup write.
+  // Keep a worker-local generation so those stale promises cannot repopulate
+  // session state after the reset has cleared it.
+  let sessionResetGeneration = 0;
+
+  async function notifyContentScriptsOfReset(): Promise<void> {
+    sessionResetGeneration += 1;
+    if (typeof chrome.storage.session.clear === "function") {
+      await chrome.storage.session.clear();
+    }
+    try {
+      const tabs = await chrome.tabs.query({});
+      await Promise.all(
+        tabs
+          .map((tab) => tab.id)
+          .filter((tabId): tabId is number => typeof tabId === "number" && tabId > 0)
+          .map(async (tabId) => {
+            try {
+              await chrome.tabs.sendMessage(tabId, { type: "VACANCYPILOT_RESET" });
+            } catch {
+              // Tabs without a VacancyPilot content script are expected.
+            }
+          }),
+      );
+    } catch {
+      // Session state is still cleared even when tab enumeration is unavailable.
+    }
+  }
+
   chrome.tabs.onRemoved.addListener((tabId) => {
     void clearTabContext(tabId).catch(() => undefined);
   });
@@ -134,13 +169,14 @@ export default defineBackground(() => {
     message: { vacancyId?: unknown; pageKind?: unknown },
     sender: chrome.runtime.MessageSender,
   ): Promise<boolean> {
+    const generation = sessionResetGeneration;
     const tab = sender.tab;
     const vacancyId = typeof message.vacancyId === "string" ? message.vacancyId : "";
     if (!tab?.id || tab.id <= 0 || !tab.windowId || tab.windowId <= 0) return false;
-    if (
-      message.pageKind !== "vacancy" ||
-      !vacancyId
-    ) {
+    if (message.pageKind !== "vacancy" || !vacancyId) {
+      return false;
+    }
+    if (!isCanonicalHhVacancyReference(vacancyId, tab.url)) {
       return false;
     }
     const context: VacancyContext = {
@@ -150,6 +186,7 @@ export default defineBackground(() => {
       pageKind: "vacancy",
       timestamp: Date.now(),
     };
+    if (generation !== sessionResetGeneration) return false;
     await chrome.storage.session.set({ [contextStorageKey(tab.id)]: context });
     return true;
   }
@@ -157,6 +194,7 @@ export default defineBackground(() => {
   async function resolveSidePanelContext(
     requestedWindowId?: unknown,
   ): Promise<SidePanelContext | null> {
+    const generation = sessionResetGeneration;
     const windowId =
       typeof requestedWindowId === "number" && requestedWindowId > 0
         ? requestedWindowId
@@ -202,6 +240,17 @@ export default defineBackground(() => {
       if (live?.success && live.pageKind) {
         const vacancyId =
           typeof live.vacancyId === "string" ? live.vacancyId : null;
+        const canonicalUrl =
+          typeof live.url === "string"
+            ? canonicalizeHhVacancyUrl(live.url)
+            : null;
+        if (
+          live.pageKind === "vacancy" &&
+          (!vacancyId || !canonicalUrl || !isCanonicalHhVacancyReference(vacancyId, canonicalUrl))
+        ) {
+          await clearTabContext(targetTabId);
+          return null;
+        }
         const context: VacancyContext = {
           tabId: targetTabId,
           windowId: targetWindowId,
@@ -210,6 +259,7 @@ export default defineBackground(() => {
           timestamp: Date.now(),
         };
         if (live.pageKind === "vacancy" && vacancyId) {
+          if (generation !== sessionResetGeneration) return null;
           await chrome.storage.session.set({ [contextStorageKey(targetTabId)]: context });
         }
         return {
@@ -220,33 +270,34 @@ export default defineBackground(() => {
         };
       }
     } catch {
-      // A short reload race can leave the content script unavailable.
-    }
-
-    const stored = await chrome.storage.session.get(contextStorageKey(targetTabId));
-    const context = stored[contextStorageKey(targetTabId)] as VacancyContext | undefined;
-    if (contextMatchesTab(context, targetTabId, targetWindowId)) {
-      return {
-        tabId: targetTabId,
-        windowId: targetWindowId,
-        vacancyId: context.vacancyId,
-        pageKind: "vacancy",
-      };
+      // A short reload race is not permission to reuse an old vacancy.
     }
     await clearTabContext(targetTabId);
     return null;
   }
 
   /** Persist the context without opening the side panel (used by popup). */
-  function persistContext(
-    message: { tabId?: number; windowId?: number; vacancyId?: string },
+  async function persistContext(
+    message: { tabId?: number; windowId?: number; vacancyId?: string; url?: string },
     sender: chrome.runtime.MessageSender,
-  ): void {
+  ): Promise<boolean> {
+    const generation = sessionResetGeneration;
     const nextTabId = message.tabId ?? sender.tab?.id ?? -1;
     const vacancyId = message.vacancyId ?? null;
-    if (nextTabId <= 0 || !vacancyId) return;
+    if (nextTabId <= 0) return false;
     const windowId = message.windowId ?? sender.tab?.windowId;
-    if (!windowId || windowId <= 0) return;
+    if (!windowId || windowId <= 0) return false;
+    if (!vacancyId) {
+      if (generation !== sessionResetGeneration) return false;
+      await chrome.storage.session.remove([
+        contextStorageKey(nextTabId),
+        sidePanelBindingStorageKey(windowId),
+      ]);
+      return true;
+    }
+    const sourceUrl = sender.tab?.url ?? message.url;
+    if (!isCanonicalHhVacancyReference(vacancyId, sourceUrl)) return false;
+    if (generation !== sessionResetGeneration) return false;
     const context: VacancyContext = {
       tabId: nextTabId,
       windowId,
@@ -254,19 +305,43 @@ export default defineBackground(() => {
       pageKind: "vacancy",
       timestamp: Date.now(),
     };
-    void chrome.storage.session.set({
+    await chrome.storage.session.set({
       [contextStorageKey(nextTabId)]: context,
       [sidePanelBindingStorageKey(windowId)]: { tabId: nextTabId, windowId },
     });
+    return true;
   }
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.type === "VACANCYPILOT_RESET") {
+      if (message.broadcast === true) return false;
+      void notifyContentScriptsOfReset().then(
+        async () => {
+          try {
+            // Notify extension pages (Options/Side Panel) as well as the
+            // content scripts sent the tab-scoped message above.
+            await chrome.runtime.sendMessage({
+              type: "VACANCYPILOT_RESET",
+              broadcast: true,
+            });
+          } catch {
+            // No other extension page may be open.
+          }
+          sendResponse({ success: true });
+        },
+        () => sendResponse({ success: false }),
+      );
+      return true;
+    }
+
     // ── SET_SIDE_PANEL_CONTEXT (from popup) ──
     // Popup persists context here and opens the side panel directly.
     if (message.type === "SET_SIDE_PANEL_CONTEXT") {
-      persistContext(message, sender);
-      sendResponse({ success: true });
-      return false; // sync
+      void persistContext(message, sender).then(
+        (success) => sendResponse({ success }),
+        () => sendResponse({ success: false }),
+      );
+      return true;
     }
 
     if (message.type === "REGISTER_VACANCY_CONTEXT") {
@@ -281,15 +356,22 @@ export default defineBackground(() => {
     // Badge click path: call open synchronously while Chrome still associates
     // this message with the user's click. Do not await tab/window lookup.
     if (message.type === "OPEN_SIDE_PANEL") {
-      persistContext(message, sender);
       const tabId = sender.tab?.id;
       const windowId = sender.tab?.windowId;
       const vacancyId = typeof message.vacancyId === "string" ? message.vacancyId : null;
-      if (!tabId || tabId <= 0 || !windowId || windowId <= 0 || !vacancyId) {
+      if (
+        !tabId ||
+        tabId <= 0 ||
+        !windowId ||
+        windowId <= 0 ||
+        !vacancyId ||
+        !isCanonicalHhVacancyReference(vacancyId, sender.tab?.url)
+      ) {
         console.warn("[VacancyPilot] side panel open skipped: sender tab unavailable");
         sendResponse({ success: false, error: "Explicit vacancy tab gesture required" });
         return false;
       }
+      const generation = sessionResetGeneration;
       const context: VacancyContext = {
         tabId,
         windowId,
@@ -299,10 +381,12 @@ export default defineBackground(() => {
       };
       // Keep storage persistence non-blocking so this handler retains the
       // content-script click's user-gesture association.
-      void chrome.storage.session.set({
-        [contextStorageKey(tabId)]: context,
-        [sidePanelBindingStorageKey(windowId)]: { tabId, windowId },
-      });
+      if (generation === sessionResetGeneration) {
+        void chrome.storage.session.set({
+          [contextStorageKey(tabId)]: context,
+          [sidePanelBindingStorageKey(windowId)]: { tabId, windowId },
+        });
+      }
       let openPromise: Promise<void>;
       try {
         openPromise = chrome.sidePanel.open({ tabId });
@@ -333,7 +417,11 @@ export default defineBackground(() => {
 
     if (message.type === "QUICK_SAVE_SEARCH_CARD") {
       const card = message.card as RawSearchItemDTO | undefined;
-      if (!card?.sourceId) {
+      if (
+        !isValidQuickActionCard(card) ||
+        !sender.tab?.url ||
+        !isHhSearchUrl(sender.tab.url)
+      ) {
         sendResponse({ success: false, error: "Invalid search card data" });
         return false;
       }
@@ -350,7 +438,11 @@ export default defineBackground(() => {
 
     if (message.type === "QUICK_REJECT_SEARCH_CARD") {
       const card = message.card as RawSearchItemDTO | undefined;
-      if (!card?.sourceId) {
+      if (
+        !isValidQuickActionCard(card) ||
+        !sender.tab?.url ||
+        !isHhSearchUrl(sender.tab.url)
+      ) {
         sendResponse({ success: false, error: "Invalid search card data" });
         return false;
       }
@@ -420,7 +512,7 @@ export default defineBackground(() => {
 
     if (message.type === "RECORD_VACANCY_VISIT") {
       const sourceId = message.sourceId as string | undefined;
-      if (!sourceId) {
+      if (!sourceId || !isCanonicalHhVacancyReference(sourceId, sender.tab?.url)) {
         sendResponse({ success: false, error: "Missing sourceId" });
         return false;
       }
@@ -435,7 +527,7 @@ export default defineBackground(() => {
 
           const visitMark = await recordVacancyVisit({
             sourceId,
-            sourceUrl: message.sourceUrl as string | undefined,
+            sourceUrl: canonicalizeHhVacancyUrl(sender.tab?.url) ?? undefined,
             title: message.title as string | undefined,
             companyName: message.companyName as string | undefined,
             companyId: message.companyId as string | null | undefined,

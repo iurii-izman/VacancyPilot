@@ -11,10 +11,10 @@ const opsItem = vi.hoisted(() => ({
   authority: "ops" as const,
   vacancy_state: "active" as const,
   vacancy: {
-    vacancy_id: "companion-navigation-001",
-    hh_vacancy_id: "navigation-001",
+    vacancy_id: "12345001",
+    hh_vacancy_id: "12345001",
     source: "hh",
-    source_url: "https://hh.ru/vacancy/navigation-001",
+    source_url: "https://hh.ru/vacancy/12345001",
     title: "Navigation Regression Vacancy",
     company_id: "company-navigation",
     company_name: "Navigation Test Company",
@@ -232,7 +232,7 @@ describe("Application Workspace navigation", () => {
   });
 
   it("opens a direct link for a Companion-only vacancy without creating an application", async () => {
-    window.history.replaceState({}, "", "?vacancyId=remote-001");
+    window.history.replaceState({}, "", "?vacancyId=98765001");
     vi.mocked(detectCompanionStatus).mockResolvedValue({ status: "connected" });
     vi.mocked(getOpsClient).mockReturnValue({
       getOpsWorkItems: vi.fn().mockResolvedValue({
@@ -240,9 +240,9 @@ describe("Application Workspace navigation", () => {
           ...opsItem,
           vacancy: {
             ...opsItem.vacancy,
-            vacancy_id: "companion-vacancy-001",
-            hh_vacancy_id: "remote-001",
-            source_url: "https://hh.ru/vacancy/remote-001",
+            vacancy_id: "12345002",
+            hh_vacancy_id: "98765001",
+            source_url: "https://hh.ru/vacancy/98765001",
             title: "Companion-only Vacancy",
             company_id: "company-remote",
             company_name: "Remote Company",

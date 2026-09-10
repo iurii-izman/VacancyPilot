@@ -13,6 +13,7 @@
  */
 
 import type { AppSettings } from '@/models/settings';
+import { withWriteGuard } from '@/services/reset-guard';
 
 type AIProvider = NonNullable<AppSettings['ai']['provider']>;
 
@@ -30,12 +31,14 @@ export async function saveApiKey(
   provider: AIProvider,
   key: string,
 ): Promise<void> {
-  const trimmed = key.trim();
-  if (trimmed.length === 0) {
-    await chrome.storage.local.remove(storageKey(provider));
-  } else {
-    await chrome.storage.local.set({ [storageKey(provider)]: trimmed });
-  }
+  await withWriteGuard(async () => {
+    const trimmed = key.trim();
+    if (trimmed.length === 0) {
+      await chrome.storage.local.remove(storageKey(provider));
+    } else {
+      await chrome.storage.local.set({ [storageKey(provider)]: trimmed });
+    }
+  });
 }
 
 /**
@@ -62,7 +65,7 @@ export async function hasApiKey(provider: AIProvider): Promise<boolean> {
  * Delete the API key for a specific provider.
  */
 export async function deleteApiKey(provider: AIProvider): Promise<void> {
-  await chrome.storage.local.remove(storageKey(provider));
+  await withWriteGuard(() => chrome.storage.local.remove(storageKey(provider)));
 }
 
 /**
@@ -72,7 +75,7 @@ export async function deleteApiKey(provider: AIProvider): Promise<void> {
 export async function deleteAllApiKeys(): Promise<void> {
   const providers: AIProvider[] = ['openai', 'deepseek', 'openrouter', 'mock'];
   const keys = providers.map((p) => storageKey(p));
-  await chrome.storage.local.remove(keys);
+  await withWriteGuard(() => chrome.storage.local.remove(keys));
 }
 
 /**

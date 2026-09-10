@@ -283,6 +283,7 @@ describe("buildSetSidePanelContext", () => {
       type: "SET_SIDE_PANEL_CONTEXT",
       tabId: 42,
       vacancyId: "12345",
+      url: "https://hh.ru/vacancy/12345",
     });
   });
 

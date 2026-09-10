@@ -88,8 +88,10 @@ export function TrustSafetySummary({
             </li>
             <li>No developer cloud backend or sync service; companion secrets use the OS keyring</li>
             <li>
-              You can export all data (CSV or JSON) and delete everything from
-              Settings → Privacy & Data at any time
+              You can export supported browser-local categories (CSV or JSON)
+              and clear extension-local data from Settings → Privacy & Data at
+              any time. Ops Mode Companion SQLite, keyring secrets, and private
+              engine files are not included or deleted by those browser actions.
             </li>
           </ul>
         </div>

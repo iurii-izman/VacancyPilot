@@ -1,9 +1,10 @@
 # Current State
 
-Reviewed checkout: branch `hotfix/hh-vacancy-hydration-v4-card`, Fix 3
-execution/privacy/concurrency hardening on top of the Fix 2 authoritative Ops
-read-model correction, Pass 3 daily-use UX polish, and Fix 1 transport/mode-
-safety baseline.
+Reviewed checkout: branch `hotfix/hh-vacancy-hydration-v4-card`, Fix 4
+data-lifecycle/local-security hardening on top of the Fix 3
+execution/privacy/concurrency boundary, Fix 2 authoritative Ops read-model
+correction, Pass 3 daily-use UX polish, and Fix 1 transport/mode-safety
+baseline.
 The worktree was clean at audit preflight. This document is the current
 runtime/status snapshot; dated acceptance reports are historical evidence.
 
@@ -139,10 +140,45 @@ compatibility and redaction. The current Dexie schema is v7, with Dexie
 migrations in `src/db/migrations.ts`; Companion schema changes are Alembic
 migrations with one current head.
 
+## Fix 4 data lifecycle and local security
+
+Global reset is an extension-local operation guarded by a process-wide write
+barrier and reset epoch. It drains admitted writes, blocks new writes, clears
+all Dexie tables, clears the extension's `chrome.storage.local` and
+`chrome.storage.session` namespaces, resets Companion client state and restores
+safe Standalone defaults. It does not delete Companion SQLite, OS-keyring
+secrets, the private engine, HH/provider data, browser history/cache or
+passwords. In effective Ops it does not claim to delete the authoritative
+Companion store. Standalone per-vacancy deletion cascades only structurally
+linked local data, removes terminal linked outbox entries, blocks in-flight or
+unknown outcomes, and is refused while Ops is authoritative.
+
+The HH URL policy is centralized: navigation and stored/extracted references
+must be HTTPS, exact `hh.ru`/subdomain authority, numeric `/vacancy/<id>`
+paths, and matching ID/reference pairs; query and fragment values are not
+trusted. Search badges use a closed Shadow DOM with a generic host and no
+page-owned status/score/view state, global style injection, or HH card
+hide/dim mutation. Quick actions require a trusted event and canonical
+extension-owned reference, with background validation and current-tab binding.
+Side Panel context is proved from the current live tab and is cleared on
+navigation/failure rather than accepted from stale storage.
+
+Companion HH sync requires explicit scope, caps each run at 50 profiles and
+2,000 items, refuses duplicates/over-broad requests and single-flights
+identical scopes. Follow-up timestamps validate before persistence. Pre-auth
+rate limiting bounds expensive verification, engine health returns sanitized
+metadata from a short-lived fingerprinted cache, and OAuth state is purged,
+capped and consumed atomically. The runtime no longer persists or reads raw
+provider output; a recognized-path, `--confirm`-gated scrub utility audits
+legacy `engine_runs.raw_output` without printing values.
+
+The complete Fix 4 evidence and exact data-scope contract are in
+[`../development/FIX4_DATA_SECURITY_ACCEPTANCE.md`](../development/FIX4_DATA_SECURITY_ACCEPTANCE.md).
+
 ## Deferred / incomplete
 
 - AOPS-14 Interview Pack: deferred, not started.
-- Fix 4/5 follow-on work, including generated client-contract plumbing and
+- Fix 5 follow-on work, including generated client-contract plumbing and
   broader post-R5 product work, remains deferred.
 - Full canonical AOPS-15 analytics/production pilot: incomplete; only the
   bounded R5 slice is accepted.

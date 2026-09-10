@@ -26,6 +26,7 @@ import {
   buildCardElementMap,
   appendActionButtons,
   clearSearchBadgeRenderState,
+  canRunSearchQuickAction,
 } from "@/services/search-badge-render";
 import type { SearchHighlightControls } from "@/services/search-highlights";
 import type { RawSearchItemDTO } from "@/adapters/types";
@@ -41,12 +42,14 @@ import {
 export default defineContentScript({
   matches: ["https://hh.ru/search/vacancy*", "https://*.hh.ru/search/vacancy*"],
   main() {
+    installResetListener();
     void startSearchBadgeSync();
   },
 });
 
 let searchListObserver: MutationObserver | null = null;
 let searchBadgeRenderGeneration = 0;
+let resetListenerInstalled = false;
 
 const SEARCH_HIGHLIGHTS_DEBUG_OVERLAY_ID = "vp-search-debug-overlay";
 
@@ -66,6 +69,19 @@ async function startSearchBadgeSync(): Promise<void> {
     },
     { once: true },
   );
+}
+
+function installResetListener(): void {
+  if (resetListenerInstalled) return;
+  resetListenerInstalled = true;
+  chrome.runtime.onMessage.addListener((message) => {
+    if (message?.type !== "VACANCYPILOT_RESET") return false;
+    searchBadgeRenderGeneration += 1;
+    searchListObserver?.disconnect();
+    searchListObserver = null;
+    clearSearchBadgeRenderState(document);
+    return false;
+  });
 }
 
 /**
@@ -159,10 +175,7 @@ async function injectSearchBadges(): Promise<void> {
       };
       applySearchCardState(cardEl, state, true);
 
-      if (state.hidden) {
-        hiddenCount += 1;
-        continue;
-      }
+      if (state.hidden) hiddenCount += 1;
 
       const badge = createBadgeHost(card, state, badgeControls);
       if (!badge) {
@@ -174,12 +187,14 @@ async function injectSearchBadges(): Promise<void> {
 
       // Wire click handlers — each sends a message to the background.
       saveBtn.addEventListener("click", (e) => {
+        if (!canRunSearchQuickAction(e, card.sourceId, card.url)) return;
         e.stopPropagation();
         e.preventDefault();
         void handleQuickSave(card);
       });
 
       rejectBtn.addEventListener("click", (e) => {
+        if (!canRunSearchQuickAction(e, card.sourceId, card.url)) return;
         e.stopPropagation();
         e.preventDefault();
         void handleQuickReject(card);

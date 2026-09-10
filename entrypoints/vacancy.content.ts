@@ -1,6 +1,7 @@
 import { defineContentScript } from "wxt/utils/define-content-script";
 import { HHAdapter } from "@/adapters/hh/hh-adapter";
 import { extractVacancyIdFromUrl as extractVacancyIdFromPageUrl } from "@/services/vacancy-context";
+import { canonicalizeHhVacancyUrl } from "@/services/hh-vacancy-url";
 
 export default defineContentScript({
   // Covers vacancy pages plus read-only HR workflow pages.
@@ -64,7 +65,23 @@ function setupRuntimeBridge(): void {
       } catch {
         // Keep the safe "other" result for an unavailable/malformed URL.
       }
-      sendResponse({ success: true, pageKind, vacancyId: vacancyId ?? undefined });
+      sendResponse({
+        success: true,
+        pageKind,
+        vacancyId: vacancyId ?? undefined,
+        url: vacancyId ? canonicalizeHhVacancyUrl(url) : undefined,
+      });
+      return false;
+    }
+
+    if (message.type === "VACANCYPILOT_RESET") {
+      const root = badgeContainer?.getRootNode();
+      const host =
+        root && typeof root === "object" && "host" in root
+          ? (root as { host?: unknown }).host
+          : null;
+      if (host instanceof HTMLElement) host.remove();
+      badgeContainer = null;
       return false;
     }
 
@@ -215,7 +232,7 @@ async function createBadge(): Promise<void> {
   host.style.cssText =
     "position:fixed;top:56px;right:16px;z-index:9000;pointer-events:auto;";
 
-  const shadow = host.attachShadow({ mode: "open" });
+  const shadow = host.attachShadow({ mode: "closed" });
 
   // ── Styles (isolated, no global leakage) ──
   const style = document.createElement("style");

@@ -1,5 +1,6 @@
 import { db } from "./database";
 import { SCHEMA_VERSION } from "./schema";
+import { withWriteGuard } from "@/services/reset-guard";
 
 /**
  * Migration infrastructure.
@@ -33,7 +34,9 @@ export async function getStoredVersion(): Promise<number> {
  * Call this after successful migration to record the version.
  */
 export async function writeCurrentVersion(): Promise<void> {
-  await db.meta.put({ key: META_KEY_VERSION, value: CURRENT_VERSION });
+  await withWriteGuard(() =>
+    db.meta.put({ key: META_KEY_VERSION, value: CURRENT_VERSION }),
+  );
 }
 
 /**

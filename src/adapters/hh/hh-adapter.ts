@@ -17,6 +17,12 @@ import { SELECTORS_V1, SELECTOR_VERSION } from "./selectors-v1";
 import { SEARCH_SELECTORS_V1 } from "./search-selectors-v1";
 import { HR_SELECTORS } from "./hr-selectors";
 import { classifyHrReply } from "@/services/hr-classification";
+import {
+  canonicalizeHhVacancyUrl,
+  extractHhVacancyIdFromHref,
+  extractHhVacancyIdFromUrl,
+  isSupportedHhPageUrl,
+} from "@/services/hh-vacancy-url";
 
 export class HHAdapter implements SiteAdapter {
   readonly siteId = "hh" as const;
@@ -26,14 +32,20 @@ export class HHAdapter implements SiteAdapter {
   matchUrl(url: string): PageKind {
     try {
       const parsed = new URL(url);
-      // Only exact hh.ru or subdomain *.hh.ru — reject lookalikes like evil-hh.ru
-      const host = parsed.hostname;
-      if (host !== "hh.ru" && !host.endsWith(".hh.ru")) return null;
+      if (
+        parsed.protocol !== "https:" ||
+        parsed.username ||
+        parsed.password ||
+        parsed.port ||
+        !isSupportedHhPageUrl(parsed.href)
+      ) {
+        return null;
+      }
 
       const path = parsed.pathname;
 
-      if (/^\/vacancy\/\d+/i.test(path)) return "vacancy";
-      if (/^\/search\/vacancy/i.test(path)) return "search";
+      if (extractHhVacancyIdFromUrl(parsed.href)) return "vacancy";
+      if (/^\/search\/vacancy\/?$/i.test(path)) return "search";
       if (/^\/applicant\/responses/i.test(path)) return "applications";
       if (/^\/applicant\/resumes/i.test(path)) return "applications";
       if (/^\/negotiations/i.test(path)) return "messages";
@@ -49,7 +61,8 @@ export class HHAdapter implements SiteAdapter {
   extractVacancy(doc: Document): RawVacancyDTO | null {
     const warnings: ParserWarning[] = [];
     const now = new Date().toISOString();
-    const sourceUrl = doc.URL;
+    const sourceUrl = canonicalizeHhVacancyUrl(doc.URL);
+    if (!sourceUrl) return null;
 
     // Check that page looks like a vacancy
     if (!this.looksLikeVacancyPage(doc)) {
@@ -507,14 +520,7 @@ export class HHAdapter implements SiteAdapter {
     const href = titleLink?.getAttribute("href") ?? null;
 
     // Resolve relative URL to absolute
-    let fullUrl: string | null = null;
-    if (href) {
-      try {
-        fullUrl = new URL(href, pageUrl).href;
-      } catch {
-        fullUrl = null;
-      }
-    }
+    const fullUrl = canonicalizeHhVacancyUrl(href, pageUrl);
 
     // Extract vacancy ID from href (e.g. /vacancy/12345678?query=...)
     const sourceId = this.extractVacancyIdFromHref(href);
@@ -593,9 +599,7 @@ export class HHAdapter implements SiteAdapter {
    * Extract a numeric vacancy ID from an href like "/vacancy/12345678".
    */
   private extractVacancyIdFromHref(href: string | null): string | null {
-    if (!href) return null;
-    const match = href.match(/\/vacancy\/(\d+)/i);
-    return match ? match[1] : null;
+    return extractHhVacancyIdFromHref(href);
   }
 
   // ── Vacancy page helpers ─────────────────────────────────────
@@ -604,7 +608,7 @@ export class HHAdapter implements SiteAdapter {
     // Require BOTH a vacancy URL AND at least one known HH vacancy DOM marker.
     // This correctly rejects archived/removed vacancy pages that still match
     // the URL pattern but no longer contain vacancy content.
-    const hasVacancyUrl = /\/vacancy\/\d+/i.test(doc.URL);
+    const hasVacancyUrl = Boolean(extractHhVacancyIdFromUrl(doc.URL));
     if (!hasVacancyUrl) return false;
     const hasVacancyTitle = doc.querySelector('[data-qa="vacancy-title"]');
     const hasDescription = doc.querySelector('[data-qa="vacancy-description"]');
@@ -613,12 +617,8 @@ export class HHAdapter implements SiteAdapter {
 
   private extractVacancyId(doc: Document): string | null {
     // Try URL first: https://hh.ru/vacancy/12345678
-    try {
-      const match = doc.URL.match(/\/vacancy\/(\d+)/i);
-      if (match) return match[1];
-    } catch {
-      // fall through to DOM
-    }
+    const fromUrl = extractHhVacancyIdFromUrl(doc.URL);
+    if (fromUrl) return fromUrl;
 
     // Try data attribute
     const el = doc.querySelector("[data-vacancy-id]");

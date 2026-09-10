@@ -121,6 +121,45 @@ in exports. Full V4 Preview retains the ADR-007 one-vacancy read-only hydration
 exception; Application Factory Preview remains fully provider-free and
 side-effect-free.
 
+## Fix 4: data lifecycle and local security boundary
+
+Fix 4 is accepted for the current private local dogfood scope. The exact
+finding-by-finding evidence is in
+[`../FIX4_DATA_SECURITY_ACCEPTANCE.md`](../FIX4_DATA_SECURITY_ACCEPTANCE.md).
+
+- `src/services/reset-guard.ts` drains admitted browser writes and blocks stale
+  writers during destructive reset. `deleteAllData` clears all Dexie tables,
+  the extension's local/session storage namespaces, Companion client state and
+  safe defaults; it deliberately does not touch Companion SQLite, OS keyring,
+  private engine, HH/provider data or browser-global stores.
+- Standalone `deleteJobData` performs a structured cascade across linked
+  applications, letters, events, HR timeline, visits, Labs, AI cache/meta,
+  outbox and Ops cache. It blocks linked in-flight/unknown work and is not an
+  authoritative Ops delete path.
+- HH URLs are canonicalized centrally to HTTPS numeric vacancy references;
+  navigation, tracker, search extraction, visit marks, action messages and
+  Side Panel context use the same boundary. Side Panel authority comes from
+  the current live tab, not stale stored context.
+- Search state is extension-owned in a closed Shadow DOM with a generic host;
+  no HH card hiding/dimming or page-owned score/status/view state is used.
+  Quick actions require trusted events and background validation.
+- Companion sync requires explicit scope, caps 50 profiles and 2,000 items,
+  and single-flights duplicate scopes. Follow-up timestamps are validated
+  before mutation. Pre-auth rate limiting, sanitized cached engine status and
+  bounded/purged OAuth state are covered by companion tests.
+- CSV formula markers are neutralized only for string cells, settings are
+  schema-normalized, and export/delete copy explicitly describes supported
+  browser-local scope. The legacy raw-provider scrubber is dry-run by default,
+  requires `--confirm`, refuses unrecognized stores, and verifies SQLite
+  integrity.
+
+`SEC-SERVER-AUTH-001` remains `ACCEPTED_RISK_WITH_PUBLIC_RELEASE_GATE`: the
+supported Companion is loopback-only and paired/authenticated, but Fix 4 does
+not claim to provide server identity against a malicious local process. Public
+distribution still requires authenticated IPC, pinned local TLS, or an
+equivalent reviewed server-identity mechanism. TLS/mTLS/named-pipe work is not
+part of this pass.
+
 ## Options route truth
 
 `entrypoints/options/App.tsx` defines six normal primary routes: Today,
@@ -180,6 +219,7 @@ pnpm build
 pnpm test:release
 pnpm verify:companion
 pnpm verify:all
+pnpm companion:openapi-check
 ```
 
 `verify:aops-workflow` was retired with the obsolete executor pack. It is not a

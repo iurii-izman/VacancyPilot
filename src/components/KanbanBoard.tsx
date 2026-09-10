@@ -13,6 +13,7 @@ import { ErrorState } from "@/components/ErrorState";
 import type { Job, JobStatus } from "@/models/job";
 import { getOperatingMode } from "@/services/operating-mode";
 import { NATIVE_HH_SUBMISSION_CONFIRMATION } from "@/services/applied-confirmation";
+import { openHhVacancy } from "@/services/hh-navigation";
 
 // ── Kanban column definitions ─────────────────────────────────────────────
 
@@ -252,7 +253,7 @@ export function KanbanBoard(): ReactNode {
   );
 
   const handleOpenVacancy = useCallback((url: string) => {
-    window.open(url, "_blank", "noopener,noreferrer");
+    openHhVacancy(url);
   }, []);
 
   // ── Filtering ──

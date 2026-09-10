@@ -6,6 +6,9 @@ bodies, or any private knowledge content through the health endpoint.
 
 from __future__ import annotations
 
+import time
+from pathlib import Path
+
 from fastapi import APIRouter, Request
 from pydantic import BaseModel, Field
 
@@ -15,6 +18,18 @@ from app.engine.installer import get_active_package
 from app.engine.models import LoadedEnginePackage
 
 router = APIRouter(tags=['engine'])
+
+_ENGINE_STATUS_TTL_SECONDS = 5.0
+_ENGINE_STATUS_ERROR_TTL_SECONDS = 1.0
+_engine_status_cache: dict[tuple[str, int | None, int | None], tuple[float, EngineHealthData]] = {}
+
+
+def _status_fingerprint(current_dir: Path) -> tuple[str, int | None, int | None]:
+    try:
+        stat = current_dir.stat()
+        return (str(current_dir.resolve()), stat.st_mtime_ns, stat.st_size)
+    except OSError:
+        return (str(current_dir.resolve()), None, None)
 
 
 # ── Response models ──────────────────────────────────────────────────────
@@ -92,6 +107,13 @@ async def engine_status(request: Request) -> EngineHealthResponse:
     target_root = resolve_engine_package_root()
     configured = bool(settings.engine_package_root.strip()) or target_root.is_dir()
     current_dir = target_root / 'current'
+    fingerprint = _status_fingerprint(current_dir)
+    cached = _engine_status_cache.get(fingerprint)
+    if cached and cached[0] > time.monotonic():
+        return EngineHealthResponse(
+            data=cached[1],
+            meta=EngineHealthMeta(request_id=request_id),
+        )
 
     package: LoadedEnginePackage | None = None
     last_load_at: str | None = None
@@ -160,21 +182,32 @@ async def engine_status(request: Request) -> EngineHealthResponse:
 
         last_load_at = package.identity.loaded_at
 
+    health_data = EngineHealthData(
+        installed=installed,
+        configured=configured,
+        valid=valid,
+        engine_version=engine_version,
+        package_version=package_version_val,
+        active_count=active_count,
+        aggregate_hash=aggregate_hash,
+        claim_count=claim_count,
+        case_count=case_count,
+        portfolio_count=portfolio_count,
+        validation_error_codes=error_codes,
+        validation_filenames=safe_filenames,
+        last_successful_load_at=last_load_at,
+    )
+    _engine_status_cache[fingerprint] = (
+        time.monotonic()
+        + (_ENGINE_STATUS_ERROR_TTL_SECONDS if load_failed else _ENGINE_STATUS_TTL_SECONDS),
+        health_data,
+    )
+    # Keep the in-memory cache bounded if an operator changes package roots.
+    if len(_engine_status_cache) > 8:
+        oldest = min(_engine_status_cache, key=lambda key: _engine_status_cache[key][0])
+        _engine_status_cache.pop(oldest, None)
+
     return EngineHealthResponse(
-        data=EngineHealthData(
-            installed=installed,
-            configured=configured,
-            valid=valid,
-            engine_version=engine_version,
-            package_version=package_version_val,
-            active_count=active_count,
-            aggregate_hash=aggregate_hash,
-            claim_count=claim_count,
-            case_count=case_count,
-            portfolio_count=portfolio_count,
-            validation_error_codes=error_codes,
-            validation_filenames=safe_filenames,
-            last_successful_load_at=last_load_at,
-        ),
+        data=health_data,
         meta=EngineHealthMeta(request_id=request_id),
     )

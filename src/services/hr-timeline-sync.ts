@@ -3,6 +3,7 @@ import { hrTimelineRepo } from "@/db/hr-timeline-repository";
 import type { Application } from "@/models/application";
 import type { Job, JobStatus } from "@/models/job";
 import type { HrTimelineEntry, RawHrTimelineDTO } from "@/models/hr-timeline";
+import { assertResetWritable, withWriteGuard } from "@/services/reset-guard";
 
 function hashString(value: string): string {
   let hash = 0;
@@ -27,6 +28,7 @@ export async function upsertApplicationFromJob(
   job: Job,
   channel: Application["channel"],
 ): Promise<Application> {
+  assertResetWritable();
   const applications = await db.applications
     .where("jobId")
     .equals(job.id)
@@ -62,7 +64,7 @@ export async function upsertApplicationFromJob(
     updatedAt: now,
   };
 
-  await db.applications.put(application);
+  await withWriteGuard(() => db.applications.put(application));
   return application;
 }
 

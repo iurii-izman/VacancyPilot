@@ -1,6 +1,6 @@
 # Known Risks — VacancyPilot
 
-Status: CURRENT DOGFOOD / PUBLIC-RELEASE RISK REGISTER — reviewed 2026-09-09
+Status: CURRENT DOGFOOD / PUBLIC-RELEASE RISK REGISTER — reviewed 2026-09-10
 Source: release-checklist.md and spec sections 22, 26
 
 This document lists known risks, open decisions and unresolved gaps for the
@@ -129,6 +129,28 @@ accepted before public release; this is not a feature queue.
 
 ---
 
+### SEC-SERVER-AUTH-001 — Companion Server Identity (P1)
+
+**Risk**: Loopback binding and a paired client token constrain the supported
+Companion transport, but they do not prove that the local process answering on
+the loopback port is the intended server against a malicious local process.
+
+**Fix 4 disposition**: `ACCEPTED_RISK_WITH_PUBLIC_RELEASE_GATE`. This is not
+technically fixed in Fix 4. The current private local dogfood assumptions are
+loopback-only binding, no LAN/public bind, client authentication and no
+developer cloud backend.
+
+**Mitigation**: The project-owned launcher rejects non-loopback hosts; pairing
+and protected routes require the client token; pre-auth requests are bounded
+before expensive verification; CORS is constrained; error responses and
+health/engine metadata are sanitized.
+
+**Public-release gate**: Before public distribution, add and review server
+identity through authenticated IPC, pinned local TLS, or an equivalent
+mechanism. TLS/mTLS/named-pipe implementation is intentionally outside Fix 4.
+
+---
+
 ### R9 — Public Release Name/Trademark (P3)
 
 **Risk**: Product name "VacancyPilot" has not been checked against Chrome Web Store, domain availability, trademarks, or existing job-tech products (spec 26.1).
@@ -186,6 +208,7 @@ README and testing guide are current. Onboarding UI exists in the extension.
 | R6 — n8n deferred | P2 | Accepted, pending decision | Go/no-go decision |
 | R7 — AI provider runtime validation | P2 | Implemented, broader live validation pending | Manual QA with real key |
 | R8 — API key storage | P1 | Accepted for personal MVP | Evaluate for public release |
+| SEC-SERVER-AUTH-001 — Companion server identity | P1 | Accepted risk with public-release gate; not technically fixed | Authenticated IPC, pinned local TLS, or equivalent before public release |
 | R9 — Name/trademark | P3 | Not checked | Before public submission |
 | R10 — Manual QA pending | P1 | Initial runtime rerun completed for Phase 1 core | Expand before public release |
 | R11 — Contributor docs gap | P2 | Accepted for private use | Before broader sharing |
@@ -199,6 +222,7 @@ For **private/personal use Phase 1 release**, the following risks are explicitly
 - R2 (22 fixtures instead of 50+)
 - R6 (n8n deferred — PHASE-1-SIGNOFF)
 - R8 (plaintext key storage)
+- SEC-SERVER-AUTH-001 (server identity is a public-release gate; not a private dogfood blocker)
 - R10 (full matrix not yet run — core closeout passed)
 - R11 (contributor onboarding still thin)
 

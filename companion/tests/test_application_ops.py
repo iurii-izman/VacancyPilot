@@ -163,6 +163,27 @@ def test_followup_lifecycle_and_offline_draft(
     assert completed.json()['data']['status'] == 'completed'
 
 
+def test_invalid_followup_due_at_is_rejected_before_persistence(
+    client_with_db: TestClient, db_session: Session
+) -> None:
+    headers = _auth(db_session)
+    app = _application(client_with_db, db_session, headers)
+    response = client_with_db.post(
+        '/api/v1/followups',
+        json={
+            'application_id': app['id'],
+            'reason': 'invalid-time',
+            'due_at': '2026-09-02T00:00:00',
+        },
+        headers=headers,
+    )
+    assert response.status_code == 422
+    assert response.json()['error']['code'] == 'VALIDATION_ERROR'
+    listed = client_with_db.get('/api/v1/followups', headers=headers)
+    assert listed.status_code == 200
+    assert listed.json()['meta']['total'] == 0
+
+
 def test_followup_state_filters_apply_before_pagination(
     client_with_db: TestClient, db_session: Session
 ) -> None:

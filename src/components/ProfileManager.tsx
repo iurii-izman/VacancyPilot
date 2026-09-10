@@ -13,6 +13,7 @@ import {
 } from "@/db/repositories";
 import { db } from "@/db/database";
 import { loadSettings, saveSettings } from "@/db/settings-bridge";
+import { withWriteGuard } from "@/services/reset-guard";
 import type { Profile, SeniorityLevel } from "@/models/profile";
 import { SENIORITY_LEVELS } from "@/models/profile";
 import type { AppSettings } from "@/models/settings";
@@ -321,7 +322,7 @@ export function ProfileManager(): ReactNode {
           if (app.profileId === id) {
             app.profileId = undefined;
             app.updatedAt = new Date().toISOString();
-            await db.applications.put(app);
+            await withWriteGuard(() => db.applications.put(app));
           }
         }
 

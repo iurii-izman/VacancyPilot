@@ -271,6 +271,7 @@ export async function generateCoverLetterAiDraft(
       promptVersion: currentPlan.promptVersion,
       providerPlanHash: currentPlan.providerPlanHash,
       letter: bodyText,
+      jobId: jobId ?? prepared.request.jobId,
     });
   }
 

@@ -83,11 +83,14 @@ const defaultSidePanelOpenDeps: SidePanelOpenDeps = {
     await chrome.sidePanel.open({ windowId });
   },
   sendContext(pageInfo: PageStatusInfo): void {
-    void chrome.windows
-      .getCurrent({ populate: false })
-      .then((currentWindow) =>
+    void Promise.all([
+      chrome.windows.getCurrent({ populate: false }),
+      chrome.tabs.query({ active: true, currentWindow: true }),
+    ])
+      .then(([currentWindow, [activeTab]]) =>
         chrome.runtime.sendMessage({
           ...buildSetSidePanelContext(pageInfo),
+          tabId: pageInfo.kind === "vacancy" ? pageInfo.tabId : activeTab?.id,
           windowId: currentWindow.id,
         }),
       )
@@ -686,12 +689,14 @@ export function buildSetSidePanelContext(pageInfo: PageStatusInfo): {
   tabId?: number;
   windowId?: number;
   vacancyId?: string;
+  url?: string;
 } {
   if (pageInfo.kind === "vacancy") {
     return {
       type: "SET_SIDE_PANEL_CONTEXT",
       tabId: pageInfo.tabId,
       vacancyId: pageInfo.vacancyId,
+      url: pageInfo.url,
     };
   }
 

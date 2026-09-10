@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
@@ -153,6 +153,11 @@ class CreateFollowUpRequest(BaseModel):
     due_at: str | None = Field(default=None, max_length=64)
     draft_text: str | None = Field(default=None, max_length=10000)
 
+    @field_validator('due_at')
+    @classmethod
+    def normalize_due_at(cls, value: str | None) -> str | None:
+        return _normalize_due_at(value)
+
 
 class UpdateFollowUpRequest(BaseModel):
     model_config = ConfigDict(extra='forbid')
@@ -165,10 +170,27 @@ class UpdateFollowUpRequest(BaseModel):
     draft_text: str | None = Field(default=None, max_length=10000)
     sent_confirmation: bool = False
 
+    @field_validator('due_at')
+    @classmethod
+    def normalize_due_at(cls, value: str | None) -> str | None:
+        return _normalize_due_at(value)
+
 
 class GenerateFollowUpRequest(BaseModel):
     model_config = ConfigDict(extra='forbid')
     expected_revision: int = Field(ge=1)
+
+
+def _normalize_due_at(value: str | None) -> str | None:
+    if value is None:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace('Z', '+00:00'))
+    except ValueError as error:
+        raise ValueError('due_at must be ISO-8601') from error
+    if parsed.tzinfo is None:
+        raise ValueError('due_at must include a timezone')
+    return parsed.astimezone(UTC).isoformat().replace('+00:00', 'Z')
 
 
 def _application_data(app: Application, vacancy: Vacancy | None) -> ApplicationData:
@@ -520,11 +542,6 @@ def create_followup(
     session = _require_db(db)
     if session.get(Application, body.application_id) is None:
         raise HTTPException(status_code=404, detail='Application not found')
-    if body.due_at:
-        try:
-            datetime.fromisoformat(body.due_at.replace('Z', '+00:00'))
-        except ValueError as error:
-            raise HTTPException(status_code=422, detail='due_at must be ISO-8601') from error
     if idempotency_key:
         existing = session.execute(
             select(FollowUp).where(FollowUp.idempotency_key == idempotency_key)

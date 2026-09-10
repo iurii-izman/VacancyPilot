@@ -1,5 +1,6 @@
 import { db } from "./database";
 import type { HrTimelineEntry } from "@/models/hr-timeline";
+import { withWriteGuard } from "@/services/reset-guard";
 
 /**
  * Thin CRUD helpers for HR Timeline entries.
@@ -25,13 +26,13 @@ export const hrTimelineRepo = {
   getById: (id: string) => db.hrTimeline.get(id),
 
   /** Insert or update an entry (upsert by id). */
-  save: (entry: HrTimelineEntry) => db.hrTimeline.put(entry),
+  save: (entry: HrTimelineEntry) => withWriteGuard(() => db.hrTimeline.put(entry)),
 
   /** Bulk save — useful for importing parsed entries. */
-  bulkSave: (entries: HrTimelineEntry[]) => db.hrTimeline.bulkPut(entries),
+  bulkSave: (entries: HrTimelineEntry[]) => withWriteGuard(() => db.hrTimeline.bulkPut(entries)),
 
   /** Delete a single entry. */
-  delete: (id: string) => db.hrTimeline.delete(id),
+  delete: (id: string) => withWriteGuard(() => db.hrTimeline.delete(id)),
 
   /** Count entries for an application. */
   countByApplication: (applicationId: string) =>

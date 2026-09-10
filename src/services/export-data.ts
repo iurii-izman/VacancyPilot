@@ -37,7 +37,26 @@ function redactSettingsForExport(settings: AppSettings): AppSettings {
 /** Quote a CSV cell — wraps in quotes and escapes inner quotes. */
 function csvCell(value: unknown): string {
   if (value === null || value === undefined) return "";
-  const s = typeof value === "string" ? value : JSON.stringify(value);
+  let s = typeof value === "string" ? value : JSON.stringify(value);
+  // Excel/Sheets formula injection is possible when a user-controlled text
+  // cell begins with a formula marker, including after leading whitespace or
+  // control characters. Keep typed numeric values numeric; only neutralize
+  // strings.
+  let firstContentIndex = 0;
+  while (
+    typeof value === "string" &&
+    firstContentIndex < s.length &&
+    (s.charCodeAt(firstContentIndex) <= 0x20 ||
+      /\s/u.test(s[firstContentIndex] ?? ""))
+  ) {
+    firstContentIndex += 1;
+  }
+  if (
+    typeof value === "string" &&
+    "=+-@".includes(s[firstContentIndex] ?? "")
+  ) {
+    s = `'${s}`;
+  }
   if (
     s.includes(",") ||
     s.includes('"') ||

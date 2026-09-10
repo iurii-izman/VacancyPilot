@@ -39,6 +39,7 @@ class HHOAuthService:
     TOKEN_URL = 'https://api.hh.ru/token'
     REDIRECT_URI = 'http://127.0.0.1:8765/api/v1/hh/auth/callback'
     PENDING_TTL = 300
+    MAX_PENDING_STATES = 128
     CLOCK: Callable[[], float] = time.time
 
     def __init__(
@@ -76,7 +77,12 @@ class HHOAuthService:
         self._require_app_config()
         state = secrets.token_urlsafe(32)
         verifier = secrets.token_urlsafe(64)
-        self._pending[state] = PendingOAuth(state, verifier, self._clock() + self.PENDING_TTL)
+        now = self._clock()
+        with self._lock:
+            self._purge_pending_locked(now)
+            if len(self._pending) >= self.MAX_PENDING_STATES:
+                raise HHApiError('HH_OAUTH_STATE_LIMIT')
+            self._pending[state] = PendingOAuth(state, verifier, now + self.PENDING_TTL)
         query = urlencode(
             {
                 'response_type': 'code',
@@ -94,8 +100,11 @@ class HHOAuthService:
         }
 
     def callback(self, *, state: str, code: str) -> dict[str, Any]:
-        pending = self._pending.pop(state, None)
-        if pending is None or pending.expires_at <= self._clock():
+        now = self._clock()
+        with self._lock:
+            self._purge_pending_locked(now)
+            pending = self._pending.pop(state, None)
+        if pending is None:
             raise HHApiError('HH_OAUTH_STATE_INVALID')
         if not code or len(code) > 4096:
             raise HHApiError('HH_OAUTH_CODE_INVALID')
@@ -154,6 +163,11 @@ class HHOAuthService:
                 'HH_OAUTH_APP_CREDENTIALS_REQUIRED',
             )
         return secret
+
+    def _purge_pending_locked(self, now: float) -> None:
+        for state, pending in list(self._pending.items()):
+            if pending.expires_at <= now:
+                self._pending.pop(state, None)
 
     @staticmethod
     def _require_app_config() -> None:

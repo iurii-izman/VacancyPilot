@@ -17,6 +17,7 @@
 
 import { db, type AIBudgetReservation, type AIExecutionCoordination } from "@/db/database";
 import { loadSettings } from "@/db/settings-bridge";
+import { withWriteGuard } from "./reset-guard";
 import { createEventLogEntry } from "./event-log-helper";
 
 // ── Token estimation ────────────────────────────────────────────────────
@@ -267,24 +268,25 @@ export async function reserveAiProviderAttempt(params: {
   providerPlanHash: string;
   dailyRequestLimit: number;
 }): Promise<AiProviderAttemptReservation> {
-  if (!hasCoordinationTables()) {
-    throw new AiExecutionError(
-      "AI_COORDINATION_UNAVAILABLE",
-      "AI execution coordination is unavailable; the provider call was not started.",
-    );
-  }
+  return withWriteGuard(async () => {
+    if (!hasCoordinationTables()) {
+      throw new AiExecutionError(
+        "AI_COORDINATION_UNAVAILABLE",
+        "AI execution coordination is unavailable; the provider call was not started.",
+      );
+    }
 
   const limit = Math.max(0, Math.floor(params.dailyRequestLimit));
   const dayKey = currentDayKey();
   const now = new Date().toISOString();
   const ownerToken = makeId("owner");
 
-  return db.transaction(
-    "rw",
-    db.aiExecution,
-    db.aiBudget,
-    db.events,
-    async () => {
+    return db.transaction(
+      "rw",
+      db.aiExecution,
+      db.aiBudget,
+      db.events,
+      async () => {
       const existing = await db.aiExecution.get(params.operationKey);
 
       if (existing) {
@@ -380,17 +382,19 @@ export async function reserveAiProviderAttempt(params: {
         attemptNumber,
         dayKey,
       };
-    },
-  );
+      },
+    );
+  });
 }
 
 /** Release only a reservation for which no provider dispatch occurred. */
 export async function releaseAiAttemptBeforeDispatch(
   reservation: AiProviderAttemptReservation,
 ): Promise<void> {
-  if (!hasCoordinationTables()) return;
-  const now = new Date().toISOString();
-  await db.transaction("rw", db.aiExecution, db.aiBudget, async () => {
+  await withWriteGuard(async () => {
+    if (!hasCoordinationTables()) return;
+    const now = new Date().toISOString();
+    await db.transaction("rw", db.aiExecution, db.aiBudget, async () => {
     const execution = await db.aiExecution.get(reservation.operationKey);
     const attempt = await db.aiBudget.get(reservation.reservationId);
     if (!execution || !attempt) return;
@@ -409,6 +413,7 @@ export async function releaseAiAttemptBeforeDispatch(
       state: "failed_before_dispatch",
       updatedAt: now,
     });
+    });
   });
 }
 
@@ -417,8 +422,9 @@ export async function completeAiProviderExecution(
   reservation: AiProviderAttemptReservation,
   runId?: string,
 ): Promise<void> {
-  if (!hasCoordinationTables()) return;
-  await db.transaction("rw", db.aiExecution, db.aiBudget, async () => {
+  await withWriteGuard(async () => {
+    if (!hasCoordinationTables()) return;
+    await db.transaction("rw", db.aiExecution, db.aiBudget, async () => {
     const execution = await db.aiExecution.get(reservation.operationKey);
     const attempt = await db.aiBudget.get(reservation.reservationId);
     if (!execution || !attempt || execution.ownerToken !== reservation.ownerToken) {
@@ -433,6 +439,7 @@ export async function completeAiProviderExecution(
       runId: runId ?? execution.runId,
       updatedAt: new Date().toISOString(),
     });
+    });
   });
 }
 
@@ -440,8 +447,9 @@ export async function completeAiProviderExecution(
 export async function markAiProviderOutcomeUnknown(
   reservation: AiProviderAttemptReservation,
 ): Promise<void> {
-  if (!hasCoordinationTables()) return;
-  await db.transaction("rw", db.aiExecution, db.aiBudget, async () => {
+  await withWriteGuard(async () => {
+    if (!hasCoordinationTables()) return;
+    await db.transaction("rw", db.aiExecution, db.aiBudget, async () => {
     const execution = await db.aiExecution.get(reservation.operationKey);
     const attempt = await db.aiBudget.get(reservation.reservationId);
     if (!execution || !attempt || execution.ownerToken !== reservation.ownerToken) {
@@ -454,6 +462,7 @@ export async function markAiProviderOutcomeUnknown(
       ...execution,
       state: "outcome_unknown",
       updatedAt: new Date().toISOString(),
+    });
     });
   });
 }
@@ -561,11 +570,13 @@ export async function recordAiRequest(
   kind: AiRequestKind,
   jobId?: string,
 ): Promise<string> {
-  const entry = createEventLogEntry(eventTypeForKind(kind), {
-    jobId,
-    coordinationVersion: FIX3_COORDINATION_VERSION,
-    recordedAt: new Date().toISOString(),
+  return withWriteGuard(async () => {
+    const entry = createEventLogEntry(eventTypeForKind(kind), {
+      jobId,
+      coordinationVersion: FIX3_COORDINATION_VERSION,
+      recordedAt: new Date().toISOString(),
+    });
+    await db.events.put(entry);
+    return entry.id;
   });
-  await db.events.put(entry);
-  return entry.id;
 }

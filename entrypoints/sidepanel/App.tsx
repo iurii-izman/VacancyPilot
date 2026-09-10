@@ -81,6 +81,11 @@ interface HrExtractionResponse {
   error?: string;
 }
 
+function buildOptionsInboxUrl(vacancyId: string): string | null {
+  if (!/^\d+$/.test(vacancyId)) return null;
+  return `${chrome.runtime.getURL("options.html")}?vacancyId=${encodeURIComponent(vacancyId)}#inbox`;
+}
+
 /** Read Side Panel Ops state from Companion without constructing a local Job. */
 export async function readOpsSidePanelProjection(
   sourceVacancyId: string,
@@ -670,8 +675,10 @@ function OverviewTab({ ctx }: { ctx: VacancyContext }): ReactNode {
 
   const sourceVacancyId = job.sourceVacancyId || job.id.replace(/^hh_/, "");
   const openApplicationCard = () => {
+    const url = buildOptionsInboxUrl(sourceVacancyId);
+    if (!url) return;
     void chrome.tabs.create({
-      url: `${chrome.runtime.getURL("options.html")}?vacancyId=${encodeURIComponent(sourceVacancyId)}#inbox`,
+      url,
     });
   };
 
@@ -879,8 +886,10 @@ function OpsOverviewTab({ ctx }: { ctx: VacancyContext }): ReactNode {
   const vacancy = item.vacancy;
   const badge = statusBadgeStyle(item.application_state);
   const openApplicationCard = () => {
+    const url = buildOptionsInboxUrl(vacancy.hh_vacancy_id);
+    if (!url) return;
     void chrome.tabs.create({
-      url: `${chrome.runtime.getURL("options.html")}?vacancyId=${encodeURIComponent(vacancy.hh_vacancy_id)}#inbox`,
+      url,
     });
   };
   const salary = vacancy.salary_min !== null || vacancy.salary_max !== null

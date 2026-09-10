@@ -28,6 +28,7 @@ import { LoadingState } from "@/components/LoadingState";
 import type { HrTimelineEntry, HrReplyType } from "@/models/hr-timeline";
 import type { Application } from "@/models/application";
 import type { Job } from "@/models/job";
+import { assertResetWritable, getResetEpoch, isResetInProgress, withWriteGuard } from "@/services/reset-guard";
 
 // ── Props ──────────────────────────────────────────────────────────
 
@@ -113,13 +114,34 @@ export function HrWorkspace({
   const draftStorageKey = `hr_draft_v1_${jobId}`;
   const draftSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  useEffect(() => {
+    const onReset = (message: { type?: string }) => {
+      if (message?.type !== "VACANCYPILOT_RESET") return false;
+      if (draftSaveTimer.current) clearTimeout(draftSaveTimer.current);
+      draftSaveTimer.current = null;
+      setApplication(null);
+      setTimeline([]);
+      setFollowUpDate("");
+      setNotes("");
+      setDraftReply("");
+      setLoading(false);
+      return false;
+    };
+    chrome.runtime.onMessage.addListener(onReset);
+    return () => chrome.runtime.onMessage.removeListener(onReset);
+  }, []);
+
   // ── Load data ──────────────────────────────────────────────────
 
   const loadData = useCallback(async () => {
+    const loadEpoch = getResetEpoch();
+    const isCurrentLoad = () =>
+      !isResetInProgress() && loadEpoch === getResetEpoch();
     setLoading(true);
     try {
       // Find application for this job
       const apps = await db.applications.where("jobId").equals(jobId).toArray();
+      if (!isCurrentLoad()) return;
       apps.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 
       const app = apps[0] ?? null;
@@ -128,6 +150,7 @@ export function HrWorkspace({
       if (app) {
         // Load HR timeline entries
         const entries = await hrTimelineRepo.listByApplication(app.id);
+        if (!isCurrentLoad()) return;
         setTimeline(entries);
 
         // Restore draft/saved state
@@ -137,6 +160,7 @@ export function HrWorkspace({
         // Restore reply draft from chrome.storage.local
         try {
           const stored = await chrome.storage.local.get(draftStorageKey);
+          if (!isCurrentLoad()) return;
           const savedDraft = stored[draftStorageKey] as string | undefined;
           setDraftReply(savedDraft ?? "");
         } catch {
@@ -151,9 +175,9 @@ export function HrWorkspace({
       }
     } catch {
       // Silently handle load errors
-      setDraftReply("");
+      if (isCurrentLoad()) setDraftReply("");
     } finally {
-      setLoading(false);
+      if (isCurrentLoad()) setLoading(false);
     }
   }, [jobId, draftStorageKey]);
 
@@ -165,7 +189,9 @@ export function HrWorkspace({
 
   useEffect(() => {
     if (draftSaveTimer.current) clearTimeout(draftSaveTimer.current);
+    const epoch = getResetEpoch();
     draftSaveTimer.current = setTimeout(() => {
+      if (isResetInProgress() || epoch !== getResetEpoch()) return;
       void chrome.storage.local.set({ [draftStorageKey]: draftReply });
     }, 500);
     return () => {
@@ -197,7 +223,7 @@ export function HrWorkspace({
           updatedAt: new Date().toISOString(),
         };
 
-        await db.applications.put(updated);
+        await withWriteGuard(() => db.applications.put(updated));
         setApplication(updated);
         setSaveStatus("Saved ✓");
         setTimeout(() => setSaveStatus(null), 2000);
@@ -223,6 +249,7 @@ export function HrWorkspace({
           isRead: true,
           updatedAt: new Date().toISOString(),
         };
+        assertResetWritable();
         await hrTimelineRepo.save(updated);
         setTimeline((prev) =>
           prev.map((e) => (e.id === entryId ? updated : e)),
@@ -302,7 +329,7 @@ export function HrWorkspace({
 
       await Promise.all([
         jobRepo.save(updatedJob),
-        db.applications.put(updatedApplication),
+        withWriteGuard(() => db.applications.put(updatedApplication)),
       ]);
       setApplication(updatedApplication);
       onRefresh();

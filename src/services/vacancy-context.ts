@@ -1,3 +1,5 @@
+import { extractHhVacancyIdFromUrl } from "./hh-vacancy-url";
+
 export type VacancyPageKind = "vacancy";
 
 export interface VacancyContext {
@@ -11,9 +13,7 @@ export interface VacancyContext {
 export const VACANCY_CONTEXT_MAX_AGE_MS = 15_000;
 
 export function extractVacancyIdFromUrl(url: string | undefined): string | null {
-  if (!url) return null;
-  const match = url.match(/^https:\/\/(?:hh\.ru|[a-z0-9-]+\.hh\.ru)\/vacancy\/(\d+)(?:[/?#]|$)/i);
-  return match?.[1] ?? null;
+  return extractHhVacancyIdFromUrl(url);
 }
 
 export function isFreshVacancyContext(

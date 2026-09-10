@@ -127,6 +127,12 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException) 
         'PROVIDER_NOT_READY': 'The configured provider is not ready; no provider call was made',
         'PROVIDER_OPERATION_COMPLETE': 'This semantic provider operation has already completed',
         'PROVIDER_RESULT_UNAVAILABLE': 'The completed provider result is unavailable',
+        'HH_SYNC_SCOPE_AMBIGUOUS': 'Choose either explicit profiles or all enabled profiles',
+        'HH_SYNC_SCOPE_REQUIRED': 'An explicit sync scope is required',
+        'HH_SYNC_SCOPE_DUPLICATE': 'A sync profile may be selected only once',
+        'HH_PROFILE_SCOPE_INVALID': 'One or more selected profiles are unavailable or disabled',
+        'HH_SYNC_PROFILE_LIMIT': 'The selected sync scope exceeds the local profile limit',
+        'HH_SYNC_IN_PROGRESS': 'An identical sync scope is already running',
     }
     if isinstance(exc.detail, str) and exc.detail in fix3_messages:
         error_code, message = exc.detail, fix3_messages[exc.detail]

@@ -4,6 +4,7 @@ import type { Profile } from "@/models/profile";
 import type { Resume } from "@/models/resume";
 import type { CoverLetter } from "@/models/cover-letter";
 import type { VisitMark } from "@/models/visit-mark";
+import { withWriteGuard } from "@/services/reset-guard";
 
 /**
  * Thin CRUD helpers for key domain entities.
@@ -20,12 +21,12 @@ export const jobRepo = {
   getById: (id: string) => db.jobs.get(id as Job["id"]),
 
   /** Insert or update a job (upsert by id). */
-  save: (job: Job) => db.jobs.put(job),
+  save: (job: Job) => withWriteGuard(() => db.jobs.put(job)),
 
   /** Bulk upsert — useful for import/search triage. */
-  bulkSave: (jobs: Job[]) => db.jobs.bulkPut(jobs),
+  bulkSave: (jobs: Job[]) => withWriteGuard(() => db.jobs.bulkPut(jobs)),
 
-  delete: (id: string) => db.jobs.delete(id as Job["id"]),
+  delete: (id: string) => withWriteGuard(() => db.jobs.delete(id as Job["id"])),
 
   /** Count jobs by status. */
   countByStatus: (status: string) =>
@@ -54,9 +55,9 @@ export const profileRepo = {
 
   getById: (id: string) => db.profiles.get(id as Profile["id"]),
 
-  save: (profile: Profile) => db.profiles.put(profile),
+  save: (profile: Profile) => withWriteGuard(() => db.profiles.put(profile)),
 
-  delete: (id: string) => db.profiles.delete(id as Profile["id"]),
+  delete: (id: string) => withWriteGuard(() => db.profiles.delete(id as Profile["id"])),
 };
 
 // ---- Resume repository ----
@@ -70,9 +71,9 @@ export const resumeRepo = {
   listByProfile: (profileId: string) =>
     db.resumes.where("profileId").equals(profileId).toArray(),
 
-  save: (resume: Resume) => db.resumes.put(resume),
+  save: (resume: Resume) => withWriteGuard(() => db.resumes.put(resume)),
 
-  delete: (id: string) => db.resumes.delete(id as Resume["id"]),
+  delete: (id: string) => withWriteGuard(() => db.resumes.delete(id as Resume["id"])),
 };
 
 // ---- Cover Letter repository ----
@@ -86,10 +87,10 @@ export const coverLetterRepo = {
   getById: (id: string) => db.coverLetters.get(id as CoverLetter["id"]),
 
   /** Insert or update a cover letter (upsert by id). */
-  save: (letter: CoverLetter) => db.coverLetters.put(letter),
+  save: (letter: CoverLetter) => withWriteGuard(() => db.coverLetters.put(letter)),
 
   /** Delete a letter by id. */
-  delete: (id: string) => db.coverLetters.delete(id as CoverLetter["id"]),
+  delete: (id: string) => withWriteGuard(() => db.coverLetters.delete(id as CoverLetter["id"])),
 };
 
 // ---- Visit Mark repository ----
@@ -105,14 +106,16 @@ export const visitMarkRepo = {
       .equals(["hh", sourceId])
       .first(),
 
-  save: (mark: VisitMark) => db.visitMarks.put(mark),
+  save: (mark: VisitMark) => withWriteGuard(() => db.visitMarks.put(mark)),
 
-  delete: (id: string) => db.visitMarks.delete(id as VisitMark["id"]),
+  delete: (id: string) => withWriteGuard(() => db.visitMarks.delete(id as VisitMark["id"])),
 
   deleteBySourceId: async (sourceId: string) => {
-    const existing = await visitMarkRepo.findBySourceId(sourceId);
-    if (!existing) return 0;
-    await db.visitMarks.delete(existing.id);
-    return 1;
+    return withWriteGuard(async () => {
+      const existing = await visitMarkRepo.findBySourceId(sourceId);
+      if (!existing) return 0;
+      await db.visitMarks.delete(existing.id);
+      return 1;
+    });
   },
 };

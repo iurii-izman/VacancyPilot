@@ -41,7 +41,9 @@ backend capabilities.
 
 ADR-001 covers the loopback Companion, ADR-002 storage authority, ADR-003 the
 generated OpenAPI source, ADR-004 the read-only HH boundary, ADR-005 private V4
-placement, and ADR-006 the opt-in AI/provider boundary.
+placement, ADR-006 the opt-in AI/provider boundary, and ADR-009 records the
+Fix 4 Companion server-identity risk accepted for private dogfood with a hard
+public-release gate.
 
 Older AOPS acceptance and recovery reports are historical snapshots. They may
 mention commands, versions or routes that no longer describe the current

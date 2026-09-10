@@ -101,14 +101,16 @@ def _add_security_test_route(app: FastAPI) -> None:
 def reset_security_state() -> Generator[None, None, None]:
     """Keep module-level security state isolated between focused tests."""
     from app.api.pairing import _pairing_limiter
-    from app.security.auth import _protected_limiter
+    from app.security.auth import _preauth_limiter, _protected_limiter
     from app.security.pairing import get_pairing_service
 
     _pairing_limiter.reset()
+    _preauth_limiter.reset()
     _protected_limiter.reset()
     get_pairing_service()._challenges.clear()
     yield
     _pairing_limiter.reset()
+    _preauth_limiter.reset()
     _protected_limiter.reset()
     get_pairing_service()._challenges.clear()
 

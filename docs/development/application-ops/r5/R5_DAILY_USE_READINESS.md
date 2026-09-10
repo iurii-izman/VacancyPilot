@@ -1,6 +1,6 @@
 # R5 Daily-Use Readiness
 
-Status: `R5 bounded synthetic QA PASS; Fix 3 execution/privacy/concurrency PASS`;
+Status: `R5 bounded synthetic QA PASS; Fix 3 execution/privacy/concurrency PASS; Fix 4 data-security PASS`;
 no new live-provider V4 acceptance after the current vacancy hydration/card
 hotfix line
 FEATURE DEVELOPMENT: `FROZEN`
@@ -19,6 +19,8 @@ MODE: `REAL DAILY USE / DOGFOOD`
 - Preview the Application Factory session before execution.
 - Confirm that the private local engine metadata is valid; the current local
   package is `4.0.1`. Public `4.0.0` fixtures are synthetic compatibility data.
+- Treat extension reset/export as browser-local controls: they do not delete
+  Companion SQLite, OS-keyring secrets or the private engine.
 
 ## Daily workflow
 
@@ -60,6 +62,13 @@ Guided Apply's preparation checklist never marks Applied, and its final local
 mutation remains unavailable in Ops. Fix 2 changes read authority only; it does
 not add an Ops write path.
 
+Fix 4 keeps the browser boundary explicit during daily use: vacancy links are
+canonical HTTPS HH references, the Side Panel trusts the current live tab, and
+the search badge is extension-owned and isolated from HH card state. Companion
+sync requires explicit scope and is bounded to 50 profiles and 2,000 items per
+run. Duplicate scopes are single-flighted; malformed follow-up timestamps are
+rejected before persistence.
+
 ## Daily-use UI cues
 
 Today, Discovery, Inbox, Pipeline, Candidate and Settings remain the only
@@ -79,6 +88,8 @@ state, and multiple Applications or follow-ups are retained rather than
 arbitrarily selected. Refreshing Ops does not update Standalone Dexie domain
 tables. Fix 3 execution, privacy, and concurrency findings are closed by the
 shared plan/receipt/coordination boundary and the standalone Dexie ledger.
+The Fix 4 acceptance report records the exact reset, export, legacy raw-output
+audit and public-release server-identity boundary.
 
 ## Immediate hotfix criteria
 
