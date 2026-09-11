@@ -325,6 +325,19 @@ class TestSecretSlots:
         """OSKeyring implements the abstract KeyringBackend."""
         assert isinstance(OSKeyring(), KeyringBackend)
 
+    def test_os_keyring_read_is_empty_without_backend(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A headless runner treats an unavailable backend as unconfigured."""
+        import keyring
+
+        def fail_get_password(service: str, username: str) -> None:
+            del service, username
+            raise keyring.errors.NoKeyringError('test backend unavailable')
+
+        monkeypatch.setattr(keyring, 'get_password', fail_get_password)
+        assert OSKeyring().get_secret(SecretSlot.AI_KEY) is None
+
 
 # ── Pairing: client token and code generation ───────────────────────────
 

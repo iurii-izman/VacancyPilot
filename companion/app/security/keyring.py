@@ -75,7 +75,13 @@ class OSKeyring(KeyringBackend):
     def get_secret(self, secret_name: str) -> str | None:
         import keyring
 
-        return keyring.get_password(self._SERVICE_NAME, secret_name)
+        try:
+            return keyring.get_password(self._SERVICE_NAME, secret_name)
+        except keyring.errors.NoKeyringError:
+            # Headless environments may not expose a credential-store
+            # backend.  A read is then equivalent to an unconfigured slot;
+            # writes still fail closed instead of falling back to plaintext.
+            return None
 
     def set_secret(self, secret_name: str, secret_value: str) -> None:
         import keyring
