@@ -254,8 +254,21 @@ class HHOAuthService:
         return bool(self._access_token and self._expires_at > self._clock())
 
 
-_oauth_service = HHOAuthService()
+_oauth_service: HHOAuthService | None = None
+_oauth_service_lock = threading.Lock()
 
 
 def get_oauth_service() -> HHOAuthService:
+    """Return the process-local OAuth service, creating it on first use.
+
+    Importing the API package must not require an available OS keyring.  The
+    service restores credentials only when an HH operation actually needs it;
+    this keeps contract generation and other provider-free tooling usable in
+    headless environments while preserving OS-keyring storage at runtime.
+    """
+    global _oauth_service
+    if _oauth_service is None:
+        with _oauth_service_lock:
+            if _oauth_service is None:
+                _oauth_service = HHOAuthService()
     return _oauth_service
