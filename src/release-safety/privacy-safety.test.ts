@@ -23,29 +23,22 @@ function makeSettings(overrides?: Partial<AppSettings>): AppSettings {
   return {
     schemaVersion: 1,
     general: {
-      language: "ru",
-      theme: "system",
       showPageBadge: true,
       trackVisitMarks: true,
       rejectedSearchCardBehavior: "dim",
-      autosaveViewedJobs: true,
       toolbarClickBehavior: "popup",
       closePopupAfterOpeningSidePanel: true,
     },
     privacy: {
       aiEnabled: true,
-      n8nEnabled: false,
       strictPrivacyMode: false,
-      showPayloadPreviewAlways: false,
       allowResumeHighlightsToAI: true,
       allowFullDescriptionToAI: true,
       redactContacts: true,
-      debugHtmlMode: false,
     },
     ai: {
       dailyRequestLimit: 20,
       maxInputChars: 5000,
-      enableStreaming: false,
       enableCache: false,
     },
     n8n: {
@@ -239,13 +232,10 @@ describe("privacy safety — AI input builders", () => {
       const settings = makeSettings({
         privacy: {
           aiEnabled: true,
-          n8nEnabled: false,
           strictPrivacyMode: false,
-          showPayloadPreviewAlways: false,
           allowResumeHighlightsToAI: true,
           allowFullDescriptionToAI: true,
           redactContacts: true,
-          debugHtmlMode: false,
         },
       });
 
@@ -266,13 +256,10 @@ describe("privacy safety — AI input builders", () => {
       const settings = makeSettings({
         privacy: {
           aiEnabled: true,
-          n8nEnabled: false,
           strictPrivacyMode: true,
-          showPayloadPreviewAlways: false,
           allowResumeHighlightsToAI: true,
           allowFullDescriptionToAI: false,
           redactContacts: true,
-          debugHtmlMode: false,
         },
       });
 
@@ -290,13 +277,10 @@ describe("privacy safety — AI input builders", () => {
       const settings = makeSettings({
         privacy: {
           aiEnabled: true,
-          n8nEnabled: false,
           strictPrivacyMode: true,
-          showPayloadPreviewAlways: false,
           allowResumeHighlightsToAI: true,
           allowFullDescriptionToAI: false,
           redactContacts: true,
-          debugHtmlMode: false,
         },
       });
 
@@ -311,13 +295,10 @@ describe("privacy safety — AI input builders", () => {
       const settings = makeSettings({
         privacy: {
           aiEnabled: true,
-          n8nEnabled: false,
           strictPrivacyMode: true,
-          showPayloadPreviewAlways: false,
           allowResumeHighlightsToAI: true,
           allowFullDescriptionToAI: false,
           redactContacts: true,
-          debugHtmlMode: false,
         },
       });
 

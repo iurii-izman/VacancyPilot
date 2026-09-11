@@ -12,8 +12,10 @@ import { OnboardingSection } from "@/components/OnboardingSection";
 import { PermissionsSection } from "@/components/PermissionsSection";
 import { PrivacyDisclosureSection } from "@/components/PrivacyDisclosureSection";
 import { CompanionSettings } from "@/components/CompanionSettings";
-import { CommandCenter, ApplicationWorkspace } from "@/components/ApplicationOpsWorkspace";
+import { HHIntegrationSection } from "@/components/HHIntegrationSection";
+import { TodayWorkspace, ApplicationWorkspace, OpsPipelineWorkspace } from "@/components/ApplicationOpsWorkspace";
 import { PerformanceSection } from "@/components/PerformanceSection";
+import { capabilityMessage, getOpsCapabilities, type OpsCapabilities } from "@/services/ops-capabilities";
 import { useState, useCallback, useEffect, type ReactNode } from "react";
 import {
   colors,
@@ -26,6 +28,11 @@ import {
   appSubtitle,
   headerBar,
   scrollArea,
+  pageTitle,
+  pageIntro,
+  tabListStyle,
+  tabButtonStyle,
+  secondaryButton,
 } from "@/styles";
 
 import {
@@ -41,36 +48,39 @@ import {
   getDataCounts,
 } from "@/services/delete-all";
 import { getActionLog, getRemainingDailyBudget } from "@/services/labs-control";
-import { getReminders, getDailySummary } from "@/services/reminders";
-import type {
-  ReminderItem,
-  DailySummary as DailySummaryType,
-} from "@/services/reminders";
 import { loadSettings, saveSettings } from "@/db/settings-bridge";
+import { getOperatingMode } from "@/services/operating-mode";
 import { db, ensureMigrationsBootstrapped } from "@/db";
 import type { JobStatus } from "@/models/job";
 import type { LabsActionLog } from "@/models/labs-action-log";
 
-type SectionId =
-  | "command"
+export type SectionId =
+  | "today"
+  | "discovery"
   | "inbox"
-  | "vacancies"
-  | "summary"
-  | "applications"
-  | "companies"
-  | "profiles"
-  | "resumes"
-  | "letters"
-  | "events"
-  | "labs"
-  | "export"
+  | "pipeline"
+  | "candidate"
   | "settings"
+  | "onboarding"
+  ;
+
+export type SettingsTab =
+  | "general"
+  | "companion"
+  | "ai"
   | "privacy"
   | "permissions"
-  | "companion"
   | "about"
-  | "onboarding"
-  | "debug";
+  | "advanced";
+
+export type CandidateTab = "profile" | "resume";
+
+export interface RouteState {
+  section: SectionId;
+  settingsTab?: SettingsTab;
+  candidateTab?: CandidateTab;
+  pipelineTab?: "board" | "performance";
+}
 
 interface SectionDef {
   id: SectionId;
@@ -83,47 +93,77 @@ interface SectionGroup {
   sections: SectionDef[];
 }
 
-const SECTION_GROUPS: SectionGroup[] = [
+export const SECTION_GROUPS: SectionGroup[] = [
   {
     label: "Work",
     sections: [
-      { id: "command", label: "Command Center", icon: "🎯" },
+      { id: "today", label: "Today", icon: "🎯" },
+      { id: "discovery", label: "Discovery", icon: "🔎" },
       { id: "inbox", label: "Inbox", icon: "📥" },
-      { id: "vacancies", label: "Vacancies", icon: "📋" },
-      { id: "summary", label: "Summary", icon: "📊" },
-      { id: "applications", label: "Applications", icon: "📨" },
-      { id: "companies", label: "Companies", icon: "🏢" },
+      { id: "pipeline", label: "Pipeline", icon: "📋" },
     ],
   },
   {
     label: "Profile",
-    sections: [
-      { id: "profiles", label: "Profiles", icon: "👤" },
-      { id: "resumes", label: "Resumes", icon: "📄" },
-      { id: "letters", label: "Letters", icon: "✉️" },
-    ],
+    sections: [{ id: "candidate", label: "Candidate", icon: "👤" }],
   },
   {
     label: "System",
-    sections: [
-      { id: "export", label: "Export", icon: "📦" },
-      { id: "settings", label: "Settings", icon: "⚙️" },
-      { id: "privacy", label: "Privacy", icon: "🔒" },
-      { id: "permissions", label: "Permissions", icon: "🔑" },
-      { id: "companion", label: "Companion", icon: "🖥️" },
-      { id: "about", label: "About", icon: "ℹ️" },
-    ],
-  },
-  {
-    label: "Advanced",
-    sections: [
-      { id: "labs", label: "Labs", icon: "🧪" },
-      { id: "events", label: "Events", icon: "📜" },
-      { id: "debug", label: "Debug", icon: "🛠️" },
-      { id: "onboarding", label: "Onboarding", icon: "🚀" },
-    ],
+    sections: [{ id: "settings", label: "Settings", icon: "⚙️" }],
   },
 ];
+
+const LEGACY_ROUTES: Record<string, RouteState> = {
+  command: { section: "today" },
+  applications: { section: "inbox" },
+  vacancies: { section: "pipeline" },
+  summary: { section: "pipeline", pipelineTab: "performance" },
+  profiles: { section: "candidate", candidateTab: "profile" },
+  resumes: { section: "candidate", candidateTab: "resume" },
+  letters: { section: "inbox" },
+  companies: { section: "inbox" },
+  export: { section: "settings", settingsTab: "privacy" },
+  privacy: { section: "settings", settingsTab: "privacy" },
+  permissions: { section: "settings", settingsTab: "permissions" },
+  companion: { section: "settings", settingsTab: "companion" },
+  about: { section: "settings", settingsTab: "about" },
+  labs: { section: "settings", settingsTab: "advanced" },
+  events: { section: "settings", settingsTab: "advanced" },
+  debug: { section: "settings", settingsTab: "advanced" },
+  onboarding: { section: "onboarding" },
+};
+
+export function resolveHash(hash: string): RouteState {
+  const raw = hash.replace(/^#/, "");
+  const [route, queryString = ""] = raw.split("?");
+  const legacy = LEGACY_ROUTES[route];
+  if (legacy) return legacy;
+  if (route === "pipeline" && new URLSearchParams(queryString).get("view") === "performance") {
+    return { section: "pipeline", pipelineTab: "performance" };
+  }
+  if (route === "candidate" && new URLSearchParams(queryString).get("view") === "resume") {
+    return { section: "candidate", candidateTab: "resume" };
+  }
+  if (route === "candidate") return { section: "candidate", candidateTab: "profile" };
+  if (route === "settings") {
+    const tab = new URLSearchParams(queryString).get("tab") as SettingsTab | null;
+    const validTabs: SettingsTab[] = ["general", "companion", "ai", "privacy", "permissions", "about", "advanced"];
+    return { section: "settings", settingsTab: tab && validTabs.includes(tab) ? tab : "general" };
+  }
+  const supportedRoutes = new Set(SECTION_GROUPS.flatMap((group) => group.sections.map((section) => section.id)));
+  return supportedRoutes.has(route as SectionId) ? { section: route as SectionId } : { section: "today" };
+}
+
+export function getInitialSectionFromHash(hash: string): SectionId {
+  return resolveHash(hash).section;
+}
+
+function routeToHash(route: RouteState): string {
+  if (route.section === "pipeline" && route.pipelineTab === "performance") return "#pipeline?view=performance";
+  if (route.section === "candidate" && route.candidateTab === "resume") return "#candidate?view=resume";
+  if (route.section === "settings" && route.settingsTab && route.settingsTab !== "general") return `#settings?tab=${route.settingsTab}`;
+  return `#${route.section}`;
+}
 
 // Flattened navigation structure with group labels
 
@@ -140,44 +180,63 @@ function useWindowWidth(): number {
 }
 
 function DashboardContent(): ReactNode {
-  const [activeSection, setActiveSection] = useState<SectionId>(() => {
-    // If opened via onInstalled or with #onboarding hash, show onboarding first.
-    if (
-      typeof window !== "undefined" &&
-      window.location.hash === "#onboarding"
-    ) {
-      // Clear the hash so back/forward navigation works normally.
-      window.history.replaceState(null, "", window.location.pathname);
-      return "onboarding";
-    }
-    return "command";
-  });
+  const [route, setRoute] = useState<RouteState>(() =>
+    typeof window === "undefined" ? { section: "today" } : resolveHash(window.location.hash),
+  );
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const windowWidth = useWindowWidth();
 
   useEffect(() => {
+    const syncRoute = () => setRoute(resolveHash(window.location.hash));
     const navigate = (event: Event) => {
       const target = (event as CustomEvent<SectionId>).detail;
-      if (target === "inbox" || target === "vacancies") setActiveSection(target);
+      if (target === "inbox" || target === "pipeline" || target === "today") {
+        navigateTo({ section: target });
+      }
     };
     window.addEventListener("vacancypilot:navigate", navigate);
-    return () => window.removeEventListener("vacancypilot:navigate", navigate);
+    window.addEventListener("hashchange", syncRoute);
+    window.addEventListener("popstate", syncRoute);
+    return () => {
+      window.removeEventListener("vacancypilot:navigate", navigate);
+      window.removeEventListener("hashchange", syncRoute);
+      window.removeEventListener("popstate", syncRoute);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || route.section === "onboarding") return;
+    const canonicalHash = routeToHash(route);
+    if (window.location.hash !== canonicalHash) {
+      const url = new URL(window.location.href);
+      url.hash = canonicalHash;
+      window.history.replaceState(null, "", url);
+    }
+  }, [route]);
+
+  const navigateTo = useCallback((nextRoute: RouteState) => {
+    setRoute(nextRoute);
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.hash = routeToHash(nextRoute);
+      window.history.pushState(null, "", url);
+    }
   }, []);
 
   const handleSectionClick = useCallback(
     (section: SectionId) => {
-      setActiveSection(section);
+      navigateTo({ section });
       // Auto-collapse sidebar on narrow widths after selection
       if (windowWidth < 760) setSidebarCollapsed(true);
     },
-    [windowWidth],
+    [navigateTo, windowWidth],
   );
 
   // Responsive breakpoints (per audit P0-04):
   //   >= 1000: full sidebar with labels (200px)
-  //   760-999: compact icon-only sidebar (56px)
+  //   860-999: compact icon-only sidebar (56px)
   //   < 760:   compact collapsible (56px, can be hidden)
-  const sidebarFull = windowWidth >= 1000;
+  const sidebarFull = windowWidth >= 860;
   const sidebarNarrow = windowWidth < 760;
   const showLabels = sidebarFull;
 
@@ -256,7 +315,7 @@ function DashboardContent(): ReactNode {
           {showLabels ? (
             <>
               <h1 style={appTitle}>VacancyPilot</h1>
-              <p style={appSubtitle}>Dashboard</p>
+              <p style={appSubtitle}>Local workspace</p>
             </>
           ) : (
             <h1 style={{ ...appTitle, fontSize: fontSizes.cardHeading }}>VP</h1>
@@ -304,19 +363,19 @@ function DashboardContent(): ReactNode {
                         cursor: "pointer",
                         border: "none",
                         borderLeft:
-                          activeSection === section.id
+                          route.section === section.id
                             ? `3px solid ${colors.blue}`
                             : "3px solid transparent",
                         background:
-                          activeSection === section.id
+                          route.section === section.id
                             ? colors.activeBg
                             : "transparent",
                         color:
-                          activeSection === section.id
+                          route.section === section.id
                             ? colors.blue
                             : colors.textSecondary,
                         fontWeight:
-                          activeSection === section.id
+                          route.section === section.id
                             ? fontWeights.semibold
                             : fontWeights.normal,
                         textAlign: "left",
@@ -346,7 +405,11 @@ function DashboardContent(): ReactNode {
           background: colors.white,
         }}
       >
-        <SectionContent section={activeSection} />
+        <SectionContent
+          section={route.section}
+          route={route}
+          onNavigate={navigateTo}
+        />
       </main>
     </div>
   );
@@ -420,83 +483,151 @@ export function formatShortDate(iso: string): string {
   }
 }
 
-export function SectionContent({ section }: { section: SectionId }): ReactNode {
+export function SectionContent({
+  section,
+  route = { section },
+  onNavigate,
+}: {
+  section: SectionId;
+  route?: RouteState;
+  onNavigate?: (route: RouteState) => void;
+}): ReactNode {
   switch (section) {
-    case "command":
-      return <CommandCenter onNavigate={(target) => window.dispatchEvent(new CustomEvent("vacancypilot:navigate", { detail: target }))} />;
+    case "today":
+      return <TodayWorkspace onNavigate={(target) => onNavigate?.({ section: target })} />;
+    case "discovery":
+      return <DiscoveryWorkspace onNavigate={onNavigate} />;
     case "inbox":
-      return <ApplicationWorkspace />;
-    case "vacancies":
-      return <KanbanBoard />;
-    case "summary":
-      return <PerformanceSection />;
-    case "applications":
-      return <ApplicationWorkspace />;
-    case "companies":
-      return (
-        <EmptyState
-          icon="🏢"
-          message="No companies yet"
-          description="Companies are created automatically from saved vacancies."
-        />
-      );
-    case "profiles":
-      return <ProfileManager />;
-    case "resumes":
-      return <ResumeManager />;
-    case "letters":
-      return (
-        <EmptyState
-          icon="✉️"
-          message="No cover letters yet"
-          description="Generate cover letters from the side panel on a vacancy page."
-        />
-      );
-    case "events":
-      return (
-        <EmptyState
-          icon="📜"
-          message="No events yet"
-          description="Activity log will appear as you use the extension."
-        />
-      );
-    case "labs":
-      return <LabsSection />;
-    case "export":
-      return <ExportSection />;
+      return <ApplicationWorkspace onNavigate={() => onNavigate?.({ section: "discovery" })} />;
+    case "pipeline":
+      return <PipelineWorkspace initialTab={route.pipelineTab} onTabChange={(pipelineTab) => onNavigate?.({ section: "pipeline", pipelineTab })} />;
+    case "candidate":
+      return <CandidateWorkspace initialTab={route.candidateTab} onTabChange={(candidateTab) => onNavigate?.({ section: "candidate", candidateTab })} />;
     case "settings":
-      return (
-        <>
-          <AISettingsSection />
-          <div style={{ height: 24 }} />
-          <SearchHighlightsSection />
-        </>
-      );
-    case "privacy":
-      return (
-        <>
-          <PrivacyDisclosureSection />
-          <div style={{ height: 24 }} />
-          <PrivacySection />
-        </>
-      );
-    case "permissions":
-      return <PermissionsSection />;
-    case "companion":
-      return <CompanionSettings />;
-    case "about":
-      return <AboutSection />;
+      return <SettingsWorkspace initialTab={route.settingsTab} onOpenOnboarding={() => onNavigate?.({ section: "onboarding" })} onTabChange={(settingsTab) => onNavigate?.({ section: "settings", settingsTab })} />;
     case "onboarding":
-      return <OnboardingSection />;
-    case "debug":
-      return (
-        <EmptyState
-          icon="🛠️"
-          message="Debug tools"
-          description="Parser debug mode, raw HTML inspection, and local logs."
-        />
-      );
+      return <OnboardingSection onComplete={() => onNavigate?.({ section: "today" })} />;
   }
+}
+
+export function DiscoveryWorkspace({ onNavigate }: { onNavigate?: (route: RouteState) => void }): ReactNode {
+  const [capabilities, setCapabilities] = useState<OpsCapabilities | null>(null);
+  useEffect(() => {
+    void getOpsCapabilities().then(setCapabilities).catch(() => setCapabilities(null));
+  }, []);
+  return (
+    <section aria-labelledby="discovery-title">
+      <h2 id="discovery-title" style={pageTitle}>Discovery</h2>
+      <p style={pageIntro}>
+        Find and review HH.ru vacancies through the connected local Companion. Search and sync never submit applications or messages.
+      </p>
+      {capabilities?.canUseSearchProfiles ? (
+        <HHIntegrationSection />
+      ) : (
+        <EmptyState
+          icon="🔎"
+          message="Discovery requires Ops Mode and a connected Companion"
+          description={capabilities ? capabilityMessage("search-profiles", capabilities) : "Checking the local Companion connection…"}
+          actionLabel="Open Companion settings"
+          onAction={() => onNavigate?.({ section: "settings", settingsTab: "companion" })}
+        />
+      )}
+    </section>
+  );
+}
+
+export function PipelineWorkspace({
+  initialTab = "board",
+  onTabChange,
+}: {
+  initialTab?: "board" | "performance";
+  onTabChange?: (tab: "board" | "performance") => void;
+}): ReactNode {
+  const [capabilities, setCapabilities] = useState<OpsCapabilities | null>(null);
+  useEffect(() => {
+    void getOpsCapabilities().then(setCapabilities).catch(() => setCapabilities(null));
+  }, []);
+  if (capabilities === null) return <LoadingState message="Loading Pipeline…" />;
+  const opsMode = capabilities.mode.effectiveMode === "ops";
+  return (
+    <section aria-labelledby="pipeline-title">
+      <h2 id="pipeline-title" style={pageTitle}>Pipeline</h2>
+      <p style={pageIntro}>{opsMode ? "Ops Mode summaries from the connected Companion." : "Standalone Mode application status board."}</p>
+      <div role="tablist" aria-label="Pipeline views" style={tabListStyle}>
+        {(["board", "performance"] as const).map((tab) => (
+          <button key={tab} type="button" role="tab" aria-selected={(initialTab ?? "board") === tab} onClick={() => onTabChange?.(tab)} style={tabButtonStyle((initialTab ?? "board") === tab)}>
+            {tab === "board" ? "Board" : "Performance"}
+          </button>
+        ))}
+      </div>
+      {opsMode ? (
+        initialTab === "performance" && capabilities.canUseOpsAnalytics ? <PerformanceSection /> : initialTab === "performance" ? <EmptyState icon="📊" message="Ops analytics is unavailable" description={capabilityMessage("ops-analytics", capabilities)} /> : <OpsPipelineWorkspace />
+      ) : (
+        initialTab === "performance" ? <EmptyState icon="📊" message="Performance is Ops-only" description={capabilityMessage("ops-analytics", capabilities)} /> : <KanbanBoard />
+      )}
+    </section>
+  );
+}
+
+export function CandidateWorkspace({
+  initialTab = "profile",
+  onTabChange,
+}: {
+  initialTab?: CandidateTab;
+  onTabChange?: (tab: CandidateTab) => void;
+}): ReactNode {
+  return (
+    <section aria-labelledby="candidate-title">
+      <h2 id="candidate-title" style={pageTitle}>Candidate</h2>
+      <p style={pageIntro}>Profile and Resume support Standalone scoring and letter workflows. Ops Full V4 uses separate private local candidate evidence; Search Profiles live in Discovery.</p>
+      <div role="tablist" aria-label="Candidate views" style={tabListStyle}>
+        {(["profile", "resume"] as const).map((tab) => (
+          <button key={tab} type="button" role="tab" aria-selected={initialTab === tab} onClick={() => onTabChange?.(tab)} style={tabButtonStyle(initialTab === tab)}>
+            {tab === "profile" ? "Profile" : "Resume"}
+          </button>
+        ))}
+      </div>
+      {initialTab === "resume" ? <ResumeManager /> : <ProfileManager />}
+    </section>
+  );
+}
+
+export function SettingsWorkspace({
+  initialTab = "general",
+  onOpenOnboarding,
+  onTabChange,
+}: {
+  initialTab?: SettingsTab;
+  onOpenOnboarding?: () => void;
+  onTabChange?: (tab: SettingsTab) => void;
+}): ReactNode {
+  const tabs: Array<[SettingsTab, string]> = [
+    ["general", "General"],
+    ["companion", "Companion & HH"],
+    ["ai", "AI"],
+    ["privacy", "Privacy & Data"],
+    ["permissions", "Permissions"],
+    ["about", "About"],
+    ["advanced", "Advanced"],
+  ];
+  return (
+    <section aria-labelledby="settings-title">
+      <h2 id="settings-title" style={pageTitle}>Settings</h2>
+      <p style={pageIntro}>Local preferences, Companion & HH setup, privacy controls, and safe diagnostics in one place.</p>
+      <div role="tablist" aria-label="Settings views" style={tabListStyle}>
+        {tabs.map(([tab, label]) => (
+          <button key={tab} type="button" role="tab" aria-selected={initialTab === tab} onClick={() => onTabChange?.(tab)} style={tabButtonStyle(initialTab === tab)}>{label}</button>
+        ))}
+      </div>
+      {initialTab === "general" && <SearchHighlightsSection />}
+      {initialTab === "companion" && <CompanionSettings />}
+      {initialTab === "ai" && <AISettingsSection />}
+      {initialTab === "privacy" && <><PrivacyDisclosureSection /><div style={{ height: 24 }} /><ExportSection /><div style={{ height: 24 }} /><PrivacySection /></>}
+      {initialTab === "permissions" && <PermissionsSection />}
+      {initialTab === "about" && <><AboutSection /><div style={{ height: 16 }} /><button type="button" onClick={onOpenOnboarding} style={secondaryButton}>Run setup guide again</button></>}
+      {initialTab === "advanced" && <><LabsSection /><div style={{ height: 16 }} /><button type="button" onClick={onOpenOnboarding} style={secondaryButton}>Run setup guide again</button></>}
+    </section>
+  );
 }
 
 // ── Export Section ───────────────────────────────────────────────────────
@@ -544,8 +675,9 @@ function ExportSection(): ReactNode {
         Export Your Data
       </h2>
       <p style={{ margin: "0 0 16px", fontSize: 12, color: "#666" }}>
-        Download your vacancies, cover letters, settings, and event history. API
-        keys and secrets are never included in exports.
+        Download supported browser-local vacancy, profile, letter, settings, and
+        event categories. API keys, secrets, execution-control state, and
+        Companion SQLite/keyring/private-engine data are never included.
       </p>
 
       {errorMsg && (
@@ -571,8 +703,8 @@ function ExportSection(): ReactNode {
             JSON Export
           </h3>
           <p style={{ fontSize: 11, color: "#888", margin: "0 0 12px" }}>
-            Full data archive with version envelope — suitable for backup,
-            migration, or import into another VacancyPilot instance.
+            Versioned browser-local data export for inspection or user-managed
+            backup. It is not a complete Companion backup or import package.
           </p>
           <button
             type="button"
@@ -611,9 +743,9 @@ function ExportSection(): ReactNode {
           <h3 style={{ fontSize: 14, fontWeight: 600, margin: "0 0 4px" }}>
             CSV Export — Jobs
           </h3>
-          <p style={{ fontSize: 11, color: "#888", margin: "0 0 12px" }}>
-            Spreadsheet-friendly job history with scores, statuses, and
-            timestamps. Opens in Excel, Google Sheets, or any CSV viewer.
+            <p style={{ fontSize: 11, color: "#888", margin: "0 0 12px" }}>
+            Browser-local job history with scores, statuses, and timestamps.
+            Formula-like text is neutralized for spreadsheet safety.
           </p>
           <button
             type="button"
@@ -666,6 +798,7 @@ function PrivacySection(): ReactNode {
   const [cacheDeleteStatus, setCacheDeleteStatus] =
     useState<InlineActionStatus>("idle");
   const [cacheDeleteMessage, setCacheDeleteMessage] = useState("");
+  const [effectiveMode, setEffectiveMode] = useState<"standalone" | "ops">("standalone");
 
   const refreshCounts = useCallback(async () => {
     try {
@@ -681,6 +814,10 @@ function PrivacySection(): ReactNode {
       void refreshCounts();
     }
   }, [refreshCounts, step]);
+
+  useEffect(() => {
+    void getOperatingMode().then((mode) => setEffectiveMode(mode.effectiveMode)).catch(() => setEffectiveMode("standalone"));
+  }, []);
 
   const totalRows = Object.values(dataCounts).reduce((a, b) => a + b, 0);
   const hasAnyData = totalRows > 0;
@@ -774,7 +911,10 @@ function PrivacySection(): ReactNode {
           marginBottom: 16,
         }}
       >
-        <div
+        {effectiveMode === "ops" ? <div style={{ padding: 16, border: "1px solid #e0e0e0", borderRadius: 8, background: "#fafafa" }}>
+          <h3 style={{ fontSize: 14, fontWeight: 600, margin: "0 0 4px" }}>Delete One Job</h3>
+          <p style={{ fontSize: 12, color: "#666", margin: 0 }}>Per-vacancy deletion is unavailable while Ops Mode is authoritative. Use Companion/SQLite lifecycle controls; this page can still clear browser-local data globally.</p>
+        </div> : <div
           style={{
             padding: 16,
             border: "1px solid #e0e0e0",
@@ -852,7 +992,7 @@ function PrivacySection(): ReactNode {
               {jobDeleteMessage}
             </p>
           )}
-        </div>
+        </div>}
 
         <div
           style={{
@@ -990,9 +1130,9 @@ function PrivacySection(): ReactNode {
         {step === "warn-export" && (
           <>
             <p style={{ fontSize: 12, color: "#666", margin: "0 0 12px" }}>
-              ⚠️ You are about to permanently delete all your VacancyPilot data.
-              This includes vacancies, cover letters, profiles, settings, and
-              event history.
+              ⚠️ You are about to permanently delete this extension&apos;s
+              browser-local data. This includes vacancies, cover letters,
+              profiles, settings, and event history.
             </p>
             <p style={{ fontSize: 12, color: "#666", margin: "0 0 12px" }}>
               We strongly recommend exporting your data first from the
@@ -1038,8 +1178,9 @@ function PrivacySection(): ReactNode {
           <>
             <p style={{ fontSize: 12, color: "#666", margin: "0 0 12px" }}>
               🔴 Final confirmation: this action{" "}
-              <strong>cannot be undone</strong>. All local data will be wiped
-              immediately.
+              <strong>cannot be undone</strong>. All extension-local browser
+              data will be wiped immediately. In Ops Mode, Companion SQLite,
+              keyring secrets, and private engine files are not modified.
             </p>
             <div style={{ display: "flex", gap: 8 }}>
               <button
@@ -1086,7 +1227,8 @@ function PrivacySection(): ReactNode {
         {step === "done" && (
           <>
             <p style={{ fontSize: 12, color: "#2a8", margin: "0 0 8px" }}>
-              All VacancyPilot data has been deleted from this browser.
+              All VacancyPilot extension data has been deleted from this browser.
+              Companion data, if present, was not modified.
             </p>
             <button
               type="button"
@@ -1171,253 +1313,6 @@ const dangerPrimaryButtonStyle = {
   color: "#fff",
   fontWeight: 700,
 } as const;
-
-// ── Summary Section ──
-
-// Kept for backwards-compatible source-level deep links; the visible Summary
-// entry now intentionally renders the consolidated Command Center.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function SummarySection(): ReactNode {
-  const [summary, setSummary] = useState<DailySummaryType | null>(null);
-  const [reminders, setReminders] = useState<ReminderItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    try {
-      const jobs = await db.jobs.toArray();
-      setSummary(getDailySummary(jobs));
-      setReminders(getReminders(jobs));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load summary");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  useEffect(() => {
-    const handleStorageChange = (
-      changes: Record<string, chrome.storage.StorageChange>,
-      areaName: string,
-    ) => {
-      if (areaName !== "local") return;
-      const relevantChange = Object.keys(changes).some(
-        (key) => key.startsWith("badge_v1_hh_") || key === "app_settings_v1",
-      );
-      if (relevantChange) void load();
-    };
-    chrome.storage.onChanged.addListener(handleStorageChange);
-    return () => {
-      chrome.storage.onChanged.removeListener(handleStorageChange);
-    };
-  }, [load]);
-
-  if (loading) return <LoadingState />;
-  if (error)
-    return (
-      <ErrorState
-        message="Failed to load summary"
-        details={error}
-        onRetry={() => {
-          setError(null);
-          setLoading(true);
-          void load();
-        }}
-      />
-    );
-
-  if (!summary || summary.totalTracked === 0)
-    return (
-      <EmptyState
-        icon="📊"
-        message="No data yet"
-        description="Start saving vacancies to see your daily summary here."
-      />
-    );
-
-  const statBox = (label: string, value: number, color: string) => (
-    <div
-      style={{
-        flex: 1,
-        minWidth: 100,
-        padding: "12px",
-        background: "#fafafa",
-        border: `1px solid ${color}30`,
-        borderRadius: 6,
-        textAlign: "center",
-      }}
-    >
-      <div style={{ fontSize: 22, fontWeight: 700, color }}>{value}</div>
-      <div style={{ fontSize: 11, color: "#999", marginTop: 2 }}>{label}</div>
-    </div>
-  );
-
-  return (
-    <div>
-      <h2
-        style={{
-          fontSize: 16,
-          fontWeight: 700,
-          margin: "0 0 4px",
-          color: "#1a3a5c",
-        }}
-      >
-        Daily Summary
-      </h2>
-      <p style={{ fontSize: 11, color: "#999", margin: "0 0 16px" }}>
-        Generated {summary.generatedAt.slice(0, 16).replace("T", " ")}
-      </p>
-
-      {/* Stats row */}
-      <div
-        style={{
-          display: "flex",
-          gap: 8,
-          flexWrap: "wrap",
-          marginBottom: 20,
-        }}
-      >
-        {statBox("Tracked", summary.totalTracked, "#4a90d9")}
-        {statBox("Active", summary.activeCount, "#e6a817")}
-        {statBox("New this week", summary.newThisWeek, "#2a8")}
-        {statBox("Applied this week", summary.appliedThisWeek, "#2a8")}
-        {statBox("Needs follow-up", summary.needsFollowUp, "#c44")}
-      </div>
-
-      {/* Reminders */}
-      {reminders.length > 0 && (
-        <div style={{ marginBottom: 20 }}>
-          <h3
-            style={{
-              fontSize: 14,
-              fontWeight: 700,
-              margin: "0 0 8px",
-              color: "#1a3a5c",
-            }}
-          >
-            🔔 Follow-up Reminders ({reminders.length})
-          </h3>
-          {reminders.map((r) => (
-            <div
-              key={r.jobId}
-              style={{
-                padding: "8px 10px",
-                background: "#fff",
-                border: "1px solid #f0e0e0",
-                borderLeft: "3px solid #c44",
-                borderRadius: 4,
-                marginBottom: 6,
-                fontSize: 12,
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
-                <a
-                  href={r.sourceUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    fontWeight: 600,
-                    color: "#4a90d9",
-                    textDecoration: "none",
-                  }}
-                >
-                  {r.title}
-                </a>
-                <span
-                  style={{
-                    fontSize: 10,
-                    color: "#999",
-                  }}
-                >
-                  {r.daysSince}d ago
-                </span>
-              </div>
-              <div style={{ color: "#666", marginTop: 2 }}>{r.companyName}</div>
-              <div style={{ color: "#c44", fontSize: 10, marginTop: 2 }}>
-                ⚠ {r.label}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {reminders.length === 0 && (
-        <div
-          style={{
-            padding: "12px",
-            background: "#e6f7e6",
-            border: "1px solid #2a8",
-            borderRadius: 6,
-            fontSize: 12,
-            color: "#2a8",
-            marginBottom: 20,
-          }}
-        >
-          ✅ All caught up! No follow-ups needed right now.
-        </div>
-      )}
-
-      {/* Recent Activity */}
-      {summary.recentActivity.length > 0 && (
-        <div>
-          <h3
-            style={{
-              fontSize: 14,
-              fontWeight: 700,
-              margin: "0 0 8px",
-              color: "#1a3a5c",
-            }}
-          >
-            📜 Recent Activity
-          </h3>
-          {summary.recentActivity.map((evt, i) => (
-            <div
-              key={`${evt.jobId}-${evt.changedAt}-${i}`}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "4px 0",
-                borderBottom: "1px solid #f5f5f5",
-                fontSize: 11,
-              }}
-            >
-              <span
-                style={{
-                  display: "inline-block",
-                  padding: "1px 5px",
-                  borderRadius: 3,
-                  fontSize: 10,
-                  fontWeight: 600,
-                  background: "#e6f0ff",
-                  color: "#4a90d9",
-                }}
-              >
-                {evt.status.replace(/_/g, " ")}
-              </span>
-              <span style={{ color: "#333", flex: 1 }}>
-                {evt.title} · {evt.companyName}
-              </span>
-              <span style={{ color: "#999" }}>
-                {evt.daysAgo === 0 ? "today" : `${evt.daysAgo}d ago`}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 // ── Labs Section ──
 
@@ -1877,7 +1772,7 @@ export default function App(): ReactNode {
   }, []);
 
   return (
-    <ErrorBoundary rootLabel="Dashboard">
+    <ErrorBoundary rootLabel="VacancyPilot">
       {dbError ? (
         <ErrorState
           message="Failed to initialize local data"

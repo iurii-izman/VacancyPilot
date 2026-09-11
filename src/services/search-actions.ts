@@ -17,8 +17,40 @@ import { jobRepo } from "@/db/repositories";
 import { tracker } from "./tracker";
 import { recomputeScoreForJob } from "./score-recompute";
 import { persistBadgeState } from "./badge-state";
+import {
+  canonicalizeHhVacancyUrl,
+  isCanonicalHhVacancyReference,
+} from "./hh-vacancy-url";
 
 const SOURCE_HH = "hh";
+
+/** Validate the complete untrusted message payload before local mutation. */
+export function isValidQuickActionCard(
+  value: unknown,
+): value is RawSearchItemDTO {
+  if (!value || typeof value !== "object") return false;
+  const card = value as Partial<RawSearchItemDTO>;
+  if (
+    typeof card.sourceId !== "string" ||
+    !/^\d+$/.test(card.sourceId) ||
+    !isCanonicalHhVacancyReference(card.sourceId, card.url)
+  ) {
+    return false;
+  }
+  return (
+    (card.title === null || typeof card.title === "string") &&
+    (card.companyName === null || typeof card.companyName === "string") &&
+    (card.salaryRaw === null || typeof card.salaryRaw === "string") &&
+    (card.city === null || typeof card.city === "string") &&
+    (card.experienceRaw === null || typeof card.experienceRaw === "string") &&
+    (card.publicationDate === null || typeof card.publicationDate === "string") &&
+    (card.workMode === null ||
+      card.workMode === "remote" ||
+      card.workMode === "hybrid" ||
+      card.workMode === "office" ||
+      card.workMode === "unknown")
+  );
+}
 
 // ── Conversion helper ──────────────────────────────────────────────────────
 
@@ -27,9 +59,13 @@ const SOURCE_HH = "hh";
  * Fields not available on search cards are null.
  */
 function searchCardToVacancyDTO(card: RawSearchItemDTO): RawVacancyDTO {
+  const sourceUrl = canonicalizeHhVacancyUrl(card.url);
+  if (!sourceUrl) {
+    throw new Error("Search card URL is not a canonical HH vacancy URL");
+  }
   return {
     sourceVacancyId: card.sourceId,
-    sourceUrl: card.url ?? "",
+    sourceUrl,
     title: card.title,
     companyName: card.companyName,
     salaryRaw: card.salaryRaw,
@@ -72,6 +108,9 @@ export interface QuickActionResult {
 export async function quickSaveSearchCard(
   card: RawSearchItemDTO,
 ): Promise<QuickActionResult> {
+  if (!isValidQuickActionCard(card)) {
+    throw new Error("Invalid canonical HH search card");
+  }
   const existing = await jobRepo.findBySourceVacancy(SOURCE_HH, card.sourceId);
 
   if (existing) {
@@ -119,6 +158,9 @@ export async function quickSaveSearchCard(
 export async function quickRejectSearchCard(
   card: RawSearchItemDTO,
 ): Promise<QuickActionResult> {
+  if (!isValidQuickActionCard(card)) {
+    throw new Error("Invalid canonical HH search card");
+  }
   const existing = await jobRepo.findBySourceVacancy(SOURCE_HH, card.sourceId);
 
   if (existing) {

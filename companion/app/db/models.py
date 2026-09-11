@@ -1,8 +1,8 @@
 """SQLAlchemy 2 declarative models — canonical SQLite domain schema.
 
-Every table matches the frozen DATA_MODEL_V1.md contract (§ SQLite domain
-tables).  Additional technical columns (``revision``, ``created_at``,
-``updated_at``) are required by the same contract.
+Every table matches the migration-backed SQLite domain contract. Additional
+technical columns (``revision``, ``created_at``, ``updated_at``) support
+optimistic concurrency and auditability.
 """
 
 from __future__ import annotations
@@ -179,12 +179,18 @@ class EngineRun(Base):
     token_output: Mapped[int | None]
     estimated_cost: Mapped[float | None]
     created_at: Mapped[str] = mapped_column(default=utcnow)
+    # Fix 3 coordination metadata.  Raw provider output is intentionally not
+    # stored; these fields are safe fingerprints/identifiers only.
+    provider_plan_hash: Mapped[str | None] = mapped_column(nullable=True)
+    operation_key: Mapped[str | None] = mapped_column(nullable=True)
+    attempt_number: Mapped[int] = mapped_column(default=0)
 
     __table_args__ = (
         CheckConstraint(
             "status IN ('pending', 'running', 'success', 'invalid', 'error')",
             name='ck_engine_run_status',
         ),
+        Index('ix_engine_runs_provider_plan_hash', 'provider_plan_hash'),
     )
 
     vacancy: Mapped[Vacancy] = relationship(back_populates='engine_runs')
@@ -192,6 +198,70 @@ class EngineRun(Base):
         back_populates='engine_run', passive_deletes=True
     )
     interview_packs: Mapped[list[InterviewPack]] = relationship(back_populates='engine_run')
+
+
+class ProviderExecution(Base):
+    """Durable semantic single-flight/coordinator state.
+
+    This table is deliberately separate from append-only ``engine_runs`` so
+    the mutable claim can be atomically updated without weakening the run
+    history contract.
+    """
+
+    __tablename__ = 'provider_executions'
+
+    id: Mapped[str] = mapped_column(primary_key=True, default=new_uuid)
+    operation_key: Mapped[str] = mapped_column(unique=True, nullable=False)
+    operation_kind: Mapped[str]
+    domain_identity: Mapped[str]
+    subject_key: Mapped[str]
+    provider_plan_hash: Mapped[str]
+    provider: Mapped[str]
+    model: Mapped[str]
+    state: Mapped[str] = mapped_column(default='claimed')
+    owner_token: Mapped[str]
+    attempt_count: Mapped[int] = mapped_column(default=0)
+    run_id: Mapped[str | None]
+    error_category: Mapped[str | None]
+    created_at: Mapped[str] = mapped_column(default=utcnow)
+    updated_at: Mapped[str] = mapped_column(default=utcnow, onupdate=utcnow)
+
+    __table_args__ = (
+        CheckConstraint(
+            "state IN ('claimed', 'dispatching', 'repairing', 'completed', "
+            "'failed_before_dispatch', 'failed', 'outcome_unknown', 'budget_blocked')",
+            name='ck_provider_execution_state',
+        ),
+        Index('ix_provider_executions_plan_hash', 'provider_plan_hash'),
+    )
+
+
+class ProviderAttempt(Base):
+    """Atomic per-attempt budget ledger shared by all Companion operations."""
+
+    __tablename__ = 'provider_attempts'
+
+    id: Mapped[str] = mapped_column(primary_key=True, default=new_uuid)
+    execution_id: Mapped[str] = mapped_column(
+        ForeignKey('provider_executions.id', ondelete='RESTRICT'), nullable=False
+    )
+    attempt_number: Mapped[int]
+    scope: Mapped[str]
+    day_key: Mapped[str]
+    state: Mapped[str] = mapped_column(default='reserved')
+    dispatched_at: Mapped[str | None]
+    released_at: Mapped[str | None]
+    created_at: Mapped[str] = mapped_column(default=utcnow)
+    updated_at: Mapped[str] = mapped_column(default=utcnow, onupdate=utcnow)
+
+    __table_args__ = (
+        UniqueConstraint('execution_id', 'attempt_number', name='uq_provider_attempt_execution'),
+        CheckConstraint(
+            "state IN ('reserved', 'consumed', 'released')",
+            name='ck_provider_attempt_state',
+        ),
+        Index('ix_provider_attempts_budget_day', 'scope', 'day_key', 'state'),
+    )
 
 
 # ── evidence_usage ─────────────────────────────────────────────────────

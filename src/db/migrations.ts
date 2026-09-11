@@ -1,5 +1,10 @@
 import { db } from "./database";
-import { SCHEMA_VERSION } from "./schema";
+import {
+  SCHEMA_VERSION,
+  DEXIE_MIGRATION_COVERAGE,
+  assertDexieMigrationCoverage,
+} from "./schema";
+import { withWriteGuard } from "@/services/reset-guard";
 
 /**
  * Migration infrastructure.
@@ -17,6 +22,12 @@ const META_KEY_VERSION = "schemaVersion";
 /** Current schema version as defined in schema.ts */
 export const CURRENT_VERSION = SCHEMA_VERSION;
 
+// Fail closed if a schema version is added without a corresponding explicit
+// migration-coverage entry. The database constructor performs the same guard
+// before registering Dexie versions; keeping it here protects bookkeeping
+// imports and test doubles as well.
+assertDexieMigrationCoverage(CURRENT_VERSION, DEXIE_MIGRATION_COVERAGE);
+
 let migrationBootstrapPromise: Promise<void> | null = null;
 
 /**
@@ -33,7 +44,9 @@ export async function getStoredVersion(): Promise<number> {
  * Call this after successful migration to record the version.
  */
 export async function writeCurrentVersion(): Promise<void> {
-  await db.meta.put({ key: META_KEY_VERSION, value: CURRENT_VERSION });
+  await withWriteGuard(() =>
+    db.meta.put({ key: META_KEY_VERSION, value: CURRENT_VERSION }),
+  );
 }
 
 /**

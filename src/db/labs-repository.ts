@@ -1,5 +1,6 @@
 import { db } from "./database";
 import type { LabsActionLog } from "@/models/labs-action-log";
+import { withWriteGuard } from "@/services/reset-guard";
 
 /** Thin CRUD repository for the Labs action log table. */
 export const labsActionRepo = {
@@ -14,10 +15,10 @@ export const labsActionRepo = {
   getById: (id: string) => db.labsActions.get(id as LabsActionLog["id"]),
 
   /** Insert a new action. */
-  save: (action: LabsActionLog) => db.labsActions.put(action),
+  save: (action: LabsActionLog) => withWriteGuard(() => db.labsActions.put(action)),
 
   /** Delete a single action. */
-  delete: (id: string) => db.labsActions.delete(id as LabsActionLog["id"]),
+  delete: (id: string) => withWriteGuard(() => db.labsActions.delete(id as LabsActionLog["id"])),
 
   /** Count all actions. */
   count: () => db.labsActions.count(),
@@ -27,5 +28,5 @@ export const labsActionRepo = {
     db.labsActions.where("createdAt").above(iso).count(),
 
   /** Delete all labs action log entries. */
-  deleteAll: () => db.labsActions.clear(),
+  deleteAll: () => withWriteGuard(() => db.labsActions.clear()),
 };

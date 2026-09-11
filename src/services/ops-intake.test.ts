@@ -48,6 +48,12 @@ vi.mock("@/services/companion-service", () => ({
   getOpsClient: vi.fn(),
 }));
 
+const operatingMode = {
+  getOperatingMode: vi.fn(),
+};
+
+vi.mock("@/services/operating-mode", () => operatingMode);
+
 vi.mock("@/adapters/companion/ops-client", () => ({
   OpsClient: class OpsClient {},
   CompanionError: class CompanionError extends Error {},
@@ -147,6 +153,11 @@ describe("ops-intake enqueueVacancyIntake", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     opsMetaRepo.getAuthorityMode.mockResolvedValue("ops");
+    operatingMode.getOperatingMode.mockResolvedValue({
+      effectiveMode: "ops",
+      requestedOpsMode: true,
+      authorityMode: "ops",
+    });
   });
 
   it("queues a sanitized intake with a content-derived idempotency key", async () => {
@@ -187,6 +198,11 @@ describe("ops-intake enqueueVacancyIntake", () => {
 
   it("does nothing in standalone mode", async () => {
     opsMetaRepo.getAuthorityMode.mockResolvedValue("standalone");
+    operatingMode.getOperatingMode.mockResolvedValue({
+      effectiveMode: "standalone",
+      requestedOpsMode: false,
+      authorityMode: "standalone",
+    });
     const { enqueueVacancyIntake } = await loadService();
     const ok = await enqueueVacancyIntake(sampleDto());
 
@@ -208,6 +224,11 @@ describe("ops-intake mirrorSaveToOps", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     opsMetaRepo.getAuthorityMode.mockResolvedValue("ops");
+    operatingMode.getOperatingMode.mockResolvedValue({
+      effectiveMode: "ops",
+      requestedOpsMode: true,
+      authorityMode: "ops",
+    });
   });
 
   it("never throws and reports enqueued in ops mode", async () => {
@@ -220,6 +241,7 @@ describe("ops-intake mirrorSaveToOps", () => {
 
   it("reports not-enqueued without throwing when queuing fails", async () => {
     opsMetaRepo.getAuthorityMode.mockRejectedValue(new Error("db closed"));
+    operatingMode.getOperatingMode.mockRejectedValue(new Error("db closed"));
     const { mirrorSaveToOps } = await loadService();
 
     const result = await mirrorSaveToOps(sampleDto());
@@ -228,6 +250,11 @@ describe("ops-intake mirrorSaveToOps", () => {
 
   it("is a no-op in standalone mode", async () => {
     opsMetaRepo.getAuthorityMode.mockResolvedValue("standalone");
+    operatingMode.getOperatingMode.mockResolvedValue({
+      effectiveMode: "standalone",
+      requestedOpsMode: false,
+      authorityMode: "standalone",
+    });
     const { mirrorSaveToOps } = await loadService();
 
     const result = await mirrorSaveToOps(sampleDto());

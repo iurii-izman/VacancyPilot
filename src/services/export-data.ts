@@ -37,7 +37,26 @@ function redactSettingsForExport(settings: AppSettings): AppSettings {
 /** Quote a CSV cell — wraps in quotes and escapes inner quotes. */
 function csvCell(value: unknown): string {
   if (value === null || value === undefined) return "";
-  const s = typeof value === "string" ? value : JSON.stringify(value);
+  let s = typeof value === "string" ? value : JSON.stringify(value);
+  // Excel/Sheets formula injection is possible when a user-controlled text
+  // cell begins with a formula marker, including after leading whitespace or
+  // control characters. Keep typed numeric values numeric; only neutralize
+  // strings.
+  let firstContentIndex = 0;
+  while (
+    typeof value === "string" &&
+    firstContentIndex < s.length &&
+    (s.charCodeAt(firstContentIndex) <= 0x20 ||
+      /\s/u.test(s[firstContentIndex] ?? ""))
+  ) {
+    firstContentIndex += 1;
+  }
+  if (
+    typeof value === "string" &&
+    "=+-@".includes(s[firstContentIndex] ?? "")
+  ) {
+    s = `'${s}`;
+  }
   if (
     s.includes(",") ||
     s.includes('"') ||
@@ -65,8 +84,14 @@ function csvRow(cells: unknown[]): string {
 export async function exportAllJson(): Promise<ExportEnvelope> {
   const data: Record<string, unknown[]> = {};
 
-  // Collect all Dexie table data (TABLE_NAMES reflects the current schema v6)
+  // Provider execution coordination is ephemeral control-plane state. It
+  // contains owner tokens and budget reservations, so it must not become a
+  // user export or a second persistence path for execution metadata.
+  const nonExportableTables = new Set(["aiExecution", "aiBudget"]);
+
+  // Collect all Dexie table data (TABLE_NAMES reflects the current schema v7)
   for (const name of TABLE_NAMES) {
+    if (nonExportableTables.has(name)) continue;
     const table = db.table(name as TableName);
     data[name] = await table.toArray();
   }

@@ -172,17 +172,6 @@ describe("AI settings lifecycle", () => {
     expect(loaded.ai.dailyRequestLimit).toBe(0);
   });
 
-  it("can toggle streaming on and off", async () => {
-    const settings = defaultSettings();
-    expect(settings.ai.enableStreaming).toBe(false);
-
-    settings.ai.enableStreaming = true;
-    await saveSettings(settings);
-
-    const loaded = await loadSettings();
-    expect(loaded.ai.enableStreaming).toBe(true);
-  });
-
   it("can toggle cache on and off", async () => {
     const settings = defaultSettings();
     expect(settings.ai.enableCache).toBe(true);

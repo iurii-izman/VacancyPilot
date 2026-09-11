@@ -18,6 +18,7 @@ from app.db.base import Base
 from app.db.engine import create_engine
 from app.main import create_app
 from app.security.auth import ClientTokenDep
+from app.security.receipts import ReceiptSigner
 
 # ── Temporary SQLite database fixtures ─────────────────────────────────
 
@@ -100,14 +101,16 @@ def _add_security_test_route(app: FastAPI) -> None:
 def reset_security_state() -> Generator[None, None, None]:
     """Keep module-level security state isolated between focused tests."""
     from app.api.pairing import _pairing_limiter
-    from app.security.auth import _protected_limiter
+    from app.security.auth import _preauth_limiter, _protected_limiter
     from app.security.pairing import get_pairing_service
 
     _pairing_limiter.reset()
+    _preauth_limiter.reset()
     _protected_limiter.reset()
     get_pairing_service()._challenges.clear()
     yield
     _pairing_limiter.reset()
+    _preauth_limiter.reset()
     _protected_limiter.reset()
     get_pairing_service()._challenges.clear()
 
@@ -115,7 +118,12 @@ def reset_security_state() -> Generator[None, None, None]:
 @pytest.fixture(scope='session')
 def app() -> FastAPI:
     """Return a configured FastAPI application instance."""
-    instance = create_app(initialize_db=False)
+    # Test-only deterministic signer.  Production creates/loads this key at
+    # Companion bootstrap; Preview itself never initializes keyring state.
+    instance = create_app(
+        initialize_db=False,
+        receipt_signer=ReceiptSigner(b'test-only-fix3-receipt-key'),
+    )
     _add_security_test_route(instance)
     return instance
 
@@ -141,7 +149,10 @@ async def async_client(app: FastAPI) -> AsyncGenerator[AsyncClient, None]:
 def app_with_db(db_engine: Engine) -> Generator[FastAPI, None, None]:
     """Return a FastAPI app whose health endpoint uses the temporary DB."""
     Base.metadata.create_all(db_engine)
-    app = create_app(initialize_db=False)
+    app = create_app(
+        initialize_db=False,
+        receipt_signer=ReceiptSigner(b'test-only-fix3-receipt-key'),
+    )
     _add_security_test_route(app)
     app.state.db_engine = db_engine
     yield app

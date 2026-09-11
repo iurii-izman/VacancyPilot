@@ -133,20 +133,8 @@ class PairingService:
         - max attempts exceeded
         - a client token is already paired
         """
-        self._purge_expired()
-        challenge = self._challenges.get(challenge_id)
-
-        if challenge is None:
+        if not self._consume_challenge(challenge_id, code):
             return None
-
-        if not hmac.compare_digest(challenge.code, code):
-            challenge.attempts += 1
-            if challenge.attempts >= self._MAX_ATTEMPTS:
-                del self._challenges[challenge_id]
-            return None
-
-        # Code correct — single-use: remove the challenge.
-        del self._challenges[challenge_id]
 
         # Reject if already paired.
         if self._get_stored_hash(db) is not None:
@@ -156,6 +144,31 @@ class PairingService:
         token_hash = hash_client_token(token)
         self._store_hash(db, token_hash)
         return token
+
+    def recover_challenge(
+        self,
+        challenge_id: str,
+        code: str,
+        db: Session,
+    ) -> str | None:
+        """Replace a lost client token after a valid recovery challenge.
+
+        Recovery is intentionally separate from normal pairing: it never
+        accepts a browser token and only succeeds when a pairing already
+        exists and the user proves possession of the out-of-band code.
+        """
+        if not self._consume_challenge(challenge_id, code):
+            return None
+        if self._get_stored_hash(db) is None:
+            return None
+
+        token = generate_client_token()
+        self._store_hash(db, hash_client_token(token))
+        return token
+
+    def has_pairing(self, db: Session) -> bool:
+        """Return whether the companion has a configured client pairing."""
+        return self._get_stored_hash(db) is not None
 
     def revoke(self, db: Session) -> None:
         """Invalidate the current client token.  Idempotent."""
@@ -181,6 +194,22 @@ class PairingService:
         if row is None:
             return None
         return str(row[0])
+
+    def _consume_challenge(self, challenge_id: str, code: str) -> bool:
+        """Validate and consume a single-use challenge."""
+        self._purge_expired()
+        challenge = self._challenges.get(challenge_id)
+        if challenge is None:
+            return False
+
+        if not hmac.compare_digest(challenge.code, code):
+            challenge.attempts += 1
+            if challenge.attempts >= self._MAX_ATTEMPTS:
+                del self._challenges[challenge_id]
+            return False
+
+        del self._challenges[challenge_id]
+        return True
 
     def _store_hash(self, db: Session, token_hash: str) -> None:
         db.execute(

@@ -11,6 +11,10 @@ from starlette.middleware.cors import CORSMiddleware
 from starlette.responses import Response
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+# This is the public wire name used by the extension, API routes, and CORS
+# preflight. Keep the spelling in one place so an alias cannot silently drift.
+IDEMPOTENCY_HEADER = 'X-VacancyPilot-Idempotency-Key'
+
 # ── Startup validation: refuse non-loopback binds ────────────────────────
 
 
@@ -48,7 +52,7 @@ def build_cors_middleware(allowed_origins: list[str] | None = None) -> type[CORS
                     'Content-Type',
                     'X-VacancyPilot-Client',
                     'X-VacancyPilot-Request-ID',
-                    'Idempotency-Key',
+                    IDEMPOTENCY_HEADER,
                 ],
             )
             kwargs.setdefault('max_age', 600)

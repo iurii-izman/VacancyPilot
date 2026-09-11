@@ -17,30 +17,23 @@ function makeSettings(
     schemaVersion: 1,
     onboardingCompleted: false,
     general: {
-      language: "ru",
-      theme: "system",
       showPageBadge: true,
       trackVisitMarks: true,
       rejectedSearchCardBehavior: "dim",
-      autosaveViewedJobs: true,
       toolbarClickBehavior: "popup",
       closePopupAfterOpeningSidePanel: true,
     },
     privacy: {
       aiEnabled: true,
-      n8nEnabled: false,
       strictPrivacyMode: false,
-      showPayloadPreviewAlways: true,
       allowResumeHighlightsToAI: true,
       allowFullDescriptionToAI: true,
       redactContacts: true,
-      debugHtmlMode: false,
       ...overrides,
     },
     ai: {
       dailyRequestLimit: 10,
       maxInputChars: 3000,
-      enableStreaming: false,
       enableCache: true,
     },
     n8n: {
@@ -58,10 +51,6 @@ function makeSettings(
     companion: {
       opsModeEnabled: false,
       baseUrl: "http://127.0.0.1:8765/api/v1",
-      lastServiceVersion: null,
-      lastApiVersion: null,
-      lastApiCompatible: false,
-      lastConnectedAt: null,
     },
   };
 }

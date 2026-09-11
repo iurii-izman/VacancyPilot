@@ -4,8 +4,9 @@
  * Manages the pairing/connect/disconnect lifecycle:
  * 1. Check companion availability via /health.
  * 2. If unpaired: POST /pair/start → user enters code → POST /pair/confirm.
- * 3. Store client token via companion-auth-bridge.
- * 4. On disconnect: POST /pair/revoke (best-effort) → delete local token.
+ * 3. Validate stored tokens before declaring the connection healthy.
+ * 4. Store client token via companion-auth-bridge.
+ * 5. On disconnect: POST /pair/revoke (best-effort) → delete local token.
  *
  * Standalone Mode: when the companion is unreachable or Ops Mode is disabled,
  * all existing features continue to work against local Dexie storage.
@@ -18,11 +19,40 @@ import {
   saveClientToken,
   deleteClientToken,
 } from '@/db/companion-auth-bridge';
-import { loadSettings, saveSettings } from '@/db/settings-bridge';
+import { loadSettings } from '@/db/settings-bridge';
+import { setOpsModeIntent } from '@/services/operating-mode';
 
 // ── Singleton client ───────────────────────────────────────────────────────
 
 let _opsClient: OpsClient | null = null;
+let companionClientStateGeneration = 0;
+
+export const COMPANION_STATUS_CACHE_TTL_MS = 5_000;
+
+export type CompanionStatusResult = {
+  status: CompanionStatus;
+  versionInfo?: CompanionVersionInfo;
+  error?: string;
+};
+
+let statusCache: {
+  value: CompanionStatusResult;
+  expiresAt: number;
+} | null = null;
+let statusProbeInFlight: Promise<CompanionStatusResult> | null = null;
+
+/** Clear browser-side Companion client state without revoking remote pairing. */
+export function resetCompanionClientState(): void {
+  companionClientStateGeneration += 1;
+  _opsClient = null;
+  statusCache = null;
+  statusProbeInFlight = null;
+}
+
+/** Invalidate the shared status snapshot after a pairing/configuration change. */
+export function invalidateCompanionStatusCache(): void {
+  statusCache = null;
+}
 
 /** Return the singleton OpsClient, creating it if necessary. */
 export function getOpsClient(): OpsClient {
@@ -37,6 +67,7 @@ export function getOpsClient(): OpsClient {
  * Call this once at extension startup.
  */
 export async function initCompanionClient(): Promise<void> {
+  const generation = companionClientStateGeneration;
   const settings = await loadSettings();
 
   // Create a new client with the configured URL
@@ -44,6 +75,7 @@ export async function initCompanionClient(): Promise<void> {
 
   // Inject stored client token
   const token = await loadClientToken();
+  if (generation !== companionClientStateGeneration) return;
   if (token) {
     _opsClient.setClientToken(token);
   }
@@ -60,38 +92,59 @@ export async function initCompanionClient(): Promise<void> {
  *    - Network error → ``unavailable``.
  *    - Incompatible API version → ``incompatible-api``.
  *    - Health OK, no stored token → ``unpaired``.
- *    - Health OK, stored token → ``connected`` (assumes token still valid).
+ *    - Health OK, stored token → validate ``/pair/status`` before connected.
  *    - Unexpected error → ``error``.
  */
-export async function detectCompanionStatus(): Promise<{
-  status: CompanionStatus;
-  versionInfo?: CompanionVersionInfo;
-  error?: string;
-}> {
+async function probeCompanionStatus(): Promise<CompanionStatusResult> {
+  const generation = companionClientStateGeneration;
   const settings = await loadSettings();
   if (!settings.companion.opsModeEnabled) {
     return { status: 'unavailable' };
   }
 
   await initCompanionClient();
+  if (generation !== companionClientStateGeneration) {
+    return { status: 'unavailable', error: 'Companion state was reset during status detection' };
+  }
   const client = getOpsClient();
   const hasToken = client.hasToken;
 
   try {
     const versionInfo = await client.handshake();
 
-    // Persist version info
-    settings.companion.lastServiceVersion = versionInfo.service_version;
-    settings.companion.lastApiVersion = versionInfo.api_version;
-    settings.companion.lastApiCompatible = versionInfo.compatible;
-    settings.companion.lastConnectedAt = new Date().toISOString();
-    await saveSettings(settings);
-
     if (!versionInfo.compatible) {
       return { status: 'incompatible-api', versionInfo };
     }
 
-    const status: CompanionStatus = hasToken ? 'connected' : 'unpaired';
+    if (!hasToken) {
+      return { status: 'unpaired', versionInfo };
+    }
+
+    try {
+      await client.pairStatus();
+    } catch (err) {
+      if (err instanceof CompanionError && err.httpStatus === 401) {
+        // The browser token may have been lost or the companion may have been
+        // paired from another extension install. Clear only the stale local
+        // copy; the server-side pairing remains recoverable via terminal code.
+        if (generation !== companionClientStateGeneration) {
+          return { status: 'unavailable', error: 'Companion state was reset during status detection' };
+        }
+        await deleteClientToken();
+        if (generation !== companionClientStateGeneration) {
+          return { status: 'unavailable', error: 'Companion state was reset during status detection' };
+        }
+        client.clearClientToken();
+        return {
+          status: 'unpaired',
+          versionInfo,
+          error: 'The stored pairing token is no longer valid. Pairing recovery is available.',
+        };
+      }
+      throw err;
+    }
+
+    const status: CompanionStatus = 'connected';
     return { status, versionInfo };
   } catch (err) {
     if (err instanceof CompanionError) {
@@ -104,6 +157,38 @@ export async function detectCompanionStatus(): Promise<{
       status: 'unavailable',
       error: err instanceof Error ? err.message : 'Unknown error',
     };
+  }
+}
+
+/**
+ * Detect companion status with bounded, shared polling.
+ *
+ * Status probes are observational: they do not write app_settings_v1. A
+ * short shared cache and in-flight promise prevent simultaneous Dashboard and
+ * Side Panel surfaces from multiplying health/pair-status requests.
+ */
+export async function detectCompanionStatus(options: { force?: boolean } = {}): Promise<CompanionStatusResult> {
+  if (statusProbeInFlight) return statusProbeInFlight;
+
+  const now = Date.now();
+  if (!options.force && statusCache && statusCache.expiresAt > now) {
+    return statusCache.value;
+  }
+
+  const generation = companionClientStateGeneration;
+  const probe = probeCompanionStatus();
+  statusProbeInFlight = probe;
+  try {
+    const result = await probe;
+    if (generation === companionClientStateGeneration) {
+      statusCache = {
+        value: result,
+        expiresAt: Date.now() + COMPANION_STATUS_CACHE_TTL_MS,
+      };
+    }
+    return result;
+  } finally {
+    if (statusProbeInFlight === probe) statusProbeInFlight = null;
   }
 }
 
@@ -124,6 +209,7 @@ export async function startPairing(): Promise<{
   try {
     const client = getOpsClient();
     const response = await client.pairStart();
+    invalidateCompanionStatusCache();
     return {
       success: true,
       challengeId: response.data.challenge_id,
@@ -157,17 +243,57 @@ export async function confirmPairing(
     // Persist token and inject into client
     await saveClientToken(token);
     client.setClientToken(token);
-
-    // Update settings
-    const settings = await loadSettings();
-    settings.companion.lastConnectedAt = new Date().toISOString();
-    await saveSettings(settings);
+    invalidateCompanionStatusCache();
 
     return { success: true };
   } catch (err) {
     return {
       success: false,
       error: err instanceof CompanionError ? err.message : 'Pairing confirmation failed',
+    };
+  }
+}
+
+/** Start a recovery challenge for an existing companion pairing. */
+export async function startPairingRecovery(): Promise<{
+  success: boolean;
+  challengeId?: string;
+  expiresInSeconds?: number;
+  error?: string;
+}> {
+  try {
+    const response = await getOpsClient().pairRecoveryStart();
+    invalidateCompanionStatusCache();
+    return {
+      success: true,
+      challengeId: response.data.challenge_id,
+      expiresInSeconds: response.data.expires_in_seconds ?? 300,
+    };
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof CompanionError ? err.message : 'Failed to start pairing recovery',
+    };
+  }
+}
+
+/** Confirm recovery and store the newly issued client token. */
+export async function confirmPairingRecovery(
+  challengeId: string,
+  code: string,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const client = getOpsClient();
+    const response = await client.pairRecoveryConfirm(challengeId, code);
+    await saveClientToken(response.data.client_token);
+    client.setClientToken(response.data.client_token);
+    invalidateCompanionStatusCache();
+
+    return { success: true };
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof CompanionError ? err.message : 'Pairing recovery failed',
     };
   }
 }
@@ -200,6 +326,7 @@ export async function disconnectCompanion(): Promise<{
   try {
     await deleteClientToken();
     getOpsClient().clearClientToken();
+    invalidateCompanionStatusCache();
     return { success: true, revoked };
   } catch (err) {
     return {
@@ -219,9 +346,8 @@ export async function disconnectCompanion(): Promise<{
  * re-enable Ops Mode later without re-pairing.
  */
 export async function setOpsModeEnabled(enabled: boolean): Promise<void> {
-  const settings = await loadSettings();
-  settings.companion.opsModeEnabled = enabled;
-  await saveSettings(settings);
+  await setOpsModeIntent(enabled);
+  invalidateCompanionStatusCache();
 
   // Re-init client with (possibly) updated base URL
   await initCompanionClient();

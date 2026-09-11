@@ -1,7 +1,7 @@
 """Repository classes implementing transactional invariants.
 
-Every repository method that modifies state enforces the invariant
-contract from DATA_MODEL_V1.md § Required invariants:
+Every repository method that modifies state enforces the migration-backed
+domain invariants:
 
 - Append-only tables never accept UPDATE or DELETE through repos.
 - Application status changes write an event + update projection in one tx.

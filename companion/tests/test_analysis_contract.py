@@ -26,7 +26,9 @@ from fastapi.testclient import TestClient
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.analysis.models import ProviderInputPolicy
 from app.analysis.provider import FakeProvider, _default_fake_response
+from app.db.models import Application, Vacancy, VacancySnapshot
 from app.security.auth import hash_client_token
 from app.security.pairing import generate_client_token
 
@@ -37,6 +39,17 @@ _ENGINE_FIXTURES = Path(__file__).resolve().parent / 'engine_fixtures' / 'valid-
 
 def _headers() -> dict[str, str]:
     return {'X-VacancyPilot-Client': TOKEN}
+
+
+def _policy() -> dict[str, object]:
+    return ProviderInputPolicy(
+        ai_enabled=True,
+        provider='openai',
+        privacy_mode='standard',
+        allow_full_description_to_ai=True,
+        daily_request_limit=10,
+        cache_enabled=True,
+    ).model_dump()
 
 
 def _register_token(token: str, session: Session) -> None:
@@ -73,6 +86,22 @@ def _ingest_vacancy(client: TestClient, source_id: str = 'contract_vacancy') -> 
     return resp.json()
 
 
+def _insert_hh_vacancy(session: Session, source_id: str, description: str) -> Vacancy:
+    row = Vacancy(
+        source='hh',
+        source_vacancy_id=source_id,
+        title='Python Developer',
+        company_name='Test Corp',
+        description=description,
+        first_seen_at='2026-08-05T10:00:00Z',
+        last_seen_at='2026-08-05T10:00:00Z',
+        updated_at='2026-08-05T10:00:00Z',
+    )
+    session.add(row)
+    session.commit()
+    return row
+
+
 @pytest.fixture()
 def engine_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """Isolate the engine package root per test (hermetic, no local state)."""
@@ -96,9 +125,21 @@ def _analyze(
     provider: FakeProvider,
 ) -> dict:
     monkeypatch.setattr('app.analysis.service.create_provider', lambda *a, **k: provider)
+    preview = client_with_db.post(
+        f'/api/v1/vacancies/{vacancy_id}/analyze?preview=true',
+        json={'policy': _policy()},
+        headers=_headers(),
+    )
+    assert preview.status_code == 200, preview.text
+    receipt = preview.json()['data']['receipt']
     resp = client_with_db.post(
         f'/api/v1/vacancies/{vacancy_id}/analyze',
-        json={'force': True},
+        json={
+            'force': True,
+            'confirmation': True,
+            'preview_receipt': receipt,
+            'policy': _policy(),
+        },
         headers=_headers(),
     )
     assert resp.status_code == 200, resp.text
@@ -118,7 +159,9 @@ class TestEngineAvailabilityGating:
         vacancy_id = _ingest_vacancy(client_with_db)['data']['vacancy_id']
 
         resp = client_with_db.post(
-            f'/api/v1/vacancies/{vacancy_id}/analyze', json={}, headers=_headers()
+            f'/api/v1/vacancies/{vacancy_id}/analyze',
+            json={'confirmation': True, 'policy': _policy(), 'preview_receipt': 'unused'},
+            headers=_headers(),
         )
         assert resp.status_code == 409, resp.text
         assert 'ENGINE_PACKAGE_MISSING' in resp.json()['error']['message']
@@ -150,7 +193,9 @@ class TestEngineAvailabilityGating:
         vacancy_id = _ingest_vacancy(client_with_db)['data']['vacancy_id']
 
         resp = client_with_db.post(
-            f'/api/v1/vacancies/{vacancy_id}/analyze', json={}, headers=_headers()
+            f'/api/v1/vacancies/{vacancy_id}/analyze',
+            json={'confirmation': True, 'policy': _policy(), 'preview_receipt': 'unused'},
+            headers=_headers(),
         )
         assert resp.status_code == 409, resp.text
         assert 'ENGINE_PACKAGE_INVALID' in resp.json()['error']['message']
@@ -177,6 +222,97 @@ class TestEngineAvailabilityGating:
         data = resp.json()['data']
         assert data['result'] in ('created', 'duplicate')
         assert data['vacancy_id']
+
+
+# ── Full V4 preview hydration semantics ─────────────────────────────────
+
+
+class TestFullV4PreviewHydration:
+    """Preview may hydrate one incomplete HH vacancy, but never applies."""
+
+    def test_preview_hydrates_once_without_provider_or_application_effects(
+        self,
+        client_with_db: TestClient,
+        db_session: Session,
+        valid_engine: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        _register_token(TOKEN, db_session)
+        incomplete = _insert_hh_vacancy(db_session, 'preview-incomplete', 'Short search card')
+        already_full = _insert_hh_vacancy(
+            db_session,
+            'preview-full',
+            'Requirement. ' * 30,
+        )
+
+        class FakeHHClient:
+            def __init__(self) -> None:
+                self.read_ids: list[str] = []
+                self.write_calls = 0
+
+            def vacancy(self, source_id: str) -> dict[str, object]:
+                self.read_ids.append(source_id)
+                return {
+                    'id': source_id,
+                    'name': 'Python Developer',
+                    'employer': {'id': 'company-1', 'name': 'Test Corp'},
+                    'description': '<p>' + ('Detailed requirement. ' * 30) + '</p>',
+                    'key_skills': [{'name': 'Python'}, {'name': 'FastAPI'}],
+                }
+
+            def write(self, *_args: object, **_kwargs: object) -> None:
+                self.write_calls += 1
+                raise AssertionError('HH write must not be attempted during Preview')
+
+        hh_client = FakeHHClient()
+        monkeypatch.setattr('app.api.analysis.HHApiClient', lambda: hh_client)
+        provider_calls = 0
+
+        def fail_provider(*_args: object, **_kwargs: object) -> FakeProvider:
+            nonlocal provider_calls
+            provider_calls += 1
+            raise AssertionError('Full V4 Preview must not create or call a provider')
+
+        monkeypatch.setattr('app.analysis.service.create_provider', fail_provider)
+
+        def preview(vacancy_id: str):
+            response = client_with_db.post(
+                f'/api/v1/vacancies/{vacancy_id}/analyze?preview=true',
+                json={},
+                headers=_headers(),
+            )
+            assert response.status_code == 200, response.text
+            return response
+
+        preview(incomplete.id)
+        db_session.expire_all()
+        hydrated = db_session.get(Vacancy, incomplete.id)
+        assert hydrated is not None
+        assert len(hydrated.description or '') > 200
+        assert hh_client.read_ids == ['preview-incomplete']
+        snapshot_count = db_session.query(VacancySnapshot).count()
+        hydrated_revision = hydrated.revision
+        hydrated_description = hydrated.description
+
+        # Once hydration made the vacancy analysis-ready, repeated Preview is
+        # idempotent with respect to HH reads and local vacancy snapshots.
+        preview(incomplete.id)
+        db_session.expire_all()
+        repeated = db_session.get(Vacancy, incomplete.id)
+        assert repeated is not None
+        assert hh_client.read_ids == ['preview-incomplete']
+        assert db_session.query(VacancySnapshot).count() == snapshot_count
+        assert repeated.revision == hydrated_revision
+        assert repeated.description == hydrated_description
+
+        # An already-Full vacancy does not trigger redundant hydration.
+        preview(already_full.id)
+        assert hh_client.read_ids == ['preview-incomplete']
+
+        assert provider_calls == 0
+        assert hh_client.write_calls == 0
+        assert db_session.query(Application).count() == 0
+        assert db_session.query(Application).filter(Application.status == 'applied').count() == 0
 
 
 # ── Validation and reliability behaviors ────────────────────────────────
@@ -308,7 +444,7 @@ class TestValidationAndReliability:
         run = db_session.get(EngineRun, data['run_id'])
         assert run is not None
         assert run.engine_hash != ''
-        assert run.raw_output is not None
+        assert run.raw_output is None
         usages = db_session.query(EvidenceUsage).filter(EvidenceUsage.engine_run_id == run.id).all()
         assert len(usages) == 2
         assert {u.evidence_level for u in usages} == {'E4', 'E3'}

@@ -17,8 +17,7 @@ import abc
 class SecretSlot:
     """Well-known secret names used by the companion.
 
-    The string value must match the keyring ``secret_name`` contract
-    documented in `API_CONTRACT_V1.md` §18.1.
+    The string value is part of the companion's internal keyring contract.
 
     Never log these names alongside their values.
     """
@@ -29,6 +28,10 @@ class SecretSlot:
     HH_REFRESH_TOKEN: str = 'vacancypilot_hh_refresh_token'
     AI_KEY: str = 'vacancypilot_ai_key'
     PAIRING_MATERIAL: str = 'vacancypilot_pairing_material'
+    # Dedicated receipt MAC key.  It is never derived from or equal to the
+    # browser client token, which keeps receipt invalidation and pairing
+    # rotation independent.
+    RECEIPT_SIGNING_KEY: str = 'vacancypilot_receipt_signing_key'
 
 
 # ── Abstract keyring ─────────────────────────────────────────────────────
@@ -72,7 +75,13 @@ class OSKeyring(KeyringBackend):
     def get_secret(self, secret_name: str) -> str | None:
         import keyring
 
-        return keyring.get_password(self._SERVICE_NAME, secret_name)
+        try:
+            return keyring.get_password(self._SERVICE_NAME, secret_name)
+        except keyring.errors.NoKeyringError:
+            # Headless environments may not expose a credential-store
+            # backend.  A read is then equivalent to an unconfigured slot;
+            # writes still fail closed instead of falling back to plaintext.
+            return None
 
     def set_secret(self, secret_name: str, secret_value: str) -> None:
         import keyring

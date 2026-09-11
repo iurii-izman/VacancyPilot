@@ -69,6 +69,16 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 companion/.venv/
+
+# Canonical local-private root. This contains the real engine package,
+# candidate evidence, SQLite data, runtime state, and local audit output.
+.local/
+
+# Legacy in-tree runtime directories are ignored explicitly for users who
+# still have an older checkout; new installs use .local/ exclusively.
 companion/data/engine/current/
 companion/data/engine/.staging*/
 companion/data/engine/.previous/
+.playwright-cli/
+.playwright/
+.tmp-hotfix-browser/

@@ -3,14 +3,7 @@ import { hrTimelineRepo } from "@/db/hr-timeline-repository";
 import type { Application } from "@/models/application";
 import type { Job, JobStatus } from "@/models/job";
 import type { HrTimelineEntry, RawHrTimelineDTO } from "@/models/hr-timeline";
-import { createStatusChange } from "@/services/status-transitions";
-
-const PRE_APPLY_JOB_STATUSES = new Set<JobStatus>([
-  "new",
-  "viewed",
-  "saved",
-  "letter_ready",
-]);
+import { assertResetWritable, withWriteGuard } from "@/services/reset-guard";
 
 function hashString(value: string): string {
   let hash = 0;
@@ -20,33 +13,14 @@ function hashString(value: string): string {
   return (hash >>> 0).toString(36);
 }
 
-function applicationStatusForJob(job: Job): JobStatus {
-  return PRE_APPLY_JOB_STATUSES.has(job.status) ? "applied" : job.status;
-}
-
-function buildSyntheticAppliedHistory(job: Job, now: string) {
-  const hasAppliedLikeHistory = job.statusHistory.some(
-    (entry) =>
-      entry.to === "applied" ||
-      entry.to === "hr_replied" ||
-      entry.to === "interview" ||
-      entry.to === "test_task" ||
-      entry.to === "offer" ||
-      entry.to === "rejected_by_company",
-  );
-
-  if (hasAppliedLikeHistory) return job.statusHistory;
-
-  return [
-    ...job.statusHistory,
-    createStatusChange(
-      job.status,
-      "applied",
-      "system",
-      "Application record created from tracked workflow context",
-    ),
-  ].map((entry, index, entries) =>
-    index === entries.length - 1 ? { ...entry, at: now } : entry,
+export function isApplicationStatus(status: JobStatus): boolean {
+  return (
+    status === "applied" ||
+    status === "hr_replied" ||
+    status === "interview" ||
+    status === "test_task" ||
+    status === "offer" ||
+    status === "rejected_by_company"
   );
 }
 
@@ -54,6 +28,7 @@ export async function upsertApplicationFromJob(
   job: Job,
   channel: Application["channel"],
 ): Promise<Application> {
+  assertResetWritable();
   const applications = await db.applications
     .where("jobId")
     .equals(job.id)
@@ -63,11 +38,13 @@ export async function upsertApplicationFromJob(
   )[0];
 
   const now = new Date().toISOString();
-  const nextStatus = applicationStatusForJob(job);
-  const nextStatusHistory =
-    existing?.statusHistory?.length > 0
-      ? existing.statusHistory
-      : buildSyntheticAppliedHistory(job, now);
+  // HR extraction is observational. It may create a tracking record for a
+  // saved vacancy, but it must never infer that a native HH application was
+  // submitted or synthesize an Applied transition.
+  const nextStatus = existing?.status ?? job.status;
+  const nextStatusHistory = existing?.statusHistory?.length
+    ? existing.statusHistory
+    : job.statusHistory;
 
   const application: Application = {
     id: existing?.id ?? `app_${job.id}`,
@@ -78,14 +55,7 @@ export async function upsertApplicationFromJob(
     channel: existing?.channel ?? channel,
     appliedAt:
       existing?.appliedAt ??
-      (nextStatus === "applied" ||
-      nextStatus === "hr_replied" ||
-      nextStatus === "interview" ||
-      nextStatus === "test_task" ||
-      nextStatus === "offer" ||
-      nextStatus === "rejected_by_company"
-        ? job.updatedAt
-        : undefined),
+      (isApplicationStatus(nextStatus) ? job.updatedAt : undefined),
     status: nextStatus,
     statusHistory: nextStatusHistory,
     followUpAt: existing?.followUpAt,
@@ -94,7 +64,7 @@ export async function upsertApplicationFromJob(
     updatedAt: now,
   };
 
-  await db.applications.put(application);
+  await withWriteGuard(() => db.applications.put(application));
   return application;
 }
 

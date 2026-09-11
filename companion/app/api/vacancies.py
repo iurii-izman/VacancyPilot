@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 from typing import Any, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -23,12 +23,16 @@ from app.domain.triage import (
     TriageVacancy,
     triage_vacancy,
 )
+from app.domain.vacancy_hydration import hydrate_vacancy
 from app.domain.vacancy_intake import (
     IdempotencyConflictError,
     VacancyIntakeService,
     normalize_intake,
 )
+from app.hh.client import HHApiClient
+from app.hh.errors import HHApiError, HHConfigurationError
 from app.security.auth import ClientTokenDep
+from app.security.middleware import IDEMPOTENCY_HEADER
 
 router = APIRouter(tags=['vacancies'])
 
@@ -226,6 +230,11 @@ class VacancyDetailResponse(BaseModel):
     meta: dict[str, str]
 
 
+class VacancyHydrationResponse(BaseModel):
+    data: VacancyItem
+    meta: dict[str, str]
+
+
 class TriageRequest(BaseModel):
     model_config = ConfigDict(extra='forbid')
     target_titles: list[str] = Field(default_factory=list, max_length=20)
@@ -290,12 +299,12 @@ def vacancy_intake(
     request: Request,
     body: VacancyIntakeV1,
     client_identity: ClientTokenDep,
+    idempotency_key: str | None = Header(default=None, alias=IDEMPOTENCY_HEADER),
     db: Session | None = Depends(get_db_session_long),  # noqa: B008
 ) -> IntakeResponse:
     """Idempotently capture a normalized vacancy into the companion."""
     del client_identity
     session = _require_db(db)
-    idempotency_key = request.headers.get('X-VacancyPilot-Idempotency-Key')
     if idempotency_key is not None and not idempotency_key.strip():
         raise HTTPException(status_code=400, detail='Idempotency key must not be empty')
     if idempotency_key is not None and len(idempotency_key) > 128:
@@ -413,6 +422,37 @@ def vacancy_detail(
     return VacancyDetailResponse(
         data=VacancyItem(**_vacancy_to_dict(vacancy)),
         meta={'request_id': _request_id(request)},
+    )
+
+
+@router.post('/vacancies/{vacancy_id}/hydrate', response_model=VacancyHydrationResponse)
+def vacancy_hydrate(
+    request: Request,
+    vacancy_id: str,
+    client_identity: ClientTokenDep,
+    db: Session | None = Depends(get_db_session_long),  # noqa: B008
+) -> VacancyHydrationResponse:
+    """Explicitly refresh one HH vacancy using GET /vacancies/{source_id}."""
+    del client_identity
+    session = _require_db(db)
+    vacancy = session.get(Vacancy, vacancy_id)
+    if vacancy is None:
+        raise HTTPException(status_code=404, detail='Vacancy not found')
+    try:
+        hydrated = hydrate_vacancy(session, vacancy, client=HHApiClient())
+        session.commit()
+    except HHConfigurationError as exc:
+        session.rollback()
+        raise HTTPException(status_code=503, detail=exc.code) from exc
+    except HHApiError as exc:
+        session.rollback()
+        raise HTTPException(status_code=502, detail=exc.code) from exc
+    except ValueError as exc:
+        session.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return VacancyHydrationResponse(
+        data=VacancyItem(**_vacancy_to_dict(hydrated.vacancy)),
+        meta={**{'request_id': _request_id(request)}, 'hydration': 'full'},
     )
 
 

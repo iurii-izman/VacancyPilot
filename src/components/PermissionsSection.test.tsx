@@ -56,11 +56,9 @@ describe("PermissionsSection — manifest alignment", () => {
     expect(source).not.toMatch(/XMLHttpRequest/);
   });
 
-  it("keeps AI and n8n described as integrations, not declared permissions", () => {
+  it("keeps AI and deferred integrations out of declared permissions", () => {
     expect(source).toMatch(/OpenAI/);
-    expect(source).toMatch(/DeepSeek/);
-    expect(source).toMatch(/OpenRouter/);
-    expect(source).toMatch(/n8n/);
+    expect(source).toMatch(/deferred integrations/i);
     expect(source).toMatch(/opt-in/i);
   });
 

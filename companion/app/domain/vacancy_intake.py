@@ -93,8 +93,9 @@ def normalize_description(value: str | None) -> str:
 def normalize_intake(payload: dict[str, Any]) -> NormalizedVacancy:
     """Normalize a validated ``VacancyIntakeV1`` payload into stored form.
 
-    Mirrors the frozen DATA_MODEL_V1 vacancy columns exactly. Optional
-    null values stay null so an intentional ``null`` clears prior data.
+    Mirrors the SQLAlchemy vacancy projection and its migration-backed
+    storage contract. Optional null values stay null so an intentional
+    ``null`` clears prior data.
     """
     source = str(payload.get('source') or '').strip().lower() or 'manual'
     source_vacancy_id = str(payload.get('source_vacancy_id') or '').strip()

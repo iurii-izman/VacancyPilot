@@ -13,12 +13,19 @@ Local FastAPI companion for the VacancyPilot browser extension.
 # Install dependencies
 uv sync --project companion
 
-# Run the companion (listens on 127.0.0.1:8765)
-uv run --project companion uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8765
+# Run the project-owned loopback launcher from the repository root
+pnpm companion:start
 
 # Health check
 curl http://127.0.0.1:8765/api/v1/health
 ```
+
+The supported launcher starts `app.server` with the validated default bind
+`127.0.0.1:8765`. It accepts only the explicit loopback values
+`127.0.0.1`, `localhost`, and `::1`; project-supported launch paths never
+bind to `0.0.0.0` or a public interface. The extension sends the canonical
+`X-VacancyPilot-Idempotency-Key` header on retryable intake and application
+operations; it is intentionally the only idempotency header allowed by CORS.
 
 ## Development
 
@@ -48,6 +55,7 @@ pnpm companion:openapi-check
 ## Architecture
 
 - `app/main.py` — application factory (no import-time side effects)
+- `app/server.py` — project-owned validated loopback server entrypoint
 - `app/config.py` — typed settings with safe local defaults
 - `app/api/health.py` — public health endpoint
 - `app/api/errors.py` — stable JSON error envelopes
@@ -61,7 +69,7 @@ Regenerate after endpoint changes.
 ## Database and migrations
 
 The operational SQLite database defaults to
-`companion/data/vacancypilot.db`. Override it with an absolute
+`.local/data/companion/vacancypilot.db`. Override it with an absolute
 `VACANCYPILOT_DB_PATH` when a different local location is required. Database
 files and their WAL/SHM sidecars are local runtime data and must not be
 committed.
@@ -70,7 +78,8 @@ The engine enables foreign keys and a 5-second busy timeout on every
 connection. WAL is enabled deliberately for concurrent companion reads while
 keeping SQLite as the single local writer.
 
-From the repository root:
+The standard launcher upgrades the schema before starting Uvicorn. From the
+repository root, the migration commands can also be run explicitly:
 
 ```bash
 # Create or upgrade the local schema
@@ -82,6 +91,3 @@ uv run --project companion alembic -c companion/alembic.ini check
 # Disposable-development rollback only; back up user data first
 uv run --project companion alembic -c companion/alembic.ini downgrade base
 ```
-
-The companion does not silently run schema migrations at startup. Apply the
-reviewed migration before using operational endpoints.

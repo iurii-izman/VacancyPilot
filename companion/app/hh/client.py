@@ -66,6 +66,11 @@ class HHApiClient:
         params.update(page=page, per_page=per_page)
         return HHPage.model_validate(self._request('GET', '/vacancies', params=params))
 
+    def vacancy(self, vacancy_id: str) -> dict[str, Any]:
+        """Read one canonical full vacancy projection from the official API."""
+        _validate_resource_id(vacancy_id)
+        return self._request('GET', f'/vacancies/{vacancy_id}')
+
     def _request(
         self, method: str, path: str, *, params: dict[str, Any] | None = None
     ) -> dict[str, Any]:

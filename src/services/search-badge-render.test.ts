@@ -19,6 +19,7 @@ import {
   createSaveButton,
   createRejectButton,
   appendActionButtons,
+  canRunSearchQuickAction,
 } from "./search-badge-render";
 import type { SearchBadgeState } from "./search-badge-render";
 import type { RawSearchItemDTO } from "@/adapters/types";
@@ -261,18 +262,17 @@ describe("buildSearchBadgeHTML", () => {
 // ── injectSearchBadgeStyles ─────────────────────────────────────────
 
 describe("injectSearchBadgeStyles", () => {
-  it("injects a style element into the document head", () => {
+  it("does not inject styles into the HH document head", () => {
     const win = new Window({ url: "https://hh.ru/search/vacancy" });
     const doc = win.document as unknown as Document;
 
     injectSearchBadgeStyles(doc);
 
     const styleEl = doc.getElementById("vp-search-badge-styles");
-    expect(styleEl).toBeTruthy();
-    expect(styleEl?.tagName.toLowerCase()).toBe("style");
+    expect(styleEl).toBeNull();
   });
 
-  it("is idempotent — does not inject duplicate styles", () => {
+  it("keeps the document style-free after repeated calls", () => {
     const win = new Window({ url: "https://hh.ru/search/vacancy" });
     const doc = win.document as unknown as Document;
 
@@ -280,30 +280,17 @@ describe("injectSearchBadgeStyles", () => {
     injectSearchBadgeStyles(doc);
 
     const styles = doc.querySelectorAll("#vp-search-badge-styles");
-    expect(styles.length).toBe(1);
+    expect(styles.length).toBe(0);
   });
 
-  it("includes expected CSS classes in style content", () => {
+  it("does not expose badge CSS classes in page DOM", () => {
     const win = new Window({ url: "https://hh.ru/search/vacancy" });
     const doc = win.document as unknown as Document;
 
     injectSearchBadgeStyles(doc);
 
     const styleEl = doc.getElementById("vp-search-badge-styles");
-    const text = styleEl?.textContent ?? "";
-
-    expect(text).toContain(".vp-sb-host");
-    expect(text).toContain(".vp-sb-score");
-    expect(text).toContain(".vp-sb-score--high");
-    expect(text).toContain(".vp-sb-score--mid");
-    expect(text).toContain(".vp-sb-score--low");
-    expect(text).toContain(".vp-sb-status");
-    expect(text).toContain(".vp-sb-wm");
-    expect(text).toContain(".vp-sb-wm--remote");
-    expect(text).toContain(".vp-sb-wm--hybrid");
-    expect(text).toContain(".vp-sb-wm--office");
-    expect(text).toContain(".vp-sb-card--dimmed");
-    expect(text).toContain(".vp-sb-card--hidden");
+    expect(styleEl).toBeNull();
   });
 });
 
@@ -316,7 +303,8 @@ describe("createBadgeHost", () => {
       .document as unknown as Document;
     const host = createBadgeHost(card, undefined, undefined, d);
     expect(host).toBeTruthy();
-    expect(host!.textContent).toContain("VP new");
+    expect(host!.textContent).toBe("");
+    expect(host!.shadowRoot).toBeNull();
   });
 
   it("returns a span element with vp-sb-host class", () => {
@@ -335,8 +323,9 @@ describe("createBadgeHost", () => {
     const d = new Window({ url: "https://hh.ru/search/vacancy" })
       .document as unknown as Document;
     const host = createBadgeHost(card, state, undefined, d);
-    expect(host!.innerHTML).toContain("90");
-    expect(host!.innerHTML).toContain("УД");
+    expect(host!.innerHTML).toBe("");
+    expect(buildSearchBadgeHTML(card, state)).toContain("90");
+    expect(buildSearchBadgeHTML(card, state)).toContain("УД");
   });
 
   it("renders unknown status text without parsing it as HTML", () => {
@@ -347,7 +336,7 @@ describe("createBadgeHost", () => {
     const host = createBadgeHost(card, state, undefined, d);
 
     expect(host?.querySelector("img")).toBeNull();
-    expect(host?.textContent).toContain(`VP "><img src=x onerror=alert(1)>`);
+    expect(buildSearchBadgeHTML(card, state)).toContain(`VP &quot;&gt;&lt;img src=x onerror=alert(1)&gt;`);
   });
 
   it("renders view count when available", () => {
@@ -460,7 +449,7 @@ describe("attachBadgeToCard", () => {
 // ── applySearchCardState ───────────────────────────────────────────────
 
 describe("applySearchCardState", () => {
-  it("dims rejected cards when requested", () => {
+  it("does not add private presentation classes to HH cards", () => {
     const doc = makeDocument(`<!DOCTYPE html>
 <html><body>
   <div data-qa="vacancy-serp-item" class="serp-item">Card</div>
@@ -469,11 +458,11 @@ describe("applySearchCardState", () => {
     const cardEl = doc.querySelector('[data-qa="vacancy-serp-item"]')!;
     applySearchCardState(cardEl, { dimmed: true });
 
-    expect(cardEl.classList.contains("vp-sb-card--dimmed")).toBe(true);
+    expect(cardEl.classList.contains("vp-sb-card--dimmed")).toBe(false);
     expect(cardEl.classList.contains("vp-sb-card--hidden")).toBe(false);
   });
 
-  it("hides rejected cards when requested", () => {
+  it("does not hide rejected HH cards", () => {
     const doc = makeDocument(`<!DOCTYPE html>
 <html><body>
   <div data-qa="vacancy-serp-item" class="serp-item">Card</div>
@@ -482,7 +471,7 @@ describe("applySearchCardState", () => {
     const cardEl = doc.querySelector('[data-qa="vacancy-serp-item"]')!;
     applySearchCardState(cardEl, { hidden: true });
 
-    expect(cardEl.classList.contains("vp-sb-card--hidden")).toBe(true);
+    expect(cardEl.classList.contains("vp-sb-card--hidden")).toBe(false);
     expect(cardEl.classList.contains("vp-sb-card--dimmed")).toBe(false);
   });
 });
@@ -675,5 +664,34 @@ describe("appendActionButtons", () => {
     const { wrapper } = appendActionButtons(host, doc);
     const buttons = wrapper.querySelectorAll(".vp-sb-action");
     expect(buttons.length).toBe(2);
+  });
+});
+
+describe("canRunSearchQuickAction", () => {
+  it("rejects synthetic events even when the vacancy identity is valid", () => {
+    expect(
+      canRunSearchQuickAction(
+        { isTrusted: false },
+        "12345678",
+        "https://hh.ru/vacancy/12345678",
+      ),
+    ).toBe(false);
+  });
+
+  it("requires a trusted event and matching canonical identity", () => {
+    expect(
+      canRunSearchQuickAction(
+        { isTrusted: true },
+        "12345678",
+        "https://hh.ru/vacancy/12345678?from=search",
+      ),
+    ).toBe(true);
+    expect(
+      canRunSearchQuickAction(
+        { isTrusted: true },
+        "87654321",
+        "https://hh.ru/vacancy/12345678",
+      ),
+    ).toBe(false);
   });
 });

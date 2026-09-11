@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from pydantic import BaseModel, ConfigDict, Field
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
@@ -22,6 +22,7 @@ from app.domain.workflow import (
     transition_application,
 )
 from app.security.auth import ClientTokenDep
+from app.security.middleware import IDEMPOTENCY_HEADER
 
 router = APIRouter(tags=['applications', 'followups'])
 
@@ -152,6 +153,11 @@ class CreateFollowUpRequest(BaseModel):
     due_at: str | None = Field(default=None, max_length=64)
     draft_text: str | None = Field(default=None, max_length=10000)
 
+    @field_validator('due_at')
+    @classmethod
+    def normalize_due_at(cls, value: str | None) -> str | None:
+        return _normalize_due_at(value)
+
 
 class UpdateFollowUpRequest(BaseModel):
     model_config = ConfigDict(extra='forbid')
@@ -164,10 +170,27 @@ class UpdateFollowUpRequest(BaseModel):
     draft_text: str | None = Field(default=None, max_length=10000)
     sent_confirmation: bool = False
 
+    @field_validator('due_at')
+    @classmethod
+    def normalize_due_at(cls, value: str | None) -> str | None:
+        return _normalize_due_at(value)
+
 
 class GenerateFollowUpRequest(BaseModel):
     model_config = ConfigDict(extra='forbid')
     expected_revision: int = Field(ge=1)
+
+
+def _normalize_due_at(value: str | None) -> str | None:
+    if value is None:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace('Z', '+00:00'))
+    except ValueError as error:
+        raise ValueError('due_at must be ISO-8601') from error
+    if parsed.tzinfo is None:
+        raise ValueError('due_at must include a timezone')
+    return parsed.astimezone(UTC).isoformat().replace('+00:00', 'Z')
 
 
 def _application_data(app: Application, vacancy: Vacancy | None) -> ApplicationData:
@@ -322,6 +345,7 @@ def update_application(
     application_id: str,
     body: UpdateApplicationRequest,
     client_identity: ClientTokenDep,
+    idempotency_key: str | None = Header(default=None, alias=IDEMPOTENCY_HEADER),
     db: Session | None = Depends(get_db_session_long),  # noqa: B008
 ) -> ApplicationResponse:
     del client_identity
@@ -340,7 +364,7 @@ def update_application(
                 confirmation=body.confirmation,
                 application_without_letter=body.application_without_letter,
                 reason=body.reason,
-                idempotency_key=request.headers.get('X-VacancyPilot-Idempotency-Key'),
+                idempotency_key=idempotency_key,
             )
         else:
             if app.revision != body.expected_revision:
@@ -382,12 +406,14 @@ def create_application_event(
     application_id: str,
     body: EventRequest,
     client_identity: ClientTokenDep,
+    idempotency_key: str | None = Header(default=None, alias=IDEMPOTENCY_HEADER),
     db: Session | None = Depends(get_db_session_long),  # noqa: B008
 ) -> EventResponse:
     del client_identity
     session = _require_db(db)
     if session.get(Application, application_id) is None:
         raise HTTPException(status_code=404, detail='Application not found')
+    effective_idempotency_key = idempotency_key or body.idempotency_key
     try:
         if body.status is not None:
             if body.expected_revision is None:
@@ -401,16 +427,16 @@ def create_application_event(
                 confirmation=body.confirmation,
                 application_without_letter=body.application_without_letter,
                 reason=body.reason,
-                idempotency_key=body.idempotency_key,
+                idempotency_key=effective_idempotency_key,
             )
             event = (
                 session.execute(
                     select(ApplicationEvent).where(
                         ApplicationEvent.application_id == app.id,
-                        ApplicationEvent.idempotency_key == body.idempotency_key,
+                        ApplicationEvent.idempotency_key == effective_idempotency_key,
                     )
                 ).scalar_one_or_none()
-                if body.idempotency_key
+                if effective_idempotency_key
                 else session.execute(
                     select(ApplicationEvent)
                     .where(ApplicationEvent.application_id == app.id)
@@ -428,7 +454,7 @@ def create_application_event(
                 source=body.source,
                 payload=body.payload,
                 occurred_at=body.occurred_at,
-                idempotency_key=body.idempotency_key,
+                idempotency_key=effective_idempotency_key,
             )
         session.commit()
     except WorkflowError as error:
@@ -509,18 +535,13 @@ def create_followup(
     request: Request,
     body: CreateFollowUpRequest,
     client_identity: ClientTokenDep,
+    idempotency_key: str | None = Header(default=None, alias=IDEMPOTENCY_HEADER),
     db: Session | None = Depends(get_db_session_long),  # noqa: B008
 ) -> FollowUpResponse:
     del client_identity
     session = _require_db(db)
     if session.get(Application, body.application_id) is None:
         raise HTTPException(status_code=404, detail='Application not found')
-    if body.due_at:
-        try:
-            datetime.fromisoformat(body.due_at.replace('Z', '+00:00'))
-        except ValueError as error:
-            raise HTTPException(status_code=422, detail='due_at must be ISO-8601') from error
-    idempotency_key = request.headers.get('X-VacancyPilot-Idempotency-Key')
     if idempotency_key:
         existing = session.execute(
             select(FollowUp).where(FollowUp.idempotency_key == idempotency_key)

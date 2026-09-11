@@ -1,4 +1,8 @@
 import type { RawSearchItemDTO } from "@/adapters/types";
+import {
+  canonicalizeHhVacancyUrl,
+  extractHhVacancyIdFromHref,
+} from "./hh-vacancy-url";
 
 const VACANCY_LINK_SELECTOR =
   'a[href*="/vacancy/"], a[href*="%2Fvacancy%2F"], a[href*="%2fvacancy%2f"]';
@@ -37,7 +41,7 @@ export function extractVacancyIdFromHref(
   href: string | null | undefined,
   baseUrl = "https://hh.ru",
 ): string | null {
-  return extractVacancyIdFromHrefInternal(href, baseUrl, 0);
+  return extractHhVacancyIdFromHref(href, baseUrl);
 }
 
 export function discoverSearchCardsFromLinks(
@@ -102,65 +106,6 @@ export function scoreSearchCardCandidate(
   }
 
   return score;
-}
-
-function extractVacancyIdFromHrefInternal(
-  href: string | null | undefined,
-  baseUrl: string,
-  depth: number,
-): string | null {
-  if (!href || depth > 3) return null;
-
-  const raw = href.trim();
-  if (!raw) return null;
-
-  const direct = extractVacancyIdFromCandidate(raw, baseUrl);
-  if (direct) return direct;
-
-  const decoded = safeDecode(raw);
-  if (decoded && decoded !== raw) {
-    const fromDecoded = extractVacancyIdFromHrefInternal(
-      decoded,
-      baseUrl,
-      depth + 1,
-    );
-    if (fromDecoded) return fromDecoded;
-  }
-
-  return null;
-}
-
-function extractVacancyIdFromCandidate(
-  candidate: string,
-  baseUrl: string,
-): string | null {
-  const relativeMatch = candidate.match(/^\/vacancy\/(\d+)(?:[/?#]|$)/i);
-  if (relativeMatch) return relativeMatch[1];
-
-  try {
-    const parsed = new URL(candidate, baseUrl);
-    if (isHhHost(parsed.hostname)) {
-      const pathMatch = parsed.pathname.match(/^\/vacancy\/(\d+)(?:\/|$)/i);
-      if (pathMatch) return pathMatch[1];
-    }
-
-    for (const value of parsed.searchParams.values()) {
-      const fromParam = extractVacancyIdFromHrefInternal(value, baseUrl, 1);
-      if (fromParam) return fromParam;
-    }
-  } catch {
-    // Fall through to conservative string matching.
-  }
-
-  const embeddedRelative = candidate.match(/(?:^|[?&=])\/vacancy\/(\d+)/i);
-  if (embeddedRelative) return embeddedRelative[1];
-
-  const embeddedHh = candidate.match(
-    /https?:\/\/(?:[^/?#]+\.)?hh\.ru\/vacancy\/(\d+)(?:[/?#]|$)/i,
-  );
-  if (embeddedHh) return embeddedHh[1];
-
-  return null;
 }
 
 function findVacancyLinks(doc: Document): HTMLAnchorElement[] {
@@ -263,19 +208,10 @@ function resolveLinkHref(link: HTMLAnchorElement): string | null {
   const href = link.getAttribute("href");
   if (!href) return null;
 
-  try {
-    return new URL(href, link.ownerDocument.URL || "https://hh.ru").href;
-  } catch {
-    return href;
-  }
-}
-
-function safeDecode(value: string): string | null {
-  try {
-    return decodeURIComponent(value);
-  } catch {
-    return null;
-  }
+  return canonicalizeHhVacancyUrl(
+    href,
+    link.ownerDocument.URL || "https://hh.ru",
+  );
 }
 
 function safeRect(element: Element): DOMRect {
@@ -294,10 +230,6 @@ function safeRect(element: Element): DOMRect {
       toJSON: () => ({}),
     };
   }
-}
-
-function isHhHost(hostname: string): boolean {
-  return hostname === "hh.ru" || hostname.endsWith(".hh.ru");
 }
 
 function normalizeText(value: string | null | undefined): string | null {

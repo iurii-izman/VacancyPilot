@@ -39,11 +39,24 @@ def normalize_vacancy(item: dict[str, Any]) -> NormalizedVacancy:
     company_id, company_name = _nested_name(item.get('employer'))
     area_id, area_name = _nested_name(item.get('area'))
     salary_min, salary_max, currency = _salary(item)
-    schedule = item.get('schedule')
     work_mode = None
+    schedule = item.get('schedule')
     if isinstance(schedule, dict):
-        schedule_id = str(schedule.get('id') or '')
+        schedule_id = str(schedule.get('id') or '').lower()
         work_mode = {'remote': 'remote', 'flexible': 'hybrid', 'shift': 'office'}.get(schedule_id)
+    # Full HH vacancy responses expose the user-facing work arrangement in
+    # ``work_format``; search projections commonly omit it.
+    work_formats = item.get('work_format')
+    if isinstance(work_formats, list):
+        format_ids = {
+            str(value.get('id') or '').upper() for value in work_formats if isinstance(value, dict)
+        }
+        if 'REMOTE' in format_ids:
+            work_mode = 'remote'
+        elif 'HYBRID' in format_ids:
+            work_mode = 'hybrid'
+        elif format_ids:
+            work_mode = 'office'
     skills = tuple(
         name
         for name in (

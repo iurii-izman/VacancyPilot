@@ -29,6 +29,8 @@ EXPECTED_TABLES = frozenset(
         'application_sessions',
         'application_session_items',
         'vacancy_search_profile_hits',
+        'provider_executions',
+        'provider_attempts',
     }
 )
 

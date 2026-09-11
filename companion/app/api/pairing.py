@@ -4,12 +4,16 @@ Routes::
 
     POST /api/v1/pair/start     — unauthenticated, rate-limited
     POST /api/v1/pair/confirm   — unauthenticated, rate-limited
+    POST /api/v1/pair/recover/start   — unauthenticated, rate-limited
+    POST /api/v1/pair/recover/confirm — unauthenticated, rate-limited
+    GET  /api/v1/pair/status   — requires client token
     POST /api/v1/pair/revoke    — requires client token
 """
 
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Request
+from fastapi.exceptions import HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -80,6 +84,15 @@ class PairRevokeData(BaseModel):
 
 class PairRevokeResponse(BaseModel):
     data: PairRevokeData
+    meta: dict[str, str]
+
+
+class PairStatusData(BaseModel):
+    paired: bool = True
+
+
+class PairStatusResponse(BaseModel):
+    data: PairStatusData
     meta: dict[str, str]
 
 
@@ -187,6 +200,106 @@ async def pair_confirm(
 
     return PairConfirmResponse(
         data=PairConfirmData(client_token=token),
+        meta={'request_id': _request_id(request)},
+    )
+
+
+@router.post(
+    '/pair/recover/start',
+    response_model=PairStartResponse,
+    summary='Start pairing recovery challenge',
+    description=(
+        'Starts a short-lived recovery challenge for an already paired local '
+        'companion. The code is displayed only in the companion terminal.'
+    ),
+    responses={
+        200: {'description': 'Recovery challenge created'},
+        409: {'model': ErrorResponse, 'description': 'No existing pairing'},
+        429: {'model': ErrorResponse, 'description': 'Too many pairing attempts'},
+        503: {'model': ErrorResponse, 'description': 'Database unavailable'},
+    },
+)
+async def pair_recover_start(
+    request: Request,
+    db: Session | None = Depends(get_db_session),  # noqa: B008
+) -> PairStartResponse:
+    if not _pairing_limiter.allow(_PAIRING_RATE_KEY):
+        raise HTTPException(status_code=429, detail='Too many pairing requests')
+    if db is None:
+        raise HTTPException(status_code=503, detail='Database unavailable')
+
+    service = get_pairing_service()
+    if not service.has_pairing(db):
+        raise HTTPException(status_code=409, detail='PAIRING_NOT_CONFIGURED')
+
+    try:
+        challenge_id, code = service.start_challenge()
+    except PairingCapacityError as exc:
+        raise HTTPException(status_code=429, detail='Too many active pairing challenges') from exc
+
+    import logging
+
+    logging.getLogger('app.security.pairing').info(
+        'Pairing recovery challenge started: challenge_id=%s', challenge_id
+    )
+    print(f'\n  🔑 VacancyPilot pairing recovery code: {code}\n')
+    return PairStartResponse(
+        data=PairStartData(challenge_id=challenge_id, expires_in_seconds=300),
+        meta={'request_id': _request_id(request)},
+    )
+
+
+@router.post(
+    '/pair/recover/confirm',
+    response_model=PairConfirmResponse,
+    summary='Confirm pairing recovery challenge',
+    description='Replaces a lost local client token after validating the terminal code.',
+    responses={
+        200: {'description': 'Pairing recovered'},
+        401: {'model': ErrorResponse, 'description': 'Invalid challenge or code'},
+        429: {'model': ErrorResponse, 'description': 'Too many pairing attempts'},
+        503: {'model': ErrorResponse, 'description': 'Database unavailable'},
+    },
+)
+async def pair_recover_confirm(
+    request: Request,
+    body: PairConfirmRequest,
+    db: Session | None = Depends(get_db_session),  # noqa: B008
+) -> PairConfirmResponse:
+    if not _pairing_limiter.allow(_PAIRING_RATE_KEY):
+        raise HTTPException(status_code=429, detail='Too many pairing requests')
+    if db is None:
+        raise HTTPException(status_code=503, detail='Database unavailable')
+
+    token = get_pairing_service().recover_challenge(body.challenge_id, body.code, db)
+    if token is None:
+        raise HTTPException(status_code=401, detail='Invalid or expired challenge')
+    return PairConfirmResponse(
+        data=PairConfirmData(
+            client_token=token,
+            message='Pairing recovery successful. Store this token securely.',
+        ),
+        meta={'request_id': _request_id(request)},
+    )
+
+
+@router.get(
+    '/pair/status',
+    response_model=PairStatusResponse,
+    summary='Validate the current client token',
+    description='Protected lightweight endpoint used to detect stale extension tokens.',
+    responses={
+        200: {'description': 'Token is valid'},
+        401: {'model': ErrorResponse, 'description': 'Invalid or missing client token'},
+        503: {'model': ErrorResponse, 'description': 'Database unavailable'},
+    },
+)
+async def pair_status(
+    request: Request,
+    _client_token: ClientTokenDep,
+) -> PairStatusResponse:
+    return PairStatusResponse(
+        data=PairStatusData(),
         meta={'request_id': _request_id(request)},
     )
 

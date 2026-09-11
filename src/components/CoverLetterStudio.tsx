@@ -704,7 +704,7 @@ export function CoverLetterStudio({
               <button
                 type="button"
                 onClick={() => void handleGenerateAi()}
-                disabled={aiGenerating}
+                disabled={aiGenerating || !aiPrepared.policy.aiEnabled}
                 style={{
                   padding: "5px 12px",
                   fontSize: 12,
@@ -785,6 +785,13 @@ export function CoverLetterStudio({
                 <strong>Cache:</strong>{" "}
                 {aiPrepared.cacheEnabled ? "enabled" : "disabled"}
               </span>
+              <span>
+                <strong>Privacy:</strong> {aiPrepared.policy.privacyMode}
+              </span>
+              <span>
+                <strong>AI permission:</strong>{" "}
+                {aiPrepared.policy.aiEnabled ? "allowed on confirm" : "blocked"}
+              </span>
             </div>
 
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
@@ -820,6 +827,17 @@ export function CoverLetterStudio({
                 ? `$${aiCostSummary.totalCostUsd?.toFixed(4)}`
                 : "not available for this provider/model"}
             </div>
+            <div>
+              <strong>Plan:</strong> {aiPrepared.plan.providerPlanHash} · 1 initial
+              attempt, plus at most 1 bounded repair; cache reuse is checked against
+              the exact plan.
+            </div>
+            <details>
+              <summary>Exact redacted dynamic payload</summary>
+              <pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
+                {JSON.stringify(aiPrepared.plan.dynamicPayload, null, 2)}
+              </pre>
+            </details>
           </div>
         )}
       </fieldset>

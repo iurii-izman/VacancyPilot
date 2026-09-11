@@ -22,7 +22,7 @@ pnpm build      # Production build
 
 Load the unpacked extension from `.output/chrome-mv3/` in Chrome Developer mode.
 
-See [`docs/development/private-install-guide.md`](../docs/development/private-install-guide.md) for detailed instructions.
+See [`docs/development/LOCAL_SELF_CONTAINED_SETUP.md`](../docs/development/LOCAL_SELF_CONTAINED_SETUP.md) for detailed local setup instructions.
 
 ---
 

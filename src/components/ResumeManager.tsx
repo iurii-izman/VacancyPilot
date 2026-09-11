@@ -12,6 +12,7 @@ import {
   coverLetterRepo,
 } from "@/db/repositories";
 import { db } from "@/db/database";
+import { withWriteGuard } from "@/services/reset-guard";
 import type { Resume } from "@/models/resume";
 import type { Profile } from "@/models/profile";
 import { ErrorState } from "./ErrorState";
@@ -255,7 +256,7 @@ export function ResumeManager(): ReactNode {
           if (app.resumeId === id) {
             app.resumeId = undefined;
             app.updatedAt = new Date().toISOString();
-            await db.applications.put(app);
+            await withWriteGuard(() => db.applications.put(app));
           }
         }
 

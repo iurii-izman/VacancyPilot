@@ -46,8 +46,8 @@ export function TrustSafetySummary({
                 Exports your data as CSV or JSON at any time
               </li>
               <li style={doItem}>
-                Sends optional notifications via your own n8n webhook (opt-in,
-                Labs)
+                Keeps deferred outbound event integrations inactive in the
+                current build
               </li>
             </>
           )}
@@ -88,8 +88,10 @@ export function TrustSafetySummary({
             </li>
             <li>No developer cloud backend or sync service; companion secrets use the OS keyring</li>
             <li>
-              You can export all data (CSV or JSON) and delete everything from
-              the Dashboard at any time
+              You can export supported browser-local categories (CSV or JSON)
+              and clear extension-local data from Settings → Privacy & Data at
+              any time. Ops Mode Companion SQLite, keyring secrets, and private
+              engine files are not included or deleted by those browser actions.
             </li>
           </ul>
         </div>
@@ -110,7 +112,7 @@ export function TrustSafetySummary({
           </li>
           <li>
             <strong>User in control</strong> — You decide what to save, score,
-            or send. Every AI and n8n request shows a payload preview.
+            or send. Every AI request shows a payload preview.
           </li>
           <li>
             <strong>Works without AI</strong> — Scoring works with local rules.

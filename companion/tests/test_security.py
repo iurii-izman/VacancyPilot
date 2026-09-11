@@ -128,6 +128,36 @@ class TestCORS:
             'chrome-extension://vacancypilot-dev'
         )
 
+    def test_canonical_idempotency_header_is_allowed(self, client: TestClient) -> None:
+        resp = client.options(
+            '/api/v1/vacancies/intake',
+            headers={
+                'Origin': 'chrome-extension://vacancypilot-dev',
+                'Access-Control-Request-Method': 'POST',
+                'Access-Control-Request-Headers': (
+                    'content-type,x-vacancypilot-client,x-vacancypilot-idempotency-key'
+                ),
+            },
+        )
+        assert resp.status_code == 200
+        assert 'X-VacancyPilot-Idempotency-Key' in resp.headers['access-control-allow-headers']
+        allowed_headers = {
+            header.strip().lower()
+            for header in resp.headers['access-control-allow-headers'].split(',')
+        }
+        assert 'idempotency-key' not in allowed_headers
+
+    def test_unrelated_preflight_header_is_rejected(self, client: TestClient) -> None:
+        resp = client.options(
+            '/api/v1/vacancies/intake',
+            headers={
+                'Origin': 'chrome-extension://vacancypilot-dev',
+                'Access-Control-Request-Method': 'POST',
+                'Access-Control-Request-Headers': 'content-type,x-not-allowed',
+            },
+        )
+        assert resp.status_code == 400
+
     def test_wildcard_configuration_is_rejected(self, monkeypatch: pytest.MonkeyPatch) -> None:
         from app.security.middleware import get_configured_origins
 
@@ -295,6 +325,19 @@ class TestSecretSlots:
         """OSKeyring implements the abstract KeyringBackend."""
         assert isinstance(OSKeyring(), KeyringBackend)
 
+    def test_os_keyring_read_is_empty_without_backend(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A headless runner treats an unavailable backend as unconfigured."""
+        import keyring
+
+        def fail_get_password(service: str, username: str) -> None:
+            del service, username
+            raise keyring.errors.NoKeyringError('test backend unavailable')
+
+        monkeypatch.setattr(keyring, 'get_password', fail_get_password)
+        assert OSKeyring().get_secret(SecretSlot.AI_KEY) is None
+
 
 # ── Pairing: client token and code generation ───────────────────────────
 
@@ -446,6 +489,19 @@ class TestPairingService:
         assert token2 is not None
         assert token2 != token1
 
+    def test_recovery_replaces_lost_token_without_revoke(self, db_session: Session) -> None:
+        service = PairingService()
+        cid1, code1 = service.start_challenge()
+        token1 = service.confirm_challenge(cid1, code1, db_session)
+        assert token1 is not None
+
+        cid2, code2 = service.start_challenge()
+        token2 = service.recover_challenge(cid2, code2, db_session)
+        assert token2 is not None
+        assert token2 != token1
+        assert service.verify_token(token1, db_session) is False
+        assert service.verify_token(token2, db_session) is True
+
 
 # ── Stored token is not plaintext ───────────────────────────────────────
 
@@ -559,6 +615,53 @@ class TestPairingAPI:
             headers={'X-VacancyPilot-Client': token},
         )
         assert resp.status_code == 401
+
+    def test_recovery_flow_replaces_token(self, client_with_db: TestClient) -> None:
+        """A lost extension token can be replaced through terminal-code recovery."""
+        from app.security.pairing import get_pairing_service
+
+        start = client_with_db.post('/api/v1/pair/start', json={})
+        assert start.status_code == 200
+        service = get_pairing_service()
+        challenge = service._challenges[start.json()['data']['challenge_id']]
+        first = client_with_db.post(
+            '/api/v1/pair/confirm',
+            json={'challenge_id': challenge.challenge_id, 'code': challenge.code},
+        )
+        assert first.status_code == 200
+        old_token = first.json()['data']['client_token']
+
+        recovery_start = client_with_db.post('/api/v1/pair/recover/start', json={})
+        assert recovery_start.status_code == 200
+        recovery_challenge = service._challenges[recovery_start.json()['data']['challenge_id']]
+        recovered = client_with_db.post(
+            '/api/v1/pair/recover/confirm',
+            json={
+                'challenge_id': recovery_challenge.challenge_id,
+                'code': recovery_challenge.code,
+            },
+        )
+        assert recovered.status_code == 200
+        new_token = recovered.json()['data']['client_token']
+        assert new_token != old_token
+
+        assert (
+            client_with_db.get(
+                '/api/v1/pair/status', headers={'X-VacancyPilot-Client': old_token}
+            ).status_code
+            == 401
+        )
+        assert (
+            client_with_db.get(
+                '/api/v1/pair/status', headers={'X-VacancyPilot-Client': new_token}
+            ).status_code
+            == 200
+        )
+
+    def test_recovery_requires_existing_pairing(self, client_with_db: TestClient) -> None:
+        response = client_with_db.post('/api/v1/pair/recover/start', json={})
+        assert response.status_code == 409
+        assert response.json()['error']['code'] == 'PAIRING_NOT_CONFIGURED'
 
     def test_confirm_wrong_code_returns_401(self, client_with_db: TestClient) -> None:
         """Wrong code returns 401."""
@@ -946,6 +1049,9 @@ class TestOpenAPIContract:
         paths = schema['paths']
         assert '/api/v1/pair/start' in paths
         assert '/api/v1/pair/confirm' in paths
+        assert '/api/v1/pair/recover/start' in paths
+        assert '/api/v1/pair/recover/confirm' in paths
+        assert '/api/v1/pair/status' in paths
         assert '/api/v1/pair/revoke' in paths
 
     def test_protected_test_route_is_not_in_production_openapi(self) -> None:

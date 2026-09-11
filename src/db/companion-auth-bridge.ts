@@ -11,6 +11,8 @@
  * 4. Disconnect → token deleted + POST /pair/revoke
  */
 
+import { withWriteGuard } from '@/services/reset-guard';
+
 const CLIENT_TOKEN_KEY = 'companion_client_token_v1';
 const CLIENT_TOKEN_PATTERN = /^[0-9a-f]{64}$/;
 
@@ -34,15 +36,17 @@ export async function loadClientToken(): Promise<string | null> {
  * Persist the companion client token.
  */
 export async function saveClientToken(token: string): Promise<void> {
-  if (!isValidClientToken(token)) {
-    throw new Error('Invalid companion client token');
-  }
-  await chrome.storage.local.set({ [CLIENT_TOKEN_KEY]: token });
+  await withWriteGuard(async () => {
+    if (!isValidClientToken(token)) {
+      throw new Error('Invalid companion client token');
+    }
+    await chrome.storage.local.set({ [CLIENT_TOKEN_KEY]: token });
+  });
 }
 
 /**
  * Delete the stored companion client token.
  */
 export async function deleteClientToken(): Promise<void> {
-  await chrome.storage.local.remove(CLIENT_TOKEN_KEY);
+  await withWriteGuard(() => chrome.storage.local.remove(CLIENT_TOKEN_KEY));
 }

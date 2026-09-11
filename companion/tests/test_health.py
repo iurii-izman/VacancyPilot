@@ -308,8 +308,9 @@ class TestOpenAPISnapshot:
         """The checked-in snapshot must match the currently generated schema."""
         root = Path(__file__).resolve().parents[2]  # VacancyPilot/
         snapshot = root / 'shared' / 'contracts' / 'openapi.json'
-        if not snapshot.exists():
-            pytest.skip('Snapshot file does not exist to compare against')
+        assert snapshot.exists(), (
+            'OpenAPI snapshot missing. Run the contract generation command first.'
+        )
 
         # Compare against the production route set. The shared ``client``
         # fixture intentionally adds a test-only auth probe to its schema.

@@ -24,6 +24,8 @@ export const colors = {
   amberText: "#8a7010",
   /** Card / nav background */
   cardBg: "#fafafa",
+  /** Raised surface used for primary workspace cards */
+  surface: "#ffffff",
   /** Active / selected row background */
   activeBg: "#f0f6ff",
   /** Neutral background (page status, etc.) */
@@ -44,6 +46,8 @@ export const colors = {
   actionErrorBorder: "#fcc",
   /** Border default */
   border: "#e0e0e0",
+  /** Slightly stronger border for interactive controls */
+  borderStrong: "#cbd5e1",
   /** Border light */
   borderLight: "#ddd",
   /** Border very light */
@@ -66,6 +70,8 @@ export const colors = {
   grantedBadgeBg: "#e6f7e6",
   /** Granted badge text */
   grantedBadgeText: "#2a8",
+  /** Keyboard focus ring */
+  focus: "#2563eb",
 } as const;
 
 // ── Typography ──
@@ -78,6 +84,7 @@ export const fontSizes = {
   cardHeading: 14,
   title: 15,
   sectionHeading: 16,
+  pageTitle: 22,
   icon: 32,
 } as const;
 
@@ -102,6 +109,7 @@ export const spacing = {
   section: 20,
   empty: 24,
   emptyLarge: 32,
+  page: 24,
 } as const;
 
 // ── Borders ──
@@ -111,6 +119,7 @@ export const borderRadius = {
   md: 4,
   lg: 6,
   xl: 8,
+  pill: 999,
 } as const;
 
 export const fontFamily = `system-ui, -apple-system, sans-serif` as const;

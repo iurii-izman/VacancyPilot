@@ -12,21 +12,36 @@ No auto-apply. No hidden browser-side HH requests. No external recruiter or foll
 
 ## Status
 
-**Pre-release / personal dogfood.** R5 is accepted and pushed; R5.1 Project Memory Lite is accepted and pushed; dependency maintenance is merged. Feature development is frozen while real usage evidence is collected. VacancyPilot is not published as a Chrome Web Store release.
+**Pre-release / personal dogfood.** The bounded R5 Application Factory is accepted with synthetic local QA; the current hydration/card hotfix line has not received a new live-provider V4 acceptance. R5.1 Project Memory Lite and the Fix 5 engineering-hygiene work are on this checkout. Feature development is frozen while real usage evidence is collected. VacancyPilot is not published as a Chrome Web Store release.
 
 “Personal dogfood” describes current product use, not repository visibility: this GitHub repository is public, while the private V4 engine package and real candidate knowledge remain outside it.
 
+The current checkout includes Fix 4 data-lifecycle and local-security
+hardening on top of the Pass 3 daily-use UX polish, Fix 1 transport/mode
+safety, Fix 2's authoritative Ops read model, and Fix 3's execution boundary.
+Supported Companion launch is loopback-only, the effective operating mode is
+centralized, Ops UI reads Companion/SQLite projections, and Applied remains an
+explicit confirmation after the user's native HH submission. Fix 4 does not
+make the product a public-release candidate; the local Companion server
+identity risk remains an explicitly documented public-release gate.
+
 ## What It Does Today
 
+- Presents six primary Options routes: Today, Discovery, Inbox, Pipeline,
+  Candidate and Settings; legacy hashes remain compatibility aliases.
 - Reads visible vacancy and search-card data from HH.ru pages the user opened.
 - Uses the official HH read-only API through the optional local companion in Ops Mode.
+- Keeps Ops Inbox vacancy-based, including vacancies with no Application, and Ops Pipeline Application-based; no synthetic Standalone Job/Application is created for display.
+- Derives Ops capabilities only from committed Ops authority plus a valid connected Companion; Standalone remains usable when the Companion is unavailable.
 - Manages Search Profiles and deterministic Stage A triage.
 - Runs evidence-aware Full V4 analysis when the private local engine package and explicit AI configuration are available.
 - Prepares, edits and tracks evidence-aware cover letters; generated text is never evidence.
 - Provides the R5 Application Factory: preview, explicit confirmation and a resumable manual preparation queue. Queue preparation never creates `APPLIED`.
 - Tracks applications, pipeline events, follow-ups and explicit manual `APPLIED` confirmation.
 - Provides bounded descriptive conversion/performance views with provenance and small-sample/non-causation warnings.
-- Exports and deletes local data, with storage scope depending on Standalone versus Ops Mode.
+- Exports supported browser-local categories and deletes extension-local data,
+  with scope depending on Standalone versus Ops Mode; the extension does not
+  silently delete Companion SQLite, keyring secrets or the private engine.
 
 ## What It Does Not Do
 
@@ -58,9 +73,17 @@ flowchart LR
     COMP --> OPENAI[OpenAI BYOK on explicit action]
 ```
 
-**Standalone Mode** is the extension-only workflow: WXT, Manifest V3, TypeScript and React; Dexie/IndexedDB is the canonical domain store and `chrome.storage.local` holds settings, small state and the standalone BYOK path.
+**Standalone Mode** is the extension-only workflow: WXT, Manifest V3, TypeScript and React; Dexie/IndexedDB is the canonical domain store and `chrome.storage.local` holds settings, small state and the standalone BYOK path. The effective mode is Standalone until Ops intent is enabled *and* migration has committed authority to Ops.
 
-**Ops Mode** pairs the extension with a loopback-only FastAPI companion. SQLite is canonical there; Dexie acts as cache/outbox and sync metadata. The companion keeps its operational secrets in the OS keyring, loads the private V4 package locally, and makes official HH API reads. It is not a developer cloud backend.
+**Ops Mode** pairs the extension with a loopback-only FastAPI companion. SQLite is canonical there; Dexie acts as cache/outbox and sync metadata. The Options and Side Panel Ops surfaces read the single bounded `/api/v1/ops/work-items` projection: it is a derived view, not a third persisted authority. Inbox rows are vacancies, Pipeline rows are Applications, and vacancy/application/analysis/follow-up/provenance identities remain separate. The companion keeps its operational secrets in the OS keyring, loads the private V4 package locally, and makes official HH API reads. It is not a developer cloud backend. The supported launcher is `pnpm companion:start`, which runs the project-owned `app.server` entrypoint on `127.0.0.1:8765` and rejects non-loopback binds.
+
+Fix 4 adds a reset write barrier, exhaustive extension-namespace clearing,
+explicit Standalone per-vacancy cascades, canonical HTTPS HH vacancy URLs,
+fresh live Side Panel context, and a closed Shadow DOM search badge. The
+Companion HH sync contract requires explicit scope and bounds fan-out to 50
+profiles and 2,000 items per operation. Legacy Companion `engine_runs.raw_output`
+is audited by a dry-run-first maintenance utility; the current runtime does
+not depend on that field.
 
 ## Safety and Privacy
 
@@ -72,7 +95,7 @@ Read the [security policy](SECURITY.md) and [privacy policy](PRIVACY.md) for sto
 
 Full V4 analysis requires the private engine package installed locally; real candidate knowledge is intentionally absent from this public repository. OpenAI BYOK requests are explicit, payload-previewed and locally accounted for. A generated letter is a draft until the user reviews and records the appropriate state.
 
-R5 Application Factory prepares a manual queue. Preview makes zero provider calls, execution requires explicit confirmation, and the user must perform any HH application action outside VacancyPilot and then confirm `APPLIED`. R5 conversion intelligence is descriptive: it reports the observed sample and provenance, not causal proof.
+R5 Application Factory prepares a manual queue. Preview makes zero provider calls, execution requires explicit confirmation, and the user must perform any HH application action outside VacancyPilot and then explicitly confirm `APPLIED`. Guided Apply separates preparation from this confirmation; it never fills or submits an HH form. R5 conversion intelligence is descriptive: it reports the observed sample and provenance, not causal proof.
 
 ## Tech Stack
 
@@ -82,7 +105,7 @@ R5 Application Factory prepares a manual queue. Preview makes zero provider call
 | Standalone storage | Dexie 4 / IndexedDB; `chrome.storage.local` |
 | Companion | Python 3.12+, FastAPI, Pydantic, SQLite, SQLAlchemy, Alembic |
 | Secrets | OS keyring for companion secrets; standalone extension BYOK remains in `chrome.storage.local` with a warning |
-| Contract | Generated OpenAPI snapshot at [`shared/contracts/openapi.json`](shared/contracts/openapi.json) |
+| Contract | Canonical OpenAPI snapshot plus generated TypeScript wire types at [`shared/contracts/`](shared/contracts/) |
 | Verification | Vitest, pytest, Ruff, mypy, ESLint |
 
 ## Quick Start
@@ -102,10 +125,10 @@ Load `.output/chrome-mv3/` as an unpacked extension in a Chromium browser. Open 
 ```bash
 uv sync --project companion
 pnpm verify:companion
-uv run --project companion uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8765
+pnpm companion:start
 ```
 
-Pair the extension with the running loopback companion, install and verify the private engine package using the local CLI/docs, and configure OpenAI BYOK or HH official API/OAuth only if those optional flows are needed. The [private install guide](docs/development/private-install-guide.md) contains the current workflow and troubleshooting; do not put engine payloads or secret values in the repository.
+Pair the extension with the running loopback companion, install and verify the private engine package using the local CLI/docs, and configure OpenAI BYOK or HH official API/OAuth only if those optional flows are needed. See the [local setup guide](docs/development/LOCAL_SELF_CONTAINED_SETUP.md); do not put engine payloads or secret values in the repository.
 
 ## Development and Verification
 
@@ -114,7 +137,13 @@ Root verification:
 ```bash
 pnpm verify
 pnpm test:release
+pnpm verify:all
 ```
+
+`pnpm verify:all` is the CI-equivalent full gate. It also checks workflow
+action pins, OpenAPI/TypeScript contract drift, release-package privacy, and
+the complete Companion quality suite. It does not call HH, an AI provider, or
+the private engine.
 
 Companion verification:
 
@@ -137,9 +166,13 @@ See the [current roadmap](docs/ROADMAP.md).
 - [Project Memory Lite](docs/project-memory/README.md) — startup map for future agents and developers
 - [Current state](docs/project-memory/CURRENT_STATE.md) — accepted runtime baseline and operating mode
 - [Application Ops status](docs/development/application-ops/IMPLEMENTATION_STATUS.md) — current implementation and validation
+- [Fix 4 data-security acceptance](docs/development/FIX4_DATA_SECURITY_ACCEPTANCE.md) — exact local data scope, findings and verification
+- [Fix 5 engineering hygiene](docs/development/FIX5_ENGINEERING_HYGIENE.md) — generated contracts, migrations, CI, dependencies and release artifacts
+- [Architecture](docs/ARCHITECTURE.md) and [V4 engine boundary](docs/V4_ENGINE.md)
 - [Master specification](docs/Техническое%20заданиеV.1.md)
 - [Daily-use readiness](docs/development/application-ops/r5/R5_DAILY_USE_READINESS.md)
-- [Private install guide](docs/development/private-install-guide.md)
+- [Local self-contained setup](docs/development/LOCAL_SELF_CONTAINED_SETUP.md)
+- [Testing and verification](docs/TESTING.md)
 - [Privacy policy](PRIVACY.md) and [security policy](SECURITY.md)
 - [Public-release prerequisites](docs/development/public-release-prerequisites.md)
 

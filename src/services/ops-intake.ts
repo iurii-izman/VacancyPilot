@@ -21,10 +21,11 @@
 import { OpsClient } from "@/adapters/companion/ops-client";
 import type { VacancyIntakeV1, VacancyIntakeResponse, VacancyTriageData, VacancyTriageRequest, VacancyTriageResponse } from "@/adapters/companion/vacancy-types";
 import { getOpsClient } from "@/services/companion-service";
-import { outboxRepo, opsCacheRepo, opsMetaRepo } from "@/db/ops-repository";
+import { outboxRepo, opsCacheRepo } from "@/db/ops-repository";
 import type { SyncOutboxEntry } from "@/models/ops";
 import type { AuthorityMode } from "@/models/ops";
 import type { RawVacancyDTO } from "@/adapters/hh/types";
+import { getOperatingMode } from "@/services/operating-mode";
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -168,8 +169,8 @@ export const vacancyIntakeTransport = {
  * delivered by the outbox on reconnect.
  */
 export async function enqueueVacancyIntake(dto: RawVacancyDTO): Promise<boolean> {
-  const mode: AuthorityMode = await opsMetaRepo.getAuthorityMode();
-  if (mode !== "ops") {
+  const mode = await getOperatingMode();
+  if (mode.effectiveMode !== "ops") {
     return false;
   }
 
@@ -244,12 +245,12 @@ export async function mirrorSaveToOps(dto: RawVacancyDTO): Promise<{
   mode: AuthorityMode;
 }> {
   try {
-    const mode: AuthorityMode = await opsMetaRepo.getAuthorityMode();
-    if (mode !== "ops") {
-      return { enqueued: false, mode };
+    const mode = await getOperatingMode();
+    if (mode.effectiveMode !== "ops") {
+      return { enqueued: false, mode: mode.authorityMode };
     }
     const enqueued = await enqueueVacancyIntake(dto);
-    return { enqueued, mode };
+    return { enqueued, mode: mode.authorityMode };
   } catch {
     // Mirroring must never break the standalone save, even if the ops meta
     // read fails (e.g. DB closed). Report the safest default.

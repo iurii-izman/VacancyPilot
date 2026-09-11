@@ -39,16 +39,47 @@ vi.mock("@/db", () => ({
   db: { syncOutbox: { get: vi.fn().mockResolvedValue(entry) } },
 }));
 
+const operatingMode = {
+  getOperatingMode: vi.fn().mockResolvedValue({
+    effectiveMode: "ops",
+    requestedOpsMode: true,
+    authorityMode: "ops",
+  }),
+};
+
+vi.mock("@/services/operating-mode", () => operatingMode);
+
 const { CompanionError } = await import("@/adapters/companion/ops-client");
 const { drainOutbox } = await import("./outbox-service");
 
 beforeEach(() => {
   vi.clearAllMocks();
+  operatingMode.getOperatingMode.mockResolvedValue({
+    effectiveMode: "ops",
+    requestedOpsMode: true,
+    authorityMode: "ops",
+  });
   repo.listPending.mockResolvedValue([entry]);
   repo.countPending.mockResolvedValue(1);
 });
 
 describe("outbox processor", () => {
+  it("keeps pending entries unchanged when effective mode is Standalone", async () => {
+    operatingMode.getOperatingMode.mockResolvedValue({
+      effectiveMode: "standalone",
+      requestedOpsMode: false,
+      authorityMode: "standalone",
+    });
+    const transport = { deliver: vi.fn() };
+
+    const result = await drainOutbox(transport);
+
+    expect(transport.deliver).not.toHaveBeenCalled();
+    expect(repo.commit).not.toHaveBeenCalled();
+    expect(repo.scheduleRetry).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ committed: 0, retried: 0, dead: 0, conflict: 0, remaining: 1 });
+  });
+
   it("retries the same stable idempotency key after a transport failure", async () => {
     const seenKeys: string[] = [];
     const transport = {

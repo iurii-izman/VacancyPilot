@@ -12,14 +12,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7
-      # TODO: consider blocking critical vulnerabilities once the project
-      # has a stable dependency baseline and a track record of clean audits.
-      # TODO: add deny-licenses list after reviewing current dependency
-      # license compatibility. Likely candidates: GPL-2.0+, AGPL-3.0.
-      # Do not add without verifying each dependency's actual license.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Dependency Review
-        continue-on-error: true
-        uses: actions/dependency-review-action@v4
+        uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4.9.0
         with:
           fail-on-severity: high

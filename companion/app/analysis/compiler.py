@@ -14,11 +14,42 @@ from typing import Any
 from app.analysis.models import (
     CompiledPrompt,
     PromptCompilerInput,
+    ProviderInputPolicy,
 )
+from app.analysis.privacy import sanitize_provider_value, truncate_provider_text
 from app.engine.index import KnowledgeIndex
 from app.engine.models import LoadedEnginePackage
 
 PROMPT_VERSION = 'v4.0.0-ao8-4'
+RESPONSE_SCHEMA_VERSION = 'v4-structured-result-v1'
+REPAIR_POLICY_FINGERPRINT = hashlib.sha256(
+    b'v4-bounded-repair-v1:one-initial-plus-one-repair:no-sdk-retries'
+).hexdigest()
+
+
+def assert_prompt_contract(system_prompt: str, user_prompt: str) -> None:
+    """Developer preflight for hard invariants required by the V4 contract."""
+    payload = f'{system_prompt}\n{user_prompt}'.lower()
+    requirements = {
+        'value marker': ('value', 'ценност'),
+        '150–220 words': ('150–220', '150-220'),
+        'target 165–185 words': ('165–185', '165-185'),
+        'exact signature': ('exact signature', 'точн'),
+        'no text after the signature': (
+            'no text after the signature',
+            'whitespace only after',
+            'после подписи',
+        ),
+        'SKIP => no letter': ('skip => no letter', 'skip: no letter', 'skip => без письма'),
+    }
+    missing = [
+        name
+        for name, alternatives in requirements.items()
+        if not any(a in payload for a in alternatives)
+    ]
+    if missing:
+        raise ValueError(f'PROMPT_CONTRACT_PREFLIGHT_FAILED: missing {missing}')
+
 
 OUTPUT_JSON_SCHEMA = {
     'type': 'object',
@@ -137,7 +168,8 @@ OUTPUT_JSON_SCHEMA = {
                 },
             },
         },
-        'cover_letter': {'type': 'string', 'minLength': 400, 'maxLength': 5000},
+        # SKIP has no generated letter; APPLY/CONSIDER length is literal-validated.
+        'cover_letter': {'type': 'string', 'minLength': 0, 'maxLength': 5000},
         'recruiter_risks': {
             'type': 'array',
             'minItems': 2,
@@ -238,6 +270,171 @@ def _model_name_for_prompt(model: str | None) -> str:
     return model or 'gpt-4o'
 
 
+def _sha256_json(value: Any) -> str:
+    payload = json.dumps(value, sort_keys=True, separators=(',', ':'), ensure_ascii=False)
+    return hashlib.sha256(payload.encode('utf-8')).hexdigest()
+
+
+def _policy_fingerprint(policy: ProviderInputPolicy) -> str:
+    return _sha256_json(policy.execution_fingerprint_payload())
+
+
+def _build_dynamic_payload(
+    input_data: PromptCompilerInput,
+    index: KnowledgeIndex | None,
+    policy: ProviderInputPolicy,
+) -> dict[str, Any]:
+    """Build the exact allowlisted dynamic material used by the compiler."""
+    vacancy: dict[str, Any] = {
+        'title': sanitize_provider_value(input_data.title, policy, max_chars=500),
+        'company_name': sanitize_provider_value(input_data.company_name, policy, max_chars=500),
+        'salary_raw': sanitize_provider_value(input_data.salary_raw, policy, max_chars=200),
+        'city': sanitize_provider_value(input_data.city, policy, max_chars=200),
+        'work_mode': sanitize_provider_value(input_data.work_mode, policy, max_chars=32),
+        'experience_raw': sanitize_provider_value(input_data.experience_raw, policy, max_chars=500),
+        'skills': sanitize_provider_value(input_data.skills[:20], policy, max_chars=200),
+    }
+    if policy.privacy_mode != 'strict' and policy.allow_full_description_to_ai:
+        vacancy['description_clean'] = sanitize_provider_value(
+            input_data.description_clean,
+            policy,
+            # Keep the disclosure byte-for-byte aligned with the description
+            # segment rendered by _build_vacancy_section below.
+            max_chars=min(policy.max_input_chars, 3000),
+        )
+
+    payload: dict[str, Any] = {
+        'vacancy': vacancy,
+        'selected_claim_ids': [
+            _safe_reference(value, policy) for value in input_data.selected_claim_ids
+        ],
+        'selected_case_ids': [
+            _safe_reference(value, policy) for value in input_data.selected_case_ids
+        ],
+        'selected_portfolio_id': (
+            _safe_reference(input_data.selected_portfolio_id, policy)
+            if input_data.selected_portfolio_id
+            else None
+        ),
+        'hard_gate_ids': [_safe_reference(value, policy) for value in input_data.hard_gate_ids],
+        'cap_ids': [_safe_reference(value, policy) for value in input_data.cap_ids],
+        'voice_entry_ids': [_safe_reference(value, policy) for value in input_data.voice_entry_ids],
+        'regression_ids': [_safe_reference(value, policy) for value in input_data.regression_ids],
+        'skill_calibration_ids': [
+            _safe_reference(value, policy) for value in input_data.skill_calibration_ids
+        ],
+        'project_instructions': sanitize_provider_value(
+            input_data.project_instructions, policy, max_chars=16000
+        ),
+    }
+
+    evidence: dict[str, Any] = {'claims': {}, 'cases': {}, 'portfolio': None}
+    claim_fields = (
+        'title',
+        'allowed_wording',
+        'strongest_safe_wording_ru',
+        'strongest_safe_wording_en',
+        'limitations',
+    )
+    case_fields = (
+        'title',
+        'candidate_role',
+        'micro_proof_ru',
+        'micro_proof_en',
+        'confirmed_outcome',
+        'solution_components',
+        'do_not_claim',
+        'limitations',
+    )
+    if index:
+        for claim_id in input_data.selected_claim_ids:
+            entry = index.claims.get(claim_id)
+            if entry is not None:
+                evidence['claims'][_safe_reference(claim_id, policy)] = _allowlisted_evidence(
+                    entry,
+                    claim_fields,
+                    policy,
+                    extra_fields={
+                        'evidence_level': (entry.get('evidence_level', '?'), 64),
+                        'category': (entry.get('category', ''), 200),
+                    },
+                )
+        for case_id in input_data.selected_case_ids:
+            entry = index.commercial_cases.get(case_id)
+            if entry is not None:
+                evidence['cases'][_safe_reference(case_id, policy)] = _allowlisted_evidence(
+                    entry,
+                    case_fields,
+                    policy,
+                    extra_fields={'category': (entry.get('category', ''), 200)},
+                )
+        portfolio_id = input_data.selected_portfolio_id
+        if portfolio_id and portfolio_id in index.portfolio_cases:
+            entry = index.portfolio_cases[portfolio_id]
+            evidence['portfolio'] = {
+                'id': _safe_reference(portfolio_id, policy),
+                'boundary': sanitize_provider_value(entry.get('boundary'), policy, max_chars=800),
+            }
+    evidence['skill_calibrations'] = {}
+    for skill_id in input_data.skill_calibration_ids:
+        if index and skill_id in index.skill_calibrations:
+            entry = index.skill_calibrations[skill_id]
+            evidence['skill_calibrations'][_safe_reference(skill_id, policy)] = {
+                'skill_name': sanitize_provider_value(
+                    entry.get('skill_name', skill_id), policy, max_chars=200
+                ),
+                'level': sanitize_provider_value(entry.get('level', '?'), policy, max_chars=64),
+                'evidence_level': sanitize_provider_value(
+                    entry.get('evidence_level', '?'), policy, max_chars=64
+                ),
+            }
+    evidence['hard_gates'] = {}
+    if index:
+        for rule_id in input_data.hard_gate_ids:
+            if rule_id in index.hard_gates:
+                evidence['hard_gates'][_safe_reference(rule_id, policy)] = {
+                    'severity': sanitize_provider_value(
+                        index.hard_gates[rule_id].get('severity', '?'), policy, max_chars=64
+                    )
+                }
+    evidence['voice_registry'] = {}
+    if index:
+        for voice_id in input_data.voice_entry_ids:
+            if voice_id in index.voice_registry:
+                evidence['voice_registry'][_safe_reference(voice_id, policy)] = {
+                    'entry_type': sanitize_provider_value(
+                        index.voice_registry[voice_id].get('entry_type', '?'),
+                        policy,
+                        max_chars=64,
+                    )
+                }
+    payload['selected_evidence'] = evidence
+    return payload
+
+
+def _allowlisted_evidence(
+    entry: dict[str, Any],
+    fields: tuple[str, ...],
+    policy: ProviderInputPolicy,
+    *,
+    extra_fields: dict[str, tuple[Any, int]] | None = None,
+) -> dict[str, Any]:
+    """Project one selected engine record without forwarding unknown fields."""
+    projected: dict[str, Any] = {}
+    for field, (value, max_chars) in (extra_fields or {}).items():
+        if value is not None:
+            rendered = sanitize_provider_value(value, policy, max_chars=max_chars)
+            if rendered not in ('', None, []):
+                projected[field] = rendered
+    for field in fields:
+        value = entry.get(field)
+        if value is not None:
+            rendered = sanitize_provider_value(value, policy, max_chars=800)
+            if rendered not in ('', None, []):
+                projected[field] = rendered
+    return projected
+
+
 def compile_prompt(
     input_data: PromptCompilerInput,
     index: KnowledgeIndex | None,
@@ -247,6 +444,9 @@ def compile_prompt(
     model: str | None = None,
     privacy_mode: str = 'standard',
     language: str = 'ru',
+    policy: ProviderInputPolicy | None = None,
+    subject_ids: dict[str, str] | None = None,
+    operation_kind: str = 'vacancy_analysis',
 ) -> CompiledPrompt:
     """Compile a deterministic minimal payload for V4 analysis.
 
@@ -263,38 +463,60 @@ def compile_prompt(
         A CompiledPrompt with system/user prompts, schema, hash, and preview.
     """
     resolved_model = _model_name_for_prompt(model)
+    effective_policy = policy or ProviderInputPolicy(
+        ai_enabled=True,
+        provider='openai',
+        model=resolved_model,
+        privacy_mode='strict' if privacy_mode == 'strict' else 'standard',
+        allow_full_description_to_ai=privacy_mode != 'strict',
+    )
+    # The policy is authoritative when supplied.  This prevents a stale UI
+    # privacy_mode field from silently widening the reviewed payload.
+    effective_privacy_mode = effective_policy.privacy_mode
+    safe_input = input_data.model_copy(
+        update={'privacy_mode': effective_privacy_mode, 'language': language}
+    )
+    subjects = dict(subject_ids or {})
 
     # ── Build sections ───────────────────────────────────────────────────
     selection_reasons: list[str] = []
 
     # Vacancy section
-    vacancy_section = _build_vacancy_section(input_data, privacy_mode, language)
+    vacancy_section = _build_vacancy_section(safe_input, effective_policy, language)
 
     # Candidate claims section
-    claims_section, claim_reasons = _build_claims_section(input_data, index)
+    claims_section, claim_reasons = _build_claims_section(safe_input, index, effective_policy)
     selection_reasons.extend(claim_reasons)
 
     # Commercial cases section
-    cases_section, case_reasons = _build_cases_section(input_data, index)
+    cases_section, case_reasons = _build_cases_section(safe_input, index, effective_policy)
     selection_reasons.extend(case_reasons)
 
     # Portfolio section
-    portfolio_section, portfolio_reasons = _build_portfolio_section(input_data, index)
+    portfolio_section, portfolio_reasons = _build_portfolio_section(
+        safe_input, index, effective_policy
+    )
     selection_reasons.extend(portfolio_reasons)
 
     # Skill calibration section
-    skills_section = _build_skills_section(input_data, index)
+    skills_section = _build_skills_section(safe_input, index, effective_policy)
 
     # Targeting / hard-gate / cap section
-    targeting_section = _build_targeting_section(input_data, index)
+    targeting_section = _build_targeting_section(safe_input, index, effective_policy)
 
     # Voice / regression section
-    voice_section = _build_voice_section(input_data, index)
+    voice_section = _build_voice_section(safe_input, index, effective_policy)
 
     # Project instructions
     pi_text = ''
-    if input_data.project_instructions:
-        pi_text = input_data.project_instructions
+    if safe_input.project_instructions:
+        pi_text = str(
+            sanitize_provider_value(
+                safe_input.project_instructions,
+                effective_policy,
+                max_chars=16000,
+            )
+        )
     # Truncate project instructions to a reasonable limit for the prompt
     if len(pi_text) > 16000:
         pi_text = pi_text[:16000] + '\n\n[... Project Instructions truncated ...]'
@@ -322,37 +544,61 @@ def compile_prompt(
     sections.append(_build_output_format_section())
 
     user_prompt = '\n\n---\n\n'.join(s for s in sections if s)
+    assert_prompt_contract(system_prompt, user_prompt)
 
     # ── Compute input hash ───────────────────────────────────────────────
     engine_version = package.identity.engine_version if package else 'none'
     engine_hash = package.identity.aggregate_hash if package else '0' * 64
-    hash_input = json.dumps(
+    dynamic_payload = _build_dynamic_payload(safe_input, index, effective_policy)
+    input_hash = _sha256_json(
         {
-            'prompt_version': PROMPT_VERSION,
+            'operation_kind': operation_kind,
+            'subject_ids': subjects,
+            'dynamic_payload': dynamic_payload,
             'engine_version': engine_version,
             'engine_hash': engine_hash,
             'provider': provider,
             'model': resolved_model,
-            'privacy_mode': privacy_mode,
             'language': language,
-            'vacancy_title': input_data.title,
-            'vacancy_company': input_data.company_name or '',
-            'vacancy_description_hash': hashlib.sha256(
-                (input_data.description_clean or '').encode()
-            ).hexdigest(),
-            'selected_claim_ids': sorted(input_data.selected_claim_ids),
-            'selected_case_ids': sorted(input_data.selected_case_ids),
-            'selected_portfolio_id': input_data.selected_portfolio_id or '',
-            'hard_gate_ids': sorted(input_data.hard_gate_ids),
-            'cap_ids': sorted(input_data.cap_ids),
-        },
-        sort_keys=True,
-        ensure_ascii=False,
+            'privacy_policy_fingerprint': _policy_fingerprint(effective_policy),
+        }
     )
-    input_hash = hashlib.sha256(hash_input.encode('utf-8')).hexdigest()
+
+    provider_affecting_options = {
+        'temperature': 0.4,
+        'structured_output': True,
+        'token_limit': 2000,
+        'repair_temperature': 0.3,
+        'max_repair_attempts': 1,
+        'sdk_retries': 0,
+    }
+    plan_semantics = {
+        'operation_kind': operation_kind,
+        'subject_ids': subjects,
+        'provider': provider,
+        'model': resolved_model,
+        'messages': {
+            'system': system_prompt,
+            'user': user_prompt,
+        },
+        'output_schema_version': RESPONSE_SCHEMA_VERSION,
+        'output_schema': OUTPUT_JSON_SCHEMA,
+        'provider_affecting_options': provider_affecting_options,
+        'compiler_fingerprint': {
+            'prompt_version': PROMPT_VERSION,
+            'engine_version': engine_version,
+            'engine_hash': engine_hash,
+        },
+        'repair_policy_fingerprint': REPAIR_POLICY_FINGERPRINT,
+        'privacy_policy_fingerprint': _policy_fingerprint(effective_policy),
+        'authoritative_input_fingerprint': input_hash,
+    }
+    provider_plan_hash = _sha256_json(plan_semantics)
 
     # ── Build payload preview ────────────────────────────────────────────
-    payload_preview = _build_payload_preview(input_data, resolved_model, privacy_mode, language)
+    payload_preview = _build_payload_preview(
+        safe_input, resolved_model, effective_privacy_mode, language, effective_policy
+    )
 
     # ── Estimate tokens ─────────────────────────────────────────────────
     token_estimate = _estimate_tokens(system_prompt + user_prompt)
@@ -370,6 +616,15 @@ def compile_prompt(
         engine_hash=engine_hash,
         provider=provider,
         model=resolved_model,
+        operation_kind=operation_kind,
+        subject_ids=subjects,
+        output_schema_version=RESPONSE_SCHEMA_VERSION,
+        provider_affecting_options=provider_affecting_options,
+        repair_policy_fingerprint=REPAIR_POLICY_FINGERPRINT,
+        privacy_policy_fingerprint=_policy_fingerprint(effective_policy),
+        authoritative_input_fingerprint=input_hash,
+        provider_plan_hash=provider_plan_hash,
+        dynamic_payload=dynamic_payload,
     )
 
 
@@ -377,33 +632,61 @@ def compile_prompt(
 
 
 def _build_vacancy_section(
-    input_data: PromptCompilerInput, privacy_mode: str, language: str
+    input_data: PromptCompilerInput,
+    policy_or_privacy: ProviderInputPolicy | str,
+    language: str,
 ) -> str:
     """Build the vacancy section of the prompt."""
+    policy = (
+        policy_or_privacy
+        if isinstance(policy_or_privacy, ProviderInputPolicy)
+        else ProviderInputPolicy(
+            ai_enabled=True,
+            privacy_mode='strict' if policy_or_privacy == 'strict' else 'standard',
+            allow_full_description_to_ai=policy_or_privacy != 'strict',
+        )
+    )
+    privacy_mode = policy.privacy_mode
     header = '## Vacancy' if language == 'en' else '## Вакансия'
 
     fields: list[str] = [
-        f'- Title: {input_data.title}',
+        f'- Title: {sanitize_provider_value(input_data.title, policy, max_chars=500)}',
     ]
     if input_data.company_name:
-        fields.append(f'- Company: {input_data.company_name}')
+        fields.append(
+            f'- Company: {sanitize_provider_value(input_data.company_name, policy, max_chars=500)}'
+        )
     if input_data.salary_raw:
-        fields.append(f'- Salary: {input_data.salary_raw}')
+        fields.append(
+            f'- Salary: {sanitize_provider_value(input_data.salary_raw, policy, max_chars=200)}'
+        )
     if input_data.city:
-        fields.append(f'- City: {input_data.city}')
+        fields.append(f'- City: {sanitize_provider_value(input_data.city, policy, max_chars=200)}')
     if input_data.work_mode:
-        fields.append(f'- Work mode: {input_data.work_mode}')
+        fields.append(
+            f'- Work mode: {sanitize_provider_value(input_data.work_mode, policy, max_chars=32)}'
+        )
     if input_data.experience_raw:
-        fields.append(f'- Experience: {input_data.experience_raw}')
+        experience = sanitize_provider_value(input_data.experience_raw, policy, max_chars=500)
+        fields.append(f'- Experience: {experience}')
     if input_data.skills:
-        fields.append(f'- Skills: {", ".join(input_data.skills[:20])}')
+        safe_skills = sanitize_provider_value(input_data.skills[:20], policy, max_chars=200)
+        fields.append(f'- Skills: {", ".join(str(item) for item in safe_skills)}')
 
     parts = [header, '', '\n'.join(fields)]
 
-    if privacy_mode != 'strict' and input_data.description_clean:
-        desc = input_data.description_clean
-        if len(desc) > 3000:
-            desc = desc[:3000] + '\n[... description truncated ...]'
+    if (
+        privacy_mode != 'strict'
+        and policy.allow_full_description_to_ai
+        and input_data.description_clean
+    ):
+        desc = str(
+            sanitize_provider_value(
+                input_data.description_clean,
+                policy,
+                max_chars=min(policy.max_input_chars, 3000),
+            )
+        )
         parts.extend(['', f'### {"Description" if language == "en" else "Описание"}', '', desc])
     elif privacy_mode == 'strict':
         parts.extend(
@@ -421,7 +704,9 @@ def _build_vacancy_section(
 
 
 def _build_claims_section(
-    input_data: PromptCompilerInput, index: KnowledgeIndex | None
+    input_data: PromptCompilerInput,
+    index: KnowledgeIndex | None,
+    policy: ProviderInputPolicy | None = None,
 ) -> tuple[str, list[str]]:
     """Build the candidate claims section."""
     reasons: list[str] = []
@@ -434,9 +719,9 @@ def _build_claims_section(
     for cid in input_data.selected_claim_ids:
         if index and cid in index.claims:
             claim = index.claims[cid]
-            level = claim.get('evidence_level', '?')
-            category = claim.get('category', '')
-            line = f'- `{cid}` [L:{level}]'
+            level = _render_evidence_value(claim.get('evidence_level', '?'), policy) or '?'
+            category = _render_evidence_value(claim.get('category', ''), policy)
+            line = f'- `{_safe_reference(cid, policy)}` [L:{level}]'
             if category:
                 line += f' ({category})'
             lines.append(line)
@@ -450,17 +735,20 @@ def _build_claims_section(
                         'strongest_safe_wording_en',
                         'limitations',
                     ),
+                    policy=policy,
                 )
             )
             count += 1
         else:
-            lines.append(f'- `{cid}` [not in index]')
+            lines.append(f'- `{_safe_reference(cid, policy)}` [not in index]')
     reasons.append(f'Selected {count} claims')
     return ('\n'.join(lines), reasons)
 
 
 def _build_cases_section(
-    input_data: PromptCompilerInput, index: KnowledgeIndex | None
+    input_data: PromptCompilerInput,
+    index: KnowledgeIndex | None,
+    policy: ProviderInputPolicy | None = None,
 ) -> tuple[str, list[str]]:
     """Build the commercial cases section."""
     reasons: list[str] = []
@@ -473,8 +761,8 @@ def _build_cases_section(
     for cid in input_data.selected_case_ids:
         if index and cid in index.commercial_cases:
             case = index.commercial_cases[cid]
-            category = case.get('category', '')
-            line = f'- `{cid}`'
+            category = _render_evidence_value(case.get('category', ''), policy)
+            line = f'- `{_safe_reference(cid, policy)}`'
             if category:
                 line += f' ({category})'
             lines.append(line)
@@ -491,16 +779,22 @@ def _build_cases_section(
                         'do_not_claim',
                         'limitations',
                     ),
+                    policy=policy,
                 )
             )
             count += 1
         else:
-            lines.append(f'- `{cid}` [not in index]')
+            lines.append(f'- `{_safe_reference(cid, policy)}` [not in index]')
     reasons.append(f'Selected {count} commercial cases')
     return ('\n'.join(lines), reasons)
 
 
-def _selected_evidence_lines(entry: dict[str, Any], fields: tuple[str, ...]) -> list[str]:
+def _selected_evidence_lines(
+    entry: dict[str, Any],
+    fields: tuple[str, ...],
+    *,
+    policy: ProviderInputPolicy | None = None,
+) -> list[str]:
     """Render only explicit, selected evidence fields for the provider payload.
 
     The compiler must provide usable wording and case proof, not merely opaque
@@ -510,26 +804,43 @@ def _selected_evidence_lines(entry: dict[str, Any], fields: tuple[str, ...]) -> 
     lines: list[str] = []
     for field in fields:
         value = entry.get(field)
-        rendered = _render_evidence_value(value)
+        rendered = _render_evidence_value(value, policy)
         if rendered:
             lines.append(f'  {field}: {rendered}')
     return lines
 
 
-def _render_evidence_value(value: Any) -> str:
+def _render_evidence_value(
+    value: Any,
+    policy: ProviderInputPolicy | None = None,
+) -> str:
     """Render a scalar/list evidence field without serialising arbitrary data."""
+    effective_policy = policy or ProviderInputPolicy(ai_enabled=True, privacy_mode='standard')
     if isinstance(value, str):
-        return value.strip()[:800]
+        return truncate_provider_text(
+            str(sanitize_provider_value(value.strip(), effective_policy)), 800
+        )
     if isinstance(value, list):
-        items = [str(item).strip() for item in value if isinstance(item, (str, int, float))]
-        return '; '.join(item for item in items if item)[:800]
+        items = [
+            str(sanitize_provider_value(str(item).strip(), effective_policy))
+            for item in value
+            if isinstance(item, (str, int, float))
+        ]
+        return truncate_provider_text('; '.join(item for item in items if item), 800)
     if isinstance(value, (int, float)):
         return str(value)
     return ''
 
 
+def _safe_reference(value: str, policy: ProviderInputPolicy | None) -> str:
+    effective_policy = policy or ProviderInputPolicy(ai_enabled=True, privacy_mode='standard')
+    return str(sanitize_provider_value(value, effective_policy, max_chars=128))
+
+
 def _build_portfolio_section(
-    input_data: PromptCompilerInput, index: KnowledgeIndex | None
+    input_data: PromptCompilerInput,
+    index: KnowledgeIndex | None,
+    policy: ProviderInputPolicy | None = None,
 ) -> tuple[str, list[str]]:
     """Build the portfolio section (at most one)."""
     reasons: list[str] = []
@@ -540,18 +851,28 @@ def _build_portfolio_section(
 
     boundary = ''
     if index and pid in index.portfolio_cases:
-        boundary = index.portfolio_cases[pid].get('boundary', '')
-        reasons.append(f'Selected portfolio case {pid}')
+        boundary = str(
+            sanitize_provider_value(
+                index.portfolio_cases[pid].get('boundary', ''),
+                policy or ProviderInputPolicy(ai_enabled=True, privacy_mode='standard'),
+                max_chars=800,
+            )
+        )
+        reasons.append(f'Selected portfolio case {_safe_reference(pid, policy)}')
     else:
-        reasons.append(f'Portfolio case {pid} not found in index')
+        reasons.append(f'Portfolio case {_safe_reference(pid, policy)} not found in index')
 
-    lines = ['## Relevant Portfolio Case', '', f'- ID: `{pid}`']
+    lines = ['## Relevant Portfolio Case', '', f'- ID: `{_safe_reference(pid, policy)}`']
     if boundary:
         lines.append(f'- Boundary: {boundary}')
     return ('\n'.join(lines), reasons)
 
 
-def _build_skills_section(input_data: PromptCompilerInput, index: KnowledgeIndex | None) -> str:
+def _build_skills_section(
+    input_data: PromptCompilerInput,
+    index: KnowledgeIndex | None,
+    policy: ProviderInputPolicy | None = None,
+) -> str:
     """Build the skill calibration section."""
     if not input_data.skill_calibration_ids:
         return ''
@@ -560,16 +881,23 @@ def _build_skills_section(input_data: PromptCompilerInput, index: KnowledgeIndex
     for sid in input_data.skill_calibration_ids:
         if index and sid in index.skill_calibrations:
             sk = index.skill_calibrations[sid]
-            name = sk.get('skill_name', sid)
-            level = sk.get('level', '?')
-            evidence = sk.get('evidence_level', '?')
+            safe_policy = policy or ProviderInputPolicy(ai_enabled=True, privacy_mode='standard')
+            name = sanitize_provider_value(sk.get('skill_name', sid), safe_policy, max_chars=200)
+            level = sanitize_provider_value(sk.get('level', '?'), safe_policy, max_chars=64)
+            evidence = sanitize_provider_value(
+                sk.get('evidence_level', '?'), safe_policy, max_chars=64
+            )
             lines.append(f'- {name}: level={level}, evidence={evidence}')
         else:
-            lines.append(f'- `{sid}` [not in index]')
+            lines.append(f'- `{_safe_reference(sid, policy)}` [not in index]')
     return '\n'.join(lines)
 
 
-def _build_targeting_section(input_data: PromptCompilerInput, index: KnowledgeIndex | None) -> str:
+def _build_targeting_section(
+    input_data: PromptCompilerInput,
+    index: KnowledgeIndex | None,
+    policy: ProviderInputPolicy | None = None,
+) -> str:
     """Build the targeting/hard-gate/cap section."""
     lines = ['## Targeting Rules', '']
 
@@ -578,9 +906,14 @@ def _build_targeting_section(input_data: PromptCompilerInput, index: KnowledgeIn
         for rid in input_data.hard_gate_ids:
             if index and rid in index.hard_gates:
                 rule = index.hard_gates[rid]
-                lines.append(f'- `{rid}`: {rule.get("severity", "?")}')
+                severity = sanitize_provider_value(
+                    rule.get('severity', '?'),
+                    policy or ProviderInputPolicy(ai_enabled=True, privacy_mode='standard'),
+                    max_chars=64,
+                )
+                lines.append(f'- `{_safe_reference(rid, policy)}`: {severity}')
             else:
-                lines.append(f'- `{rid}` [not in index]')
+                lines.append(f'- `{_safe_reference(rid, policy)}` [not in index]')
     else:
         lines.append('*None specified*')
 
@@ -590,16 +923,20 @@ def _build_targeting_section(input_data: PromptCompilerInput, index: KnowledgeIn
         for rid in input_data.cap_ids:
             if index and rid in index.caps:
                 rule = index.caps[rid]
-                lines.append(f'- `{rid}`')
+                lines.append(f'- `{_safe_reference(rid, policy)}`')
             else:
-                lines.append(f'- `{rid}` [not in index]')
+                lines.append(f'- `{_safe_reference(rid, policy)}` [not in index]')
     else:
         lines.append('*None specified*')
 
     return '\n'.join(lines)
 
 
-def _build_voice_section(input_data: PromptCompilerInput, index: KnowledgeIndex | None) -> str:
+def _build_voice_section(
+    input_data: PromptCompilerInput,
+    index: KnowledgeIndex | None,
+    policy: ProviderInputPolicy | None = None,
+) -> str:
     """Build the voice/regression section."""
     voice_ids = input_data.voice_entry_ids
     regression_ids = input_data.regression_ids
@@ -612,15 +949,19 @@ def _build_voice_section(input_data: PromptCompilerInput, index: KnowledgeIndex 
         for vid in voice_ids:
             if index and vid in index.voice_registry:
                 entry = index.voice_registry[vid]
-                etype = entry.get('entry_type', '?')
-                lines.append(f'- `{vid}` ({etype})')
+                etype = sanitize_provider_value(
+                    entry.get('entry_type', '?'),
+                    policy or ProviderInputPolicy(ai_enabled=True, privacy_mode='standard'),
+                    max_chars=64,
+                )
+                lines.append(f'- `{_safe_reference(vid, policy)}` ({etype})')
             else:
-                lines.append(f'- `{vid}` [not in index]')
+                lines.append(f'- `{_safe_reference(vid, policy)}` [not in index]')
     if regression_ids:
         lines.append('')
         lines.append('### Regression References')
         for rid in regression_ids:
-            lines.append(f'- `{rid}`')
+            lines.append(f'- `{_safe_reference(rid, policy)}`')
     return '\n'.join(lines)
 
 
@@ -628,6 +969,16 @@ def _build_rules_section(language: str) -> str:
     """Build the rules/constraints section."""
     if language == 'en':
         header = '## Rules'
+        invariants = (
+            'LETTER CONTRACT (machine-checked; literal constraints):\n'
+            '- APPLY or CONSIDER: cover_letter is required and MUST contain the literal interest marker '  # noqa: E501
+            '"interested" or "writing ... apply", and the literal value marker "value", "contribute", or "bring".\n'  # noqa: E501
+            '- APPLY or CONSIDER: 150–220 words; target 165–185 words.\n'
+            '- SKIP => no letter: set cover_letter to the empty string.\n'
+            '- Use the exact signature format: `Best regards,` on its own line, then the exact candidate name.\n'  # noqa: E501
+            '- No text after the signature; whitespace only. No placeholders, invented claims, or new evidence IDs.\n'  # noqa: E501
+            '- Preserve evidence grounding and decision/score unless a listed validator failure requires correction.'  # noqa: E501
+        )
         forbid = (
             'Forbidden overclaims (do NOT use these phrases or their equivalents):\n'
             + '\n'.join(f'- {p}' for p in FORBIDDEN_OVERCLAIMS[:10])
@@ -639,9 +990,21 @@ def _build_rules_section(language: str) -> str:
         forbidden_phrases = 'Forbidden placeholder phrases (do NOT use):\n' + '\n'.join(
             f'- {p}' for p in FORBIDDEN_PHRASES[:8]
         )
-        return '\n'.join([header, '', forbid, '', evidence_rule, '', forbidden_phrases])
+        return '\n'.join(
+            [header, '', invariants, '', forbid, '', evidence_rule, '', forbidden_phrases]
+        )
     else:
         header = '## Правила'
+        invariants = (
+            'КОНТРАК ПИСЬМА (проверяется машинно; буквальные ограничения):\n'
+            '- APPLY или CONSIDER: cover_letter обязателен и ДОЛЖЕН содержать буквальный маркер интереса '  # noqa: E501
+            '«заинтересовала» или «пишу ... отклик» и буквальный маркер ценности «ценность» или «почему ... компании».\n'  # noqa: E501
+            '- APPLY или CONSIDER: 150–220 слов; цель 165–185 слов.\n'
+            '- SKIP => без письма: установите cover_letter в пустую строку.\n'
+            '- Используйте точный формат подписи: «С уважением,» отдельной строкой, затем точное имя кандидата.\n'  # noqa: E501
+            '- После подписи не должно быть текста, только пробелы. Без placeholders, выдуманных утверждений и новых evidence ID.\n'  # noqa: E501
+            '- Сохраняйте evidence grounding и decision/score, если исправление не требует иного.'
+        )
         forbid = (
             'Запрещённые утверждения (НЕ используйте эти фразы или их эквиваленты):\n'
             + '\n'.join(f'- {p}' for p in FORBIDDEN_OVERCLAIMS[:10])
@@ -653,7 +1016,9 @@ def _build_rules_section(language: str) -> str:
         forbidden_phrases = 'Запрещённые фразы-заполнители (НЕ используйте):\n' + '\n'.join(
             f'- {p}' for p in FORBIDDEN_PHRASES[:8]
         )
-        return '\n'.join([header, '', forbid, '', evidence_rule, '', forbidden_phrases])
+        return '\n'.join(
+            [header, '', invariants, '', forbid, '', evidence_rule, '', forbidden_phrases]
+        )
 
 
 def _build_output_format_section() -> str:
@@ -681,14 +1046,18 @@ def _build_system_prompt_ru() -> str:
         '6. Верни строго валидный JSON без markdown-обёртки.\n'
         '7. Если информации недостаточно для трёх требований — '
         'верни пустой массив central_requirements.\n'
-        '8. `cover_letter` обязателен: пять абзацев в порядке приветствие, '
+        '8. Для `apply`/`consider` `cover_letter` обязателен: пять абзацев в порядке приветствие, '
         'интерес к вакансии, опыт с конкретным количественным proof, ценность '
         'для компании, закрытие с благодарностью и подписью. Для decision '
-        '`apply`/`consider` — 150–220 слов; для `skip` — 90–130. Используй '
+        '`apply`/`consider` — 150–220 слов, цель 165–185; для `skip` верни пустой `cover_letter`. Используй '  # noqa: E501
         'минимум два термина из названия вакансии и только разрешённые факты.\n'
-        '9. Если выбранный кейс содержит `micro_proof_ru`, вставь его дословно '
+        '9. Для `apply`/`consider`, если выбранный кейс содержит `micro_proof_ru`, вставь его дословно '  # noqa: E501
         'один раз в абзац об опыте. Закрой письмо отдельными последними строками '
-        '«С уважением,» и только именем кандидата.\n'
+        '«С уважением,» и только точным именем кандидата из Project Instructions; '
+        'не используй placeholder и не выдумывай имя. Перед отправкой проверь, что '
+        'в письме явно присутствуют маркеры интереса (`заинтересовала` или '
+        '`пишу ... отклик`) и ценности (`ценность` или `почему ... компании`), '
+        'поскольку это обязательные literal-проверки.\n'
         '10. Если используешь selected case в письме, добавь его `case_id` в '
         '`evidence_map`, чтобы proof можно было детерминированно проверить.\n'
     )
@@ -707,14 +1076,18 @@ def _build_system_prompt_en() -> str:
         '6. Return strictly valid JSON without markdown fences.\n'
         '7. If insufficient information for three requirements — '
         'return empty central_requirements array.\n'
-        '8. `cover_letter` is mandatory: write five paragraphs in this order: '
+        '8. For `apply`/`consider`, `cover_letter` is mandatory: write five paragraphs in this order: '  # noqa: E501
         'greeting, vacancy interest, experience with a concrete quantitative '
         'proof, value for the company, and a thankful closing with signature. '
-        'For `apply`/`consider`, use 150–220 words; for `skip`, use 90–130. '
+        'For `apply`/`consider`, use 150–220 words with a 165–185 target; for `skip`, return an empty `cover_letter`. '  # noqa: E501
         'Include at least two terms from the vacancy title and use only allowed facts.\n'
-        '9. When a selected case supplies `micro_proof_en`, include that exact '
+        '9. For `apply`/`consider`, when a selected case supplies `micro_proof_en`, include that exact '  # noqa: E501
         'wording once in the experience paragraph. End the letter with separate '
-        'final lines: `Best regards,` followed only by the candidate name.\n'
+        'final lines: `Best regards,` followed only by the exact candidate name from '
+        'Project Instructions; never use a placeholder or invent a name. Before '
+        'returning, verify that the letter explicitly contains interest wording '
+        '(`interested` or `writing ... apply`) and value wording (`value`, '
+        '`contribute`, or `bring`), because these are mandatory literal checks.\n'
         '10. When a selected case is used in the letter, include its `case_id` '
         'in `evidence_map` so the proof can be deterministically verified.\n'
     )
@@ -728,27 +1101,52 @@ def _build_payload_preview(
     model: str,
     privacy_mode: str,
     language: str,
+    policy: ProviderInputPolicy | None = None,
 ) -> str:
     """Build a human-readable payload preview for user review."""
+    safe_policy = policy or ProviderInputPolicy(
+        ai_enabled=True,
+        privacy_mode='strict' if privacy_mode == 'strict' else 'standard',
+        allow_full_description_to_ai=privacy_mode != 'strict',
+    )
+    safe_title = sanitize_provider_value(input_data.title, safe_policy, max_chars=500)
+    safe_company = sanitize_provider_value(input_data.company_name, safe_policy, max_chars=500)
     sent: list[str] = [
-        f'Title: {input_data.title}',
-        f'Company: {input_data.company_name or "not provided"}',
+        f'Title: {safe_title}',
+        f'Company: {safe_company or "not provided"}',
     ]
     if input_data.salary_raw:
-        sent.append(f'Salary: {input_data.salary_raw}')
+        sent.append(
+            f'Salary: {sanitize_provider_value(input_data.salary_raw, safe_policy, max_chars=200)}'
+        )
     if input_data.city:
-        sent.append(f'City: {input_data.city}')
+        sent.append(f'City: {sanitize_provider_value(input_data.city, safe_policy, max_chars=200)}')
     if input_data.work_mode:
-        sent.append(f'Work mode: {input_data.work_mode}')
+        sent.append(
+            f'Work mode: {sanitize_provider_value(input_data.work_mode, safe_policy, max_chars=32)}'
+        )
     if input_data.skills:
+        safe_skills = [
+            str(sanitize_provider_value(skill, safe_policy, max_chars=200))
+            for skill in input_data.skills[:20]
+        ]
         if len(input_data.skills) > 10:
-            sent.append(
-                f'Skills ({len(input_data.skills)}): {", ".join(input_data.skills[:10])}...'
-            )
+            sent.append(f'Skills ({len(input_data.skills)}): {", ".join(safe_skills[:10])}...')
         else:
-            sent.append(f'Skills: {", ".join(input_data.skills)}')
-    if privacy_mode != 'strict' and input_data.description_clean:
-        sent.append(f'Description: {len(input_data.description_clean)} chars')
+            sent.append(f'Skills: {", ".join(safe_skills)}')
+    if (
+        privacy_mode != 'strict'
+        and safe_policy.allow_full_description_to_ai
+        and input_data.description_clean
+    ):
+        safe_description = str(
+            sanitize_provider_value(
+                input_data.description_clean,
+                safe_policy,
+                max_chars=min(safe_policy.max_input_chars, 3000),
+            )
+        )
+        sent.append(f'Description ({len(safe_description)} chars): {safe_description}')
     sent.append(f'Claims: {len(input_data.selected_claim_ids)} selected')
     sent.append(f'Cases: {len(input_data.selected_case_ids)} selected')
     if input_data.selected_portfolio_id:
@@ -764,7 +1162,7 @@ def _build_payload_preview(
         'Full application history',
         'Other candidates / vacancies',
     ]
-    if privacy_mode == 'strict':
+    if privacy_mode == 'strict' or not safe_policy.allow_full_description_to_ai:
         not_sent.append('Full vacancy description (Strict Privacy)')
 
     lines = ['=== Payload Preview ===', '', 'What WILL be sent:', '']

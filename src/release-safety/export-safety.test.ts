@@ -42,31 +42,24 @@ function makeSettings(overrides?: Record<string, unknown>): Record<string, unkno
   return {
     schemaVersion: 1,
     general: {
-      language: "ru",
-      theme: "system",
       showPageBadge: true,
       trackVisitMarks: true,
       rejectedSearchCardBehavior: "dim",
-      autosaveViewedJobs: true,
       toolbarClickBehavior: "popup",
       closePopupAfterOpeningSidePanel: true,
     },
     privacy: {
       aiEnabled: true,
-      n8nEnabled: false,
       strictPrivacyMode: false,
-      showPayloadPreviewAlways: false,
       allowResumeHighlightsToAI: true,
       allowFullDescriptionToAI: true,
       redactContacts: true,
-      debugHtmlMode: false,
     },
     ai: {
       provider: "openai",
       model: "gpt-4o",
       dailyRequestLimit: 20,
       maxInputChars: 5000,
-      enableStreaming: false,
       enableCache: false,
     },
     n8n: {
@@ -156,8 +149,8 @@ describe("export safety — settings redaction", () => {
 
     // General settings should be intact
     const general = redacted.general as Record<string, unknown>;
-    expect(general.language).toBe("ru");
-    expect(general.theme).toBe("system");
+    expect(general.language).toBeUndefined();
+    expect(general.theme).toBeUndefined();
 
     // Privacy settings should be intact
     const privacy = redacted.privacy as Record<string, unknown>;

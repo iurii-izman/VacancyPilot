@@ -95,8 +95,8 @@ class KnowledgeIndex:
 
 # ── Evidence level mapping (authoritative V4 strength scale) ────────────
 
-# Canonical mapping from the V4 strength scale (see workoutreachHH
-# STAGE_1_EVIDENCE_INVENTORY) to the six-level evidence model:
+# Canonical mapping from the V4 strength scale to the six-level evidence
+# model:
 #   A_DIRECT             -> E4 (direct commercial fact)
 #   A_PROJECT_VALIDATED  -> E3 (strong hands-on project evidence)
 #   B_PROJECT_IMPLEMENTED -> E3 (implemented project with code/CI/tests)

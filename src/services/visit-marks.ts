@@ -1,5 +1,6 @@
 import type { VisitMark } from "@/models/visit-mark";
 import { visitMarkRepo } from "@/db/repositories";
+import { canonicalizeHhVacancyUrl, isCanonicalHhVacancyReference } from "./hh-vacancy-url";
 
 export interface RecordVacancyVisitInput {
   sourceId: string;
@@ -20,6 +21,15 @@ export async function recordVacancyVisit(
   if (!sourceId) {
     throw new Error("Cannot record visit: sourceId is missing");
   }
+  const sourceUrl = input.sourceUrl
+    ? canonicalizeHhVacancyUrl(input.sourceUrl)
+    : undefined;
+  if (input.sourceUrl && !sourceUrl) {
+    throw new Error("Cannot record visit: sourceUrl is not a canonical HH vacancy URL");
+  }
+  if (sourceUrl && !isCanonicalHhVacancyReference(sourceId, sourceUrl)) {
+    throw new Error("Cannot record visit: sourceId and sourceUrl do not match");
+  }
 
   const now = new Date().toISOString();
   const existing = await visitMarkRepo.findBySourceId(sourceId);
@@ -27,7 +37,7 @@ export async function recordVacancyVisit(
   const next: VisitMark = existing
     ? {
         ...existing,
-        sourceUrl: input.sourceUrl ?? existing.sourceUrl,
+        sourceUrl: sourceUrl ?? existing.sourceUrl,
         title: input.title ?? existing.title,
         companyName: input.companyName ?? existing.companyName,
         companyId:
@@ -41,7 +51,7 @@ export async function recordVacancyVisit(
         source: "hh",
         sourceType: "vacancy",
         sourceId,
-        sourceUrl: input.sourceUrl,
+        sourceUrl: sourceUrl ?? undefined,
         title: input.title,
         companyName: input.companyName,
         companyId: input.companyId ?? null,

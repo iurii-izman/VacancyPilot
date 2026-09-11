@@ -2,7 +2,7 @@
 
 The companion uses WAL mode for concurrent reads. The database file
 location is controlled by ``VACANCYPILOT_DB_PATH`` (default:
-``<companion>/data/vacancypilot.db``).
+``<repository>/.local/data/companion/vacancypilot.db``).
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ from sqlalchemy import create_engine as _create_engine
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.config import settings
+from app.config import resolve_local_companion_root, settings
 from app.db.base import register_sqlite_pragmas
 
 
@@ -27,9 +27,7 @@ def _resolve_db_path() -> Path:
     if configured_path:
         path = Path(configured_path)
     else:
-        # Default: <companion>/data/vacancypilot.db
-        companion_root = Path(__file__).resolve().parents[2]
-        path = companion_root / 'data' / 'vacancypilot.db'
+        path = resolve_local_companion_root() / 'vacancypilot.db'
 
     path.parent.mkdir(parents=True, exist_ok=True)
     return path

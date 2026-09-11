@@ -60,7 +60,6 @@ describe("defaultSettings", () => {
     const settings = defaultSettings();
 
     expect(settings.privacy.aiEnabled).toBe(false);
-    expect(settings.privacy.n8nEnabled).toBe(false);
     expect(settings.privacy.strictPrivacyMode).toBe(true);
     expect(settings.privacy.allowResumeHighlightsToAI).toBe(false);
     expect(settings.privacy.redactContacts).toBe(true);
@@ -69,8 +68,6 @@ describe("defaultSettings", () => {
   it("has general defaults", () => {
     const settings = defaultSettings();
 
-    expect(settings.general.language).toBe("ru");
-    expect(settings.general.theme).toBe("system");
     expect(settings.general.searchHighlightsEnabled).toBe(true);
     expect(settings.general.searchHighlightsShowViewed).toBe(true);
     expect(settings.general.searchHighlightsShowSavedRejected).toBe(true);
@@ -78,7 +75,6 @@ describe("defaultSettings", () => {
     expect(settings.general.searchHighlightsShowViewCount).toBe(true);
     expect(settings.general.trackVisitMarks).toBe(true);
     expect(settings.general.rejectedSearchCardBehavior).toBe("dim");
-    expect(settings.general.autosaveViewedJobs).toBe(true);
     expect(settings.general.toolbarClickBehavior).toBe("popup");
     expect(settings.general.closePopupAfterOpeningSidePanel).toBe(true);
   });
@@ -89,7 +85,6 @@ describe("defaultSettings", () => {
     expect(settings.ai.provider).toBeUndefined();
     expect(settings.ai.model).toBeUndefined();
     expect(settings.ai.dailyRequestLimit).toBe(10);
-    expect(settings.ai.enableStreaming).toBe(false);
   });
 
   it("has n8n disabled by default", () => {
@@ -116,19 +111,21 @@ describe("loadSettings", () => {
   it("returns stored settings when present", async () => {
     const custom: AppSettings = {
       ...defaultSettings(),
-      general: { ...defaultSettings().general, language: "en" as const },
+      general: { ...defaultSettings().general, toolbarClickBehavior: "sidePanel" },
     };
     await saveSettings(custom);
 
     const loaded = await loadSettings();
-    expect(loaded.general.language).toBe("en");
+    expect(loaded.general.toolbarClickBehavior).toBe("sidePanel");
   });
 
   it("fills newly added fields for older stored settings", async () => {
     const legacy = {
       schemaVersion: 1,
-      general: { language: "en" as const },
+      general: { toolbarClickBehavior: "sidePanel" as const, language: "en", theme: "dark", autosaveViewedJobs: false },
       privacy: { aiEnabled: true },
+      ai: { enableStreaming: true },
+      companion: { lastConnectedAt: "old" },
     };
 
     await chrome.storage.local.set({ app_settings_v1: legacy });
@@ -137,8 +134,7 @@ describe("loadSettings", () => {
 
     expect(loaded.schemaVersion).toBe(1);
     expect(loaded.onboardingCompleted).toBe(false);
-    expect(loaded.general.language).toBe("en");
-    expect(loaded.general.theme).toBe("system");
+    expect(loaded.general.toolbarClickBehavior).toBe("sidePanel");
     expect(loaded.general.searchHighlightsEnabled).toBe(true);
     expect(loaded.general.searchHighlightsShowViewed).toBe(true);
     expect(loaded.general.searchHighlightsShowSavedRejected).toBe(true);
@@ -146,24 +142,82 @@ describe("loadSettings", () => {
     expect(loaded.general.searchHighlightsShowViewCount).toBe(true);
     expect(loaded.general.trackVisitMarks).toBe(true);
     expect(loaded.general.rejectedSearchCardBehavior).toBe("dim");
-    expect(loaded.general.toolbarClickBehavior).toBe("popup");
+    expect(loaded.general.toolbarClickBehavior).toBe("sidePanel");
     expect(loaded.general.closePopupAfterOpeningSidePanel).toBe(true);
     expect(loaded.privacy.aiEnabled).toBe(true);
     expect(loaded.privacy.strictPrivacyMode).toBe(true);
-    expect(loaded.n8n.enabled).toBe(false);
+    expect((loaded.general as Record<string, unknown>).language).toBeUndefined();
+    expect((loaded.general as Record<string, unknown>).theme).toBeUndefined();
+    expect((loaded.general as Record<string, unknown>).autosaveViewedJobs).toBeUndefined();
+    expect((loaded.ai as Record<string, unknown>).enableStreaming).toBeUndefined();
+    expect((loaded.companion as Record<string, unknown>).lastConnectedAt).toBeUndefined();
+  });
+
+  it("normalizes malformed values field-by-field and drops unknown nested data", async () => {
+    await chrome.storage.local.set({
+      app_settings_v1: {
+        schemaVersion: 999,
+        onboardingCompleted: "yes",
+        general: {
+          defaultProfileId: { secret: "should-drop" },
+          rejectedSearchCardBehavior: "unexpected",
+          nested: { score: 99 },
+        },
+        privacy: {
+          aiEnabled: 1,
+          strictPrivacyMode: false,
+          unknownNested: { providerPayload: "should-drop" },
+        },
+        ai: {
+          dailyRequestLimit: -1,
+          maxInputChars: "huge",
+          provider: "unknown-provider",
+          model: "valid-model",
+        },
+        n8n: {
+          enabledEvents: ["status.changed", { raw: "drop" }, "x".repeat(101)],
+          dailyEventLimit: 10_001,
+          webhookUrl: "https://user-configured.example.test/webhook",
+        },
+        companion: {
+          opsModeEnabled: true,
+          baseUrl: "https://attacker.example.test/companion",
+        },
+        unknownTopLevel: { raw: "drop" },
+      },
+    });
+
+    const loaded = await loadSettings();
+
+    expect(loaded.schemaVersion).toBe(1);
+    expect(loaded.onboardingCompleted).toBe(false);
+    expect(loaded.general.defaultProfileId).toBeUndefined();
+    expect(loaded.general.rejectedSearchCardBehavior).toBe("dim");
+    expect(loaded.privacy.aiEnabled).toBe(false);
+    expect(loaded.privacy.strictPrivacyMode).toBe(false);
+    expect(loaded.ai.dailyRequestLimit).toBe(10);
+    expect(loaded.ai.maxInputChars).toBe(3000);
+    expect(loaded.ai.provider).toBeUndefined();
+    expect(loaded.ai.model).toBe("valid-model");
+    expect(loaded.n8n.enabledEvents).toEqual(["status.changed"]);
+    expect(loaded.n8n.dailyEventLimit).toBe(10);
+    expect(loaded.n8n.webhookUrl).toBe("https://user-configured.example.test/webhook");
+    expect(loaded.companion.baseUrl).toBe("http://127.0.0.1:8765/api/v1");
+    expect((loaded as unknown as Record<string, unknown>).unknownTopLevel).toBeUndefined();
+    expect((loaded.general as Record<string, unknown>).nested).toBeUndefined();
   });
 });
 
 describe("saveSettings", () => {
   it("persists settings and loads them back", async () => {
     const settings = defaultSettings();
-    settings.general.theme = "dark";
+    settings.general.toolbarClickBehavior = "sidePanel";
     settings.privacy.aiEnabled = true;
 
     await saveSettings(settings);
     const loaded = await loadSettings();
 
-    expect(loaded.general.theme).toBe("dark");
+    expect(loaded.general.toolbarClickBehavior).toBe("sidePanel");
     expect(loaded.privacy.aiEnabled).toBe(true);
   });
 });

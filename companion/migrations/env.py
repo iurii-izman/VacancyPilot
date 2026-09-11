@@ -9,6 +9,7 @@ from __future__ import annotations
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
+from app.config import resolve_local_companion_root
 from app.db.base import Base, register_sqlite_pragmas
 from app.db.models import *  # noqa: F403 — ensure all models are imported
 
@@ -19,11 +20,7 @@ def _build_sqlite_url() -> str:
     from pathlib import Path
 
     env_path = os.environ.get('VACANCYPILOT_DB_PATH', '').strip()
-    if env_path:
-        target = Path(env_path)
-    else:
-        companion_root = Path(__file__).resolve().parents[1]
-        target = companion_root / 'data' / 'vacancypilot.db'
+    target = Path(env_path) if env_path else resolve_local_companion_root() / 'vacancypilot.db'
 
     target.parent.mkdir(parents=True, exist_ok=True)
     return f'sqlite:///{target.resolve().as_posix()}'

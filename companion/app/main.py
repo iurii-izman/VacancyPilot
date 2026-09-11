@@ -1,7 +1,7 @@
 """VacancyPilot Ops Companion — FastAPI application factory.
 
 No side effects on import. The factory creates and returns a configured
-FastAPI application. Call ``create_app()`` and then start it with uvicorn.
+FastAPI application. The project-owned ``app.server`` module owns startup.
 """
 
 from __future__ import annotations
@@ -27,6 +27,7 @@ from app.api.health import router as health_router
 from app.api.hh import router as hh_router
 from app.api.letters import router as letters_router
 from app.api.migration import router as migration_router
+from app.api.ops_projection import router as ops_projection_router
 from app.api.pairing import router as pairing_router
 from app.api.r5_analytics import router as r5_analytics_router
 from app.api.r5_application_factory import router as r5_application_factory_router
@@ -35,6 +36,7 @@ from app.config import settings
 from app.db import Base  # noqa: F401 — register models with metadata
 from app.db.engine import create_engine
 from app.observability.request_context import RequestContextMiddleware
+from app.security.keyring import OSKeyring
 from app.security.middleware import (
     BodySizeLimitMiddleware,
     ContentTypeMiddleware,
@@ -42,6 +44,7 @@ from app.security.middleware import (
     get_configured_origins,
     validate_loopback_bind,
 )
+from app.security.receipts import ReceiptSigner, ensure_receipt_signing_key
 
 
 @asynccontextmanager
@@ -65,6 +68,12 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     if app.state.initialize_db:
         owned_engine = create_engine()
         app.state.db_engine = owned_engine
+    if getattr(app.state, 'receipt_signer', None) is None:
+        # Receipt keys are created only during Companion bootstrap.  Preview
+        # handlers never call the keyring write path.
+        backend = OSKeyring()
+        if ensure_receipt_signing_key(backend):
+            app.state.receipt_signer = ReceiptSigner.from_keyring(backend)
     try:
         yield
     finally:
@@ -73,7 +82,11 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             del app.state.db_engine
 
 
-def create_app(*, initialize_db: bool = True) -> FastAPI:
+def create_app(
+    *,
+    initialize_db: bool = True,
+    receipt_signer: ReceiptSigner | None = None,
+) -> FastAPI:
     """Build and return the configured FastAPI application.
 
     Does not bind a socket or make network calls.
@@ -87,6 +100,7 @@ def create_app(*, initialize_db: bool = True) -> FastAPI:
         redoc_url=None,
     )
     app.state.initialize_db = initialize_db
+    app.state.receipt_signer = receipt_signer
 
     # Starlette executes the last added middleware first. CORS is outermost
     # so valid OPTIONS preflights are answered before JSON enforcement.
@@ -102,6 +116,7 @@ def create_app(*, initialize_db: bool = True) -> FastAPI:
     app.include_router(pairing_router, prefix=api_prefix)
     app.include_router(migration_router, prefix=api_prefix)
     app.include_router(vacancies_router, prefix=api_prefix)
+    app.include_router(ops_projection_router, prefix=api_prefix)
     app.include_router(application_ops_router, prefix=api_prefix)
     app.include_router(r5_application_factory_router, prefix=api_prefix)
     app.include_router(r5_analytics_router, prefix=api_prefix)

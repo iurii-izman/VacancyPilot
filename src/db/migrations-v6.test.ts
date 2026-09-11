@@ -38,7 +38,20 @@ const {
   ensureMigrationsBootstrapped,
 } = await import("./migrations");
 
-import { SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4, SCHEMA_V5, SCHEMA_V6, SCHEMA_VERSION, TABLE_NAMES } from "./schema";
+import {
+  SCHEMA_V1,
+  SCHEMA_V2,
+  SCHEMA_V3,
+  SCHEMA_V4,
+  SCHEMA_V5,
+  SCHEMA_V6,
+  SCHEMA_V7,
+  SCHEMA_VERSION,
+  TABLE_NAMES,
+  MIN_SUPPORTED_SCHEMA_VERSION,
+  DEXIE_MIGRATION_COVERAGE,
+  assertDexieMigrationCoverage,
+} from "./schema";
 
 beforeEach(() => {
   metaStore.clear();
@@ -67,8 +80,8 @@ describe("Dexie schema v6 upgrade preserves old data", () => {
     expect(v6Count).toBe(v5Count + 3);
   });
 
-  it("SCHEMA_VERSION is 6", () => {
-    expect(SCHEMA_VERSION).toBe(6);
+  it("SCHEMA_VERSION is 7 after the Fix 3 coordination migration", () => {
+    expect(SCHEMA_VERSION).toBe(7);
   });
 
   it("TABLE_NAMES includes syncOutbox, opsCache, and opsMeta", () => {
@@ -141,8 +154,8 @@ describe("migration bookkeeping with v6", () => {
       expect(CURRENT_VERSION).toBe(SCHEMA_VERSION);
     });
 
-    it("is 6", () => {
-      expect(CURRENT_VERSION).toBe(6);
+    it("is 7", () => {
+      expect(CURRENT_VERSION).toBe(7);
     });
   });
 
@@ -161,13 +174,14 @@ describe("migration bookkeeping with v6", () => {
 // ── Full schema chain verification ──────────────────────────────────────────
 
 describe("schema chain integrity", () => {
-  it("SCHEMA_V1 through SCHEMA_V6 are all defined", () => {
+  it("SCHEMA_V1 through SCHEMA_V7 are all defined", () => {
     expect(SCHEMA_V1).toBeDefined();
     expect(SCHEMA_V2).toBeDefined();
     expect(SCHEMA_V3).toBeDefined();
     expect(SCHEMA_V4).toBeDefined();
     expect(SCHEMA_V5).toBeDefined();
     expect(SCHEMA_V6).toBeDefined();
+    expect(SCHEMA_V7).toBeDefined();
   });
 
   it("each version adds at least one table or alters an existing one", () => {
@@ -183,14 +197,43 @@ describe("schema chain integrity", () => {
     expect(Object.keys(SCHEMA_V6)).toContain("syncOutbox");
     expect(Object.keys(SCHEMA_V6)).toContain("opsCache");
     expect(Object.keys(SCHEMA_V6)).toContain("opsMeta");
+    // v7: atomic AI single-flight and budget ledger stores
+    expect(Object.keys(SCHEMA_V7)).toContain("aiExecution");
+    expect(Object.keys(SCHEMA_V7)).toContain("aiBudget");
   });
 
   it("core domain tables are preserved across all versions", () => {
     const coreTables = ["jobs", "companies", "profiles", "resumes", "coverLetters", "applications", "events", "aiCache", "meta"];
-    for (const v of [SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4, SCHEMA_V5, SCHEMA_V6]) {
+    for (const v of [SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4, SCHEMA_V5, SCHEMA_V6, SCHEMA_V7]) {
       for (const table of coreTables) {
         expect(v).toHaveProperty(table);
       }
     }
+  });
+});
+
+describe("explicit Dexie migration coverage", () => {
+  it("covers every literal transition from v1 through the current schema", () => {
+    expect(DEXIE_MIGRATION_COVERAGE.map((entry) => entry.toVersion)).toEqual([
+      1, 2, 3, 4, 5, 6, 7,
+    ]);
+    expect(MIN_SUPPORTED_SCHEMA_VERSION).toBe(1);
+    expect(() => assertDexieMigrationCoverage(SCHEMA_VERSION)).not.toThrow();
+  });
+
+  it("fails closed when a future schema version has no migration entry", () => {
+    expect(() => assertDexieMigrationCoverage(SCHEMA_VERSION + 1)).toThrow(
+      "Missing Dexie migration coverage for v8",
+    );
+  });
+
+  it("fails closed for a broken non-sequential transition", () => {
+    const broken = [
+      ...DEXIE_MIGRATION_COVERAGE.slice(0, -1),
+      { fromVersion: 5, toVersion: 7, kind: "schema-only" as const },
+    ];
+    expect(() => assertDexieMigrationCoverage(SCHEMA_VERSION, broken)).toThrow(
+      "must be sequential",
+    );
   });
 });

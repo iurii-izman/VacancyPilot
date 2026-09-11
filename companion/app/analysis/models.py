@@ -20,6 +20,47 @@ ProviderStatus = Literal['pending', 'running', 'success', 'invalid', 'error']
 RepairStatus = Literal['valid', 'repaired', 'invalid']
 
 
+class ProviderInputPolicy(BaseModel):
+    """Explicit policy supplied by the current trusted client.
+
+    The policy is part of the reviewed plan.  ``daily_request_limit`` and
+    ``cache_enabled`` deliberately do not participate in its semantic
+    fingerprint: changing either affects coordination, not provider input.
+    """
+
+    model_config = ConfigDict(extra='forbid')
+
+    policy_version: str = Field(default='fix3-v1', min_length=1, max_length=32)
+    ai_enabled: bool = False
+    provider: Literal['openai'] = 'openai'
+    model: str | None = Field(default=None, max_length=64)
+    privacy_mode: Literal['standard', 'strict'] = 'strict'
+    allow_resume_highlights_to_ai: bool = False
+    allow_full_description_to_ai: bool = False
+    redact_contacts: bool = True
+    max_input_chars: int = Field(default=3000, ge=256, le=12000)
+    daily_request_limit: int = Field(default=10, ge=0, le=1000)
+    cache_enabled: bool = True
+
+    def execution_fingerprint_payload(self) -> dict[str, Any]:
+        """Return only plan-affecting policy semantics."""
+        return {
+            'policy_version': self.policy_version,
+            'ai_enabled': self.ai_enabled,
+            'provider': self.provider,
+            'model': self.model or '',
+            'privacy_mode': self.privacy_mode,
+            'allow_resume_highlights_to_ai': self.allow_resume_highlights_to_ai,
+            'allow_full_description_to_ai': self.allow_full_description_to_ai,
+            'redact_contacts': self.redact_contacts,
+            'max_input_chars': self.max_input_chars,
+        }
+
+    @property
+    def execution_ready(self) -> bool:
+        return self.ai_enabled and self.provider == 'openai'
+
+
 # ── Vacancy identity ──────────────────────────────────────────────────────
 
 
@@ -274,6 +315,19 @@ class CompiledPrompt(BaseModel):
     provider: str = Field(default='')
     model: str = Field(default='')
 
+    # Canonical provider-plan metadata.  The prompt and every provider-affecting
+    # option are hashed into ``provider_plan_hash``; the hash is safe to expose
+    # in receipts and coordination rows.
+    operation_kind: str = Field(default='vacancy_analysis', max_length=64)
+    subject_ids: dict[str, str] = Field(default_factory=dict, max_length=8)
+    output_schema_version: str = Field(default='v4-structured-result-v1', max_length=64)
+    provider_affecting_options: dict[str, Any] = Field(default_factory=dict)
+    repair_policy_fingerprint: str = Field(default='', max_length=64)
+    privacy_policy_fingerprint: str = Field(default='', max_length=64)
+    authoritative_input_fingerprint: str = Field(default='', max_length=64)
+    provider_plan_hash: str = Field(default='', max_length=64)
+    dynamic_payload: dict[str, Any] = Field(default_factory=dict)
+
 
 # ── Provider protocol ─────────────────────────────────────────────────────
 
@@ -303,6 +357,11 @@ class AnalysisRequest(BaseModel):
     output_schema: dict[str, Any]
     model: str
     provider: str
+    prompt_version: str = 'v4.0.0-ao8-4'
+    provider_plan_hash: str = ''
+    operation_kind: str = 'vacancy_analysis'
+    subject_ids: dict[str, str] = Field(default_factory=dict)
+    provider_affecting_options: dict[str, Any] = Field(default_factory=dict)
 
 
 class ProviderResponse(BaseModel):
@@ -348,6 +407,9 @@ class AnalysisRunResult(BaseModel):
 
     # Timestamps
     created_at: str = ''
+    provider_plan_hash: str = ''
+    operation_key: str = ''
+    provider_attempts: int = 0
 
     @property
     def ready(self) -> bool:
@@ -376,6 +438,14 @@ class AnalyzeRequest(BaseModel):
     case_ids: list[str] = Field(default_factory=list, max_length=5)
     portfolio_id: str | None = Field(default=None, max_length=64)
 
+    # Fix 3 execution binding.  A missing policy is intentionally accepted at
+    # the schema boundary so Preview can render a strict fail-closed
+    # disclosure; execution rejects it before provider creation.
+    policy: ProviderInputPolicy | None = None
+    confirmation: bool = False
+    preview_receipt: str | None = Field(default=None, max_length=65536)
+    retry_id: str | None = Field(default=None, max_length=128)
+
 
 class PayloadPreview(BaseModel):
     """Pre-execution payload preview for user review."""
@@ -391,6 +461,19 @@ class PayloadPreview(BaseModel):
     language: str
     what_is_sent: list[str] = Field(default_factory=list)
     what_is_not_sent: list[str] = Field(default_factory=list)
+    provider_plan_hash: str = ''
+    operation_kind: str = 'vacancy_analysis'
+    subject_ids: dict[str, str] = Field(default_factory=dict)
+    dynamic_payload: dict[str, Any] = Field(default_factory=dict)
+    repair_possible: bool = True
+    expected_initial_attempts: int = 0
+    expected_max_attempts: int = 0
+    receipt: str | None = None
+    receipt_expires_at: int | None = None
+    cache_reuse_predicate: str = ''
+    budget_limit: int | None = None
+    budget_used: int = 0
+    budget_remaining: int | None = None
 
 
 class AnalyzeData(BaseModel):

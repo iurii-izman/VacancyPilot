@@ -17,8 +17,10 @@
 import type {
   HealthResponse,
   PairStartResponse,
+  PairRecoveryStartResponse,
   PairConfirmRequest,
   PairConfirmResponse,
+  PairStatusResponse,
   PairRevokeResponse,
   CompanionErrorResponse,
   CompanionVersionInfo,
@@ -28,7 +30,17 @@ import type {
   HHSearchPreviewResponse,
   HHVacancySyncResponse,
 } from './types';
-import type { VacancyListFilters, VacancyListResponse } from './vacancy-types';
+import type {
+  VacancyListFilters,
+  VacancyListResponse,
+  VacancyDetailResponse,
+  FullV4PreviewResponse,
+  FullV4AnalyzeResponse,
+  FullV4PersistedRunResponse,
+  FullV4PreviewRequest,
+  FullV4AnalyzeRequest,
+} from './vacancy-types';
+import type { OpsProjectionQuery, OpsWorkItemResponse } from './ops-projection-types';
 import type {
   ApplicationListResponse,
   ApplicationResponse,
@@ -36,14 +48,28 @@ import type {
   FollowUpResponse,
   ApplicationSessionPreviewResponse,
   ApplicationSessionResponse,
+  ApplicationSessionCreateOptions,
   AnalyticsResponse,
 } from './application-types';
+import type {
+  CompanionProviderPolicy,
+  HHSearchProfileCreateRequest,
+  HHSearchProfileUpdateRequest,
+  VacancySyncRequest,
+  CreateApplicationRequest,
+  UpdateApplicationRequest,
+  UpdateFollowUpRequest,
+  ApplicationSessionCreateInput,
+  ApplicationSessionExecuteInput,
+} from './wire-types';
 import { isCompatibleApiVersion } from './types';
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
 export const COMPANION_BASE_URL = 'http://127.0.0.1:8765/api/v1';
+export const IDEMPOTENCY_HEADER = 'X-VacancyPilot-Idempotency-Key';
 const DEFAULT_TIMEOUT_MS = 10_000;
+export const FULL_V4_TIMEOUT_MS = 300_000;
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -130,7 +156,7 @@ export class OpsClient {
     path: string,
     body: unknown,
     signal?: AbortSignal,
-    options?: { idempotencyKey?: string },
+    options?: { idempotencyKey?: string; timeoutMs?: number },
   ): Promise<T> {
     this._requireClientToken();
     return this._request<T>('POST', path, body, signal, true, options);
@@ -155,7 +181,7 @@ export class OpsClient {
     body?: unknown,
     signal?: AbortSignal,
     authenticated = false,
-    options?: { idempotencyKey?: string },
+    options?: { idempotencyKey?: string; timeoutMs?: number },
   ): Promise<T> {
     const requestId = generateRequestId();
     const url = `${this._baseUrl}${path}`;
@@ -171,7 +197,7 @@ export class OpsClient {
     }
 
     if (options?.idempotencyKey) {
-      headers['X-VacancyPilot-Idempotency-Key'] = options.idempotencyKey;
+      headers[IDEMPOTENCY_HEADER] = options.idempotencyKey;
     }
 
     if (body !== undefined) {
@@ -180,7 +206,8 @@ export class OpsClient {
 
     // Timeout via AbortController
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this._timeoutMs);
+    const requestTimeoutMs = options?.timeoutMs ?? this._timeoutMs;
+    const timeoutId = setTimeout(() => controller.abort(), requestTimeoutMs);
 
     // Merge external signal
     const mergedSignal = signal
@@ -234,7 +261,7 @@ export class OpsClient {
         throw new CompanionError(
           isTimeout ? 'TIMEOUT' : 'ABORTED',
           isTimeout
-            ? `Request timed out after ${this._timeoutMs}ms`
+            ? `Request timed out after ${requestTimeoutMs}ms`
             : 'Request was aborted',
           requestId,
         );
@@ -288,6 +315,26 @@ export class OpsClient {
     return this.post<PairConfirmResponse>('/pair/confirm', body, signal);
   }
 
+  /** Start recovery for an existing pairing when the extension token was lost. */
+  async pairRecoveryStart(signal?: AbortSignal): Promise<PairRecoveryStartResponse> {
+    return this.post<PairRecoveryStartResponse>('/pair/recover/start', {}, signal);
+  }
+
+  /** Confirm recovery and replace the lost client token. */
+  async pairRecoveryConfirm(
+    challengeId: string,
+    code: string,
+    signal?: AbortSignal,
+  ): Promise<PairConfirmResponse> {
+    const body: PairConfirmRequest = { challenge_id: challengeId, code };
+    return this.post<PairConfirmResponse>('/pair/recover/confirm', body, signal);
+  }
+
+  /** Validate the current token without touching any domain data. */
+  async pairStatus(signal?: AbortSignal): Promise<PairStatusResponse> {
+    return this.authenticatedGet<PairStatusResponse>('/pair/status', signal);
+  }
+
   /** Revoke the current client token. */
   async pairRevoke(signal?: AbortSignal): Promise<PairRevokeResponse> {
     return this._request<PairRevokeResponse>('POST', '/pair/revoke', {}, signal, true);
@@ -301,11 +348,18 @@ export class OpsClient {
     return this.authenticatedGet<HHSearchProfilesResponse>('/hh/search-profiles', signal);
   }
 
-  async createHHSearchProfile(body: unknown, signal?: AbortSignal): Promise<HHSearchProfileResponse> {
+  async createHHSearchProfile(
+    body: HHSearchProfileCreateRequest,
+    signal?: AbortSignal,
+  ): Promise<HHSearchProfileResponse> {
     return this.authenticatedPost<HHSearchProfileResponse>('/hh/search-profiles', body, signal);
   }
 
-  async updateHHSearchProfile(id: string, body: unknown, signal?: AbortSignal): Promise<HHSearchProfileResponse> {
+  async updateHHSearchProfile(
+    id: string,
+    body: HHSearchProfileUpdateRequest,
+    signal?: AbortSignal,
+  ): Promise<HHSearchProfileResponse> {
     return this._request<HHSearchProfileResponse>('PATCH', `/hh/search-profiles/${encodeURIComponent(id)}`, body, signal, true);
   }
 
@@ -313,7 +367,10 @@ export class OpsClient {
     return this.authenticatedPost<HHSearchPreviewResponse>(`/hh/search-profiles/${encodeURIComponent(id)}/preview`, {}, signal);
   }
 
-  async syncHHVacancies(body: unknown = {}, signal?: AbortSignal): Promise<HHVacancySyncResponse> {
+  async syncHHVacancies(
+    body: VacancySyncRequest = { all_enabled: false },
+    signal?: AbortSignal,
+  ): Promise<HHVacancySyncResponse> {
     return this.authenticatedPost<HHVacancySyncResponse>('/hh/sync/vacancies', body, signal);
   }
 
@@ -325,16 +382,76 @@ export class OpsClient {
     return this.authenticatedGet<VacancyListResponse>(`/vacancies?${query.toString()}`, signal);
   }
 
+  /** Read the authoritative, bounded Ops work-item projection. */
+  async getOpsWorkItems(
+    filters: OpsProjectionQuery = {},
+    signal?: AbortSignal,
+  ): Promise<OpsWorkItemResponse> {
+    const query = new URLSearchParams({
+      view: filters.view ?? 'vacancies',
+      limit: String(filters.limit ?? 100),
+      offset: String(filters.offset ?? 0),
+    });
+    for (const [key, value] of Object.entries(filters)) {
+      if (key === 'view' || key === 'limit' || key === 'offset') continue;
+      if (value !== undefined) query.set(key, String(value));
+    }
+    return this.authenticatedGet<OpsWorkItemResponse>(`/ops/work-items?${query.toString()}`, signal);
+  }
+
+  async getVacancy(id: string, signal?: AbortSignal): Promise<VacancyDetailResponse> {
+    return this.authenticatedGet<VacancyDetailResponse>(`/vacancies/${encodeURIComponent(id)}`, signal);
+  }
+
+  async hydrateVacancy(id: string, signal?: AbortSignal): Promise<VacancyDetailResponse> {
+    return this.authenticatedPost<VacancyDetailResponse>(`/vacancies/${encodeURIComponent(id)}/hydrate`, {}, signal);
+  }
+
+  async previewFullV4(
+    id: string,
+    bodyOrSignal?: FullV4PreviewRequest | AbortSignal,
+    signal?: AbortSignal,
+  ): Promise<FullV4PreviewResponse> {
+    const body = isAbortSignal(bodyOrSignal) ? {} : bodyOrSignal ?? {};
+    const requestSignal = isAbortSignal(bodyOrSignal) ? bodyOrSignal : signal;
+    return this.authenticatedPost<FullV4PreviewResponse>(
+      `/vacancies/${encodeURIComponent(id)}/analyze?preview=true`,
+      body,
+      requestSignal,
+    );
+  }
+
+  async analyzeFullV4(
+    id: string,
+    bodyOrSignal?: FullV4AnalyzeRequest | AbortSignal,
+    signal?: AbortSignal,
+  ): Promise<FullV4AnalyzeResponse> {
+    const body = isAbortSignal(bodyOrSignal)
+      ? { confirmation: false }
+      : bodyOrSignal ?? { confirmation: false };
+    const requestSignal = isAbortSignal(bodyOrSignal) ? bodyOrSignal : signal;
+    return this.authenticatedPost<FullV4AnalyzeResponse>(
+      `/vacancies/${encodeURIComponent(id)}/analyze`,
+      body,
+      requestSignal,
+      { timeoutMs: FULL_V4_TIMEOUT_MS },
+    );
+  }
+
+  async getFullV4Run(id: string, signal?: AbortSignal): Promise<FullV4PersistedRunResponse> {
+    return this.authenticatedGet<FullV4PersistedRunResponse>(`/engine/runs/${encodeURIComponent(id)}`, signal);
+  }
+
   async listApplications(status?: string, signal?: AbortSignal): Promise<ApplicationListResponse> {
     const query = status ? `?status=${encodeURIComponent(status)}` : '';
     return this.authenticatedGet<ApplicationListResponse>(`/applications${query}`, signal);
   }
 
-  async createApplication(body: { vacancy_id: string; status?: string }, signal?: AbortSignal): Promise<ApplicationResponse> {
+  async createApplication(body: CreateApplicationRequest, signal?: AbortSignal): Promise<ApplicationResponse> {
     return this.authenticatedPost<ApplicationResponse>('/applications', body, signal, { idempotencyKey: `application:${body.vacancy_id}` });
   }
 
-  async updateApplication(id: string, body: unknown, signal?: AbortSignal): Promise<ApplicationResponse> {
+  async updateApplication(id: string, body: UpdateApplicationRequest, signal?: AbortSignal): Promise<ApplicationResponse> {
     return this._request<ApplicationResponse>('PATCH', `/applications/${encodeURIComponent(id)}`, body, signal, true);
   }
 
@@ -343,20 +460,59 @@ export class OpsClient {
     return this.authenticatedGet<FollowUpListResponse>(`/followups${query}`, signal);
   }
 
-  async updateFollowUp(id: string, body: unknown, signal?: AbortSignal): Promise<FollowUpResponse> {
+  async updateFollowUp(id: string, body: UpdateFollowUpRequest, signal?: AbortSignal): Promise<FollowUpResponse> {
     return this._request<FollowUpResponse>('PATCH', `/followups/${encodeURIComponent(id)}`, body, signal, true);
   }
 
-  async previewApplicationSession(vacancyIds: string[], signal?: AbortSignal): Promise<ApplicationSessionPreviewResponse> {
-    return this.authenticatedPost<ApplicationSessionPreviewResponse>('/application-sessions/preview', { vacancy_ids: vacancyIds }, signal);
+  async previewApplicationSession(
+    vacancyIds: string[],
+    policyOrSignal?: CompanionProviderPolicy | AbortSignal,
+    signal?: AbortSignal,
+  ): Promise<ApplicationSessionPreviewResponse> {
+    const policy = isAbortSignal(policyOrSignal) ? undefined : policyOrSignal;
+    const requestSignal = isAbortSignal(policyOrSignal) ? policyOrSignal : signal;
+    return this.authenticatedPost<ApplicationSessionPreviewResponse>(
+      '/application-sessions/preview',
+      { vacancy_ids: vacancyIds, ...(policy ? { policy } : {}) },
+      requestSignal,
+    );
   }
 
-  async createApplicationSession(vacancyIds: string[], signal?: AbortSignal): Promise<ApplicationSessionResponse> {
-    return this.authenticatedPost<ApplicationSessionResponse>('/application-sessions', { vacancy_ids: vacancyIds }, signal);
+  async createApplicationSession(
+    vacancyIds: string[],
+    policyOrSignal?: CompanionProviderPolicy | ApplicationSessionCreateOptions | AbortSignal,
+    signal?: AbortSignal,
+  ): Promise<ApplicationSessionResponse> {
+    let body: ApplicationSessionCreateInput = { vacancy_ids: vacancyIds };
+    if (policyOrSignal && !isAbortSignal(policyOrSignal)) {
+      if ('policy' in policyOrSignal && 'confirmation' in policyOrSignal) {
+        body = { vacancy_ids: vacancyIds, ...policyOrSignal };
+      } else {
+        body = { vacancy_ids: vacancyIds, policy: policyOrSignal };
+      }
+    }
+    const requestSignal = isAbortSignal(policyOrSignal) ? policyOrSignal : signal;
+    return this.authenticatedPost<ApplicationSessionResponse>(
+      '/application-sessions',
+      body,
+      requestSignal,
+    );
   }
 
-  async executeApplicationSession(id: string, signal?: AbortSignal): Promise<ApplicationSessionResponse> {
-    return this.authenticatedPost<ApplicationSessionResponse>(`/application-sessions/${encodeURIComponent(id)}/execute`, { confirmation: true }, signal);
+  async executeApplicationSession(
+    id: string,
+    bodyOrSignal?: ApplicationSessionExecuteInput | AbortSignal,
+    signal?: AbortSignal,
+  ): Promise<ApplicationSessionResponse> {
+    const body: ApplicationSessionExecuteInput = isAbortSignal(bodyOrSignal)
+      ? { confirmation: false }
+      : bodyOrSignal ?? { confirmation: false };
+    const requestSignal = isAbortSignal(bodyOrSignal) ? bodyOrSignal : signal;
+    return this.authenticatedPost<ApplicationSessionResponse>(
+      `/application-sessions/${encodeURIComponent(id)}/execute`,
+      body,
+      requestSignal,
+    );
   }
 
   async getApplicationSession(id: string, signal?: AbortSignal): Promise<ApplicationSessionResponse> {
@@ -391,6 +547,12 @@ export class CompanionError extends Error {
     this.httpStatus = httpStatus;
     this.details = details;
   }
+}
+
+function isAbortSignal(value: unknown): value is AbortSignal {
+  return (
+    typeof AbortSignal !== 'undefined' && value instanceof AbortSignal
+  );
 }
 
 // ── AbortSignal merging ────────────────────────────────────────────────────

@@ -34,6 +34,21 @@ def test_client_sends_official_headers_and_bounded_query() -> None:
     assert seen['hh-user-agent'].startswith('VacancyPilot/')
 
 
+def test_client_reads_one_full_vacancy_with_official_get_and_validates_id() -> None:
+    calls = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        assert request.method == 'GET'
+        assert str(request.url) == 'https://api.hh.ru/vacancies/136022615'
+        return httpx.Response(200, json={'id': '136022615', 'description': '<p>Full text</p>'})
+
+    assert _client(handler).vacancy('136022615')['description'] == '<p>Full text</p>'
+    assert len(calls) == 1
+    with pytest.raises(HHApiError, match='HH_RESOURCE_ID_INVALID'):
+        _client(handler).vacancy('../secrets')
+
+
 def test_client_retries_429_and_tolerates_additive_fields(monkeypatch: pytest.MonkeyPatch) -> None:
     attempts = 0
 

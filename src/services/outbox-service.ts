@@ -20,6 +20,8 @@ import { CompanionError } from "@/adapters/companion/ops-client";
 import { outboxRepo, opsCacheRepo } from "@/db/ops-repository";
 import { db } from "@/db";
 import type { SyncOutboxEntry, OutboxEntityType } from "@/models/ops";
+import { getOperatingMode } from "@/services/operating-mode";
+import { assertResetWritable } from "@/services/reset-guard";
 
 // ── Classification ───────────────────────────────────────────────────────────
 
@@ -63,7 +65,7 @@ export function isNonRetryableError(code: string): boolean {
  * - ``"dead"`` — permanent non-retryable error; mark dead.
  * - ``"conflict"`` — revision or idempotency conflict; mark for user review.
  */
-export type DeliveryOutcome = "committed" | "retry" | "dead" | "conflict";
+export type DeliveryOutcome = "committed" | "retry" | "dead" | "conflict" | "blocked";
 
 /** Classify the outcome of a delivery attempt from the error or success. */
 export function classifyDelivery(
@@ -127,7 +129,18 @@ export async function drainOutbox(
   conflict: number;
   remaining: number;
 }> {
+  assertResetWritable();
+  const mode = await getOperatingMode();
   const entries = await outboxRepo.listPending();
+  if (mode.effectiveMode !== "ops") {
+    return {
+      committed: 0,
+      retried: 0,
+      dead: 0,
+      conflict: 0,
+      remaining: await outboxRepo.countPending(),
+    };
+  }
   if (entries.length === 0) {
     return { committed: 0, retried: 0, dead: 0, conflict: 0, remaining: 0 };
   }
@@ -138,6 +151,7 @@ export async function drainOutbox(
   let conflict = 0;
 
   for (const entry of entries) {
+    assertResetWritable();
     const { outcome, errorCode } = await deliverEntry(transport, entry);
 
     switch (outcome) {
@@ -193,10 +207,9 @@ export async function flushOutboxOnReconnect(transport: OutboxTransport): Promis
   const { detectCompanionStatus } = await import(
     "@/services/companion-service"
   );
-  const { opsMetaRepo } = await import("@/db/ops-repository");
 
-  const mode = await opsMetaRepo.getAuthorityMode();
-  if (mode !== "ops") {
+  const mode = await getOperatingMode();
+  if (mode.effectiveMode !== "ops") {
     return { drained: false, summary: null };
   }
 
@@ -218,6 +231,9 @@ export async function manualRetry(
   transport: OutboxTransport,
   entryId: string,
 ): Promise<DeliveryOutcome> {
+  assertResetWritable();
+  const mode = await getOperatingMode();
+  if (mode.effectiveMode !== "ops") return "blocked";
   await outboxRepo.retryManual(entryId);
 
   // Fetch the entry from Dexie after reset

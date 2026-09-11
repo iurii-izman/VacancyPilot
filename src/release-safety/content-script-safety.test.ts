@@ -154,6 +154,17 @@ describe("content script safety — structure", () => {
 
     expect(allContent).toMatch(/attachShadow|shadowRoot|Shadow DOM/i);
   });
+
+  it("vacancy content script registers and serves provider-free page context", () => {
+    const vacancyPath = join(BASE_DIR, "entrypoints", "vacancy.content.ts");
+    const content = readFileSync(vacancyPath, "utf-8");
+    expect(content).toMatch(/REGISTER_VACANCY_CONTEXT/);
+    expect(content).toMatch(/GET_PAGE_VACANCY_CONTEXT/);
+    expect(content).toMatch(/registerVacancyContext\(\)/);
+    expect(content).toMatch(/waitForDocumentBody/);
+    expect(content).toMatch(/badge creation skipped/);
+    expect(content).not.toMatch(/provider|analy[sz]eFullV4|OPENAI/i);
+  });
 });
 
 // ── Additional: Background script safety ─────────────────────────────────

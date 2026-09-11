@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import threading
 import webbrowser
 from datetime import UTC, datetime
 from typing import Any
@@ -28,6 +29,25 @@ from app.security.keyring import OSKeyring, SecretSlot
 
 router = APIRouter(tags=['hh'])
 PER_PAGE = 100
+MAX_SYNC_ITEMS = 2_000
+MAX_SYNC_PROFILES = 50
+_sync_flight_lock = threading.Lock()
+_sync_flight_scopes: set[str] = set()
+
+
+class _SyncLease:
+    def __init__(self, scope: str) -> None:
+        self.scope = scope
+
+    def __enter__(self) -> None:
+        with _sync_flight_lock:
+            if self.scope in _sync_flight_scopes:
+                raise HTTPException(status_code=409, detail='HH_SYNC_IN_PROGRESS')
+            _sync_flight_scopes.add(self.scope)
+
+    def __exit__(self, exc_type: object, exc: object, traceback: object) -> None:
+        with _sync_flight_lock:
+            _sync_flight_scopes.discard(self.scope)
 
 
 def _now() -> str:
@@ -69,7 +89,8 @@ class ProfileResponse(BaseModel):
 
 class VacancySyncRequest(BaseModel):
     model_config = ConfigDict(extra='forbid')
-    profile_ids: list[str] | None = Field(default=None, max_length=50)
+    profile_ids: list[str] | None = Field(default=None)
+    all_enabled: bool = False
     triage: dict[str, Any] | None = None
 
 
@@ -393,12 +414,43 @@ def sync_vacancies(
     client_identity: ClientTokenDep,
     db: Session | None = Depends(get_db_session_long),  # noqa: B008
 ) -> SyncResponse:
+    if body.profile_ids is not None and body.all_enabled:
+        raise HTTPException(status_code=422, detail='HH_SYNC_SCOPE_AMBIGUOUS')
+    if body.profile_ids is None and not body.all_enabled:
+        raise HTTPException(status_code=422, detail='HH_SYNC_SCOPE_REQUIRED')
+    if body.profile_ids is not None and not body.profile_ids:
+        raise HTTPException(status_code=422, detail='HH_SYNC_SCOPE_REQUIRED')
+    if body.profile_ids is not None and len(body.profile_ids) > MAX_SYNC_PROFILES:
+        raise HTTPException(status_code=422, detail='HH_SYNC_PROFILE_LIMIT')
+    if body.profile_ids is not None and len(set(body.profile_ids)) != len(body.profile_ids):
+        raise HTTPException(status_code=422, detail='HH_SYNC_SCOPE_DUPLICATE')
+    scope = (
+        'all-enabled'
+        if body.all_enabled
+        else 'profiles:' + ','.join(sorted(body.profile_ids or []))
+    )
+    with _SyncLease(scope):
+        return _sync_vacancies_impl(request, body, client_identity, db)
+
+
+def _sync_vacancies_impl(
+    request: Request,
+    body: VacancySyncRequest,
+    client_identity: str,
+    db: Session | None,
+) -> SyncResponse:
     del client_identity
     session = _db(db)
     statement = select(SearchProfile).where(SearchProfile.enabled.is_(True))
     if body.profile_ids is not None:
         statement = statement.where(SearchProfile.id.in_(body.profile_ids))
     profiles = session.execute(statement.order_by(SearchProfile.created_at.asc())).scalars().all()
+    if body.profile_ids is not None:
+        selected_ids = {profile.id for profile in profiles}
+        if selected_ids != set(body.profile_ids):
+            raise HTTPException(status_code=422, detail='HH_PROFILE_SCOPE_INVALID')
+    if len(profiles) > MAX_SYNC_PROFILES:
+        raise HTTPException(status_code=422, detail='HH_SYNC_PROFILE_LIMIT')
     result: dict[str, Any] = {
         'sync_run_id': '',
         'profiles_attempted': len(profiles),
@@ -416,11 +468,17 @@ def sync_vacancies(
         'status': 'running',
         'profiles': [],
         'too_broad': 0,
+        'truncated': False,
+        'limit_reached': False,
+        'max_items': MAX_SYNC_ITEMS,
+        'max_profiles': MAX_SYNC_PROFILES,
     }
     result['sync_run_id'] = new_uuid()
     touched_hits: list[VacancySearchProfileHit] = []
     client = HHApiClient()
     for profile in profiles:
+        if result['limit_reached']:
+            break
         profile_result: dict[str, Any] = {
             'profile_id': profile.id,
             'name': profile.name,
@@ -442,11 +500,21 @@ def sync_vacancies(
                 result['too_broad'] += 1
                 result['errors'].append({'profile_id': profile.id, 'code': 'HH_QUERY_TOO_BROAD'})
                 continue
-            max_pages = min(2000 // PER_PAGE, (found + PER_PAGE - 1) // PER_PAGE)
+            max_pages = min(MAX_SYNC_ITEMS // PER_PAGE, (found + PER_PAGE - 1) // PER_PAGE)
             for page, _ in enumerate(range(max_pages)):
+                if result['limit_reached']:
+                    break
                 response = client.search_vacancies(query, page=page, per_page=PER_PAGE)
                 result['pages_fetched'] += 1
-                items = response.items
+                remaining = MAX_SYNC_ITEMS - result['items_seen']
+                items = response.items[:remaining]
+                if len(response.items) > len(items):
+                    result['truncated'] = True
+                    result['limit_reached'] = True
+                    profile_result['error'] = 'HH_SYNC_ITEM_LIMIT'
+                    result['errors'].append(
+                        {'profile_id': profile.id, 'code': 'HH_SYNC_ITEM_LIMIT'}
+                    )
                 result['items_seen'] += len(items)
                 profile_result['seen'] += len(items)
                 for item in items:
@@ -505,6 +573,8 @@ def sync_vacancies(
         if not profiles and result['errors']
         else ('partial' if result['errors'] else 'success')
     )
+    if result['limit_reached'] and result['status'] == 'success':
+        result['status'] = 'partial'
     audit = HHSyncRun(
         id=result['sync_run_id'],
         sync_type='public_vacancies',

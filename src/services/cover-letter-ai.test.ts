@@ -23,31 +23,24 @@ const {
     schemaVersion: 1,
     onboardingCompleted: true,
     general: {
-      language: "ru" as const,
-      theme: "system" as const,
       showPageBadge: true,
       trackVisitMarks: true,
       rejectedSearchCardBehavior: "dim" as const,
-      autosaveViewedJobs: true,
       toolbarClickBehavior: "popup" as const,
       closePopupAfterOpeningSidePanel: true,
     },
     privacy: {
       aiEnabled: true,
-      n8nEnabled: false,
       strictPrivacyMode: true,
-      showPayloadPreviewAlways: true,
       allowResumeHighlightsToAI: false,
       allowFullDescriptionToAI: false,
       redactContacts: true,
-      debugHtmlMode: false,
     },
     ai: {
       provider: "openai" as const,
       model: "gpt-4o-mini",
       dailyRequestLimit: 10,
       maxInputChars: 3000,
-      enableStreaming: false,
       enableCache: true,
     },
     n8n: {
@@ -108,6 +101,25 @@ vi.mock("./ai-budget", async () => {
       remaining: 10,
       isExhausted: false,
     })),
+    reserveAiProviderAttempt: vi.fn(async (params: {
+      operationKey: string;
+      operationKind: "vacancy_analysis" | "cover_letter";
+      provider: string;
+      model: string;
+      providerPlanHash: string;
+    }) => ({
+      reservationId: "attempt_1",
+      operationKey: params.operationKey,
+      operationKind: params.operationKind,
+      provider: params.provider,
+      model: params.model,
+      providerPlanHash: params.providerPlanHash,
+      ownerToken: "owner_1",
+      attemptNumber: 1,
+      dayKey: "2026-09-10",
+    })),
+    completeAiProviderExecution: vi.fn(async () => undefined),
+    markAiProviderOutcomeUnknown: vi.fn(async () => undefined),
     recordAiRequest: vi.fn(async () => "event_1"),
   };
 });

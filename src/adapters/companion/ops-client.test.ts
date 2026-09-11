@@ -3,11 +3,12 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { OpsClient, CompanionError } from './ops-client';
+import { FULL_V4_TIMEOUT_MS, OpsClient, CompanionError } from './ops-client';
 import type {
   HealthResponse,
   PairStartResponse,
   PairConfirmResponse,
+  PairStatusResponse,
   PairRevokeResponse,
 } from './types';
 
@@ -304,12 +305,96 @@ describe('OpsClient', () => {
       expect(headers['X-VacancyPilot-Client']).toBe('my-secret-token');
       expect(init?.body).toBe('{}');
     });
+
+    it('pairRecoveryStart uses the public recovery endpoint', async () => {
+      const body: PairStartResponse = {
+        data: { challenge_id: 'recovery-1', expires_in_seconds: 300 },
+        meta: {},
+      };
+      vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+        new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } }),
+      );
+
+      const result = await client.pairRecoveryStart();
+      expect(result.data.challenge_id).toBe('recovery-1');
+      expect(vi.mocked(globalThis.fetch).mock.calls[0][0]).toContain('/pair/recover/start');
+    });
+
+    it('pairStatus validates the client token on a protected endpoint', async () => {
+      client.setClientToken('paired-token');
+      const body: PairStatusResponse = { data: { paired: true }, meta: {} };
+      vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+        new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } }),
+      );
+
+      const result = await client.pairStatus();
+      expect(result.data.paired).toBe(true);
+      const [, init] = vi.mocked(globalThis.fetch).mock.calls[0];
+      expect((init as RequestInit).headers).toMatchObject({ 'X-VacancyPilot-Client': 'paired-token' });
+    });
   });
 
   it('rejects a non-loopback companion base URL', () => {
     expect(() => new OpsClient('https://attacker.example/api/v1')).toThrow(
       'fixed loopback endpoint',
     );
+  });
+
+  it('reads the bounded Ops projection with one authenticated request', async () => {
+    client.setClientToken('projection-token');
+    const body = {
+      data: [],
+      meta: {
+        request_id: 'projection-request',
+        total: 0,
+        limit: 25,
+        offset: 25,
+        view: 'vacancies',
+        summary: {
+          vacancies_total: 0,
+          vacancies_without_application: 0,
+          applications_total: 0,
+          analysis_not_analyzed: 0,
+          analysis_running: 0,
+          analysis_ready: 0,
+          analysis_invalid: 0,
+          analysis_failed: 0,
+          ready_to_review: 0,
+          followups_due: 0,
+        },
+      },
+    };
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify(body), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+    const result = await client.getOpsWorkItems({
+      view: 'vacancies',
+      limit: 25,
+      offset: 25,
+      application_status: 'none',
+      analysis_state: 'not_analyzed',
+      search_profile_id: 'profile-1',
+      sort: 'score',
+      direction: 'asc',
+    });
+
+    expect(result.meta.total).toBe(0);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchSpy.mock.calls[0];
+    const parsed = new URL(String(url));
+    expect(parsed.pathname).toBe('/api/v1/ops/work-items');
+    expect(parsed.searchParams.get('application_status')).toBe('none');
+    expect(parsed.searchParams.get('analysis_state')).toBe('not_analyzed');
+    expect(parsed.searchParams.get('search_profile_id')).toBe('profile-1');
+    expect(parsed.searchParams.get('sort')).toBe('score');
+    expect(parsed.searchParams.get('direction')).toBe('asc');
+    expect((init as RequestInit).headers).toMatchObject({
+      'X-VacancyPilot-Client': 'projection-token',
+    });
   });
 
   it('rejects authenticated requests before pairing', async () => {
@@ -352,6 +437,29 @@ describe('OpsClient', () => {
     expect(headers['X-VacancyPilot-Idempotency-Key']).toBe('stable-key');
     expect(headers['X-VacancyPilot-Client']).toBe('paired-token');
     expect(headers['X-VacancyPilot-Request-ID']).toBeTruthy();
+  });
+
+  it('gives Full V4 enough time for a provider response and repair', async () => {
+    vi.useFakeTimers();
+    client.setClientToken('test-token-123');
+    vi.spyOn(globalThis, 'fetch').mockImplementationOnce((_input, init) =>
+      new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => {
+          const error = new Error('The operation was aborted.') as Error & { name: string };
+          error.name = 'AbortError';
+          reject(error);
+        });
+      }),
+    );
+
+    const pending = client.analyzeFullV4('vacancy-id').catch((error: unknown) => error);
+    await vi.advanceTimersByTimeAsync(FULL_V4_TIMEOUT_MS);
+    const error = await pending;
+
+    expect(error).toBeInstanceOf(CompanionError);
+    expect((error as CompanionError).code).toBe('TIMEOUT');
+    expect((error as CompanionError).message).toContain(String(FULL_V4_TIMEOUT_MS));
+    vi.useRealTimers();
   });
 });
 

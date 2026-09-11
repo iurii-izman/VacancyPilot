@@ -6,8 +6,6 @@ export interface AppSettings {
 
   general: {
     defaultProfileId?: string;
-    language: "ru" | "en";
-    theme: "system" | "light" | "dark";
     showPageBadge: boolean;
     searchHighlightsEnabled?: boolean;
     searchHighlightsShowViewed?: boolean;
@@ -16,21 +14,16 @@ export interface AppSettings {
     searchHighlightsShowViewCount?: boolean;
     trackVisitMarks: boolean;
     rejectedSearchCardBehavior: "dim" | "hide" | "none";
-    autosaveViewedJobs: boolean;
     toolbarClickBehavior: "popup" | "sidePanel";
     closePopupAfterOpeningSidePanel: boolean;
   };
 
   privacy: {
     aiEnabled: boolean;
-    n8nEnabled: boolean;
     strictPrivacyMode: boolean;
-    showPayloadPreviewAlways: boolean;
     allowResumeHighlightsToAI: boolean;
     allowFullDescriptionToAI: boolean;
     redactContacts: boolean;
-    debugHtmlMode: boolean;
-    dataRetentionDays?: number;
   };
 
   ai: {
@@ -38,7 +31,6 @@ export interface AppSettings {
     model?: string;
     dailyRequestLimit: number;
     maxInputChars: number;
-    enableStreaming: boolean;
     enableCache: boolean;
   };
 
@@ -63,13 +55,5 @@ export interface AppSettings {
     opsModeEnabled: boolean;
     /** Companion base URL. */
     baseUrl: string;
-    /** Last known companion service version from /health. */
-    lastServiceVersion: string | null;
-    /** Last known companion API version from /health. */
-    lastApiVersion: string | null;
-    /** Whether the last handshake reported API compatibility. */
-    lastApiCompatible: boolean;
-    /** ISO-8601 timestamp of the last successful connection. */
-    lastConnectedAt: string | null;
   };
 }

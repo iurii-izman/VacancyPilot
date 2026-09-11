@@ -20,6 +20,7 @@ import {
   computeAnalysisInputHash,
   computeCoverLetterInputHash,
 } from "./ai-hash";
+import { withWriteGuard } from "./reset-guard";
 
 export type CacheKind = "vacancy_analysis" | "cover_letter";
 
@@ -46,6 +47,7 @@ export interface CacheStoreBaseParams {
   provider: string;
   model: string;
   promptVersion: string;
+  providerPlanHash?: string;
 }
 
 export interface CacheStoreParams extends CacheStoreBaseParams {
@@ -54,6 +56,8 @@ export interface CacheStoreParams extends CacheStoreBaseParams {
 
 export interface CoverLetterCacheStoreParams extends CacheStoreBaseParams {
   letter: string;
+  /** Structured link used by per-job deletion; absent on legacy cache rows. */
+  jobId?: string;
 }
 
 const CACHE_ID_PREFIX = "aicache_";
@@ -80,6 +84,7 @@ export async function checkAnalysisCache(
   model: string,
   promptVersion: string,
   cacheEnabled: boolean,
+  providerPlanHash?: string,
 ): Promise<AnalysisCacheCheckResult> {
   const inputHash = computeAnalysisInputHash(input);
 
@@ -99,6 +104,7 @@ export async function checkAnalysisCache(
     provider,
     model,
     promptVersion,
+    providerPlanHash,
     getCachedAnalysisByMetaKey,
   );
 
@@ -114,6 +120,7 @@ export async function checkCoverLetterCache(
   model: string,
   promptVersion: string,
   cacheEnabled: boolean,
+  providerPlanHash?: string,
 ): Promise<CoverLetterCacheCheckResult> {
   const inputHash = computeCoverLetterInputHash(input);
 
@@ -133,6 +140,7 @@ export async function checkCoverLetterCache(
     provider,
     model,
     promptVersion,
+    providerPlanHash,
     getCachedCoverLetterByMetaKey,
   );
 
@@ -145,74 +153,86 @@ export async function checkCoverLetterCache(
 export async function storeAnalysisCache(
   params: CacheStoreParams,
 ): Promise<void> {
-  const { inputHash, provider, model, promptVersion, analysis } = params;
+  await withWriteGuard(async () => {
+    const { inputHash, provider, model, promptVersion, analysis } = params;
 
-  await db.meta.put({
-    key: analysisMetaKey(analysis.id),
-    value: analysis,
-  });
+    await db.meta.put({
+      key: analysisMetaKey(analysis.id),
+      value: analysis,
+    });
 
-  await db.aiCache.put({
-    id: buildCacheId(),
-    kind: "vacancy_analysis",
-    inputHash,
-    provider,
-    model,
-    promptVersion,
-    resultRefId: analysis.id,
-    createdAt: new Date().toISOString(),
+    await db.aiCache.put({
+      id: buildCacheId(),
+      kind: "vacancy_analysis",
+      inputHash,
+      provider,
+      model,
+      promptVersion,
+      providerPlanHash: params.providerPlanHash,
+      resultRefId: analysis.id,
+      createdAt: new Date().toISOString(),
+    });
   });
 }
 
 export async function storeCoverLetterCache(
   params: CoverLetterCacheStoreParams,
 ): Promise<string> {
-  const { inputHash, provider, model, promptVersion, letter } = params;
-  const resultRefId = `cover_letter_${Date.now().toString(36)}_${Math.random()
-    .toString(36)
-    .slice(2, 9)}`;
+  return withWriteGuard(async () => {
+    const { inputHash, provider, model, promptVersion, letter, jobId } = params;
+    const resultRefId = `cover_letter_${Date.now().toString(36)}_${Math.random()
+      .toString(36)
+      .slice(2, 9)}`;
 
-  await db.meta.put({
-    key: coverLetterMetaKey(resultRefId),
-    value: letter,
+    await db.meta.put({
+      key: coverLetterMetaKey(resultRefId),
+      value: jobId ? { jobId, letter } : letter,
+    });
+
+    await db.aiCache.put({
+      id: buildCacheId(),
+      kind: "cover_letter",
+      inputHash,
+      provider,
+      model,
+      promptVersion,
+      providerPlanHash: params.providerPlanHash,
+      resultRefId,
+      createdAt: new Date().toISOString(),
+    });
+
+    return resultRefId;
   });
-
-  await db.aiCache.put({
-    id: buildCacheId(),
-    kind: "cover_letter",
-    inputHash,
-    provider,
-    model,
-    promptVersion,
-    resultRefId,
-    createdAt: new Date().toISOString(),
-  });
-
-  return resultRefId;
 }
 
-export async function invalidateCache(inputHash?: string): Promise<number> {
-  let entries: AIRequestCache[];
+export async function invalidateCache(
+  inputHash?: string,
+  options: { allowDuringReset?: boolean } = {},
+): Promise<number> {
+  const work = async (): Promise<number> => {
+    let entries: AIRequestCache[];
 
-  if (inputHash) {
-    entries = await db.aiCache.where("inputHash").equals(inputHash).toArray();
-    await db.aiCache.where("inputHash").equals(inputHash).delete();
-  } else {
-    entries = await db.aiCache.toArray();
-    await db.aiCache.clear();
-  }
+    if (inputHash) {
+      entries = await db.aiCache.where("inputHash").equals(inputHash).toArray();
+      await db.aiCache.where("inputHash").equals(inputHash).delete();
+    } else {
+      entries = await db.aiCache.toArray();
+      await db.aiCache.clear();
+    }
 
-  const metaKeys = entries.map((entry) =>
-    entry.kind === "cover_letter"
-      ? coverLetterMetaKey(entry.resultRefId)
-      : analysisMetaKey(entry.resultRefId),
-  );
+    const metaKeys = entries.map((entry) =>
+      entry.kind === "cover_letter"
+        ? coverLetterMetaKey(entry.resultRefId)
+        : analysisMetaKey(entry.resultRefId),
+    );
 
-  if (metaKeys.length > 0) {
-    await db.meta.bulkDelete(metaKeys);
-  }
+    if (metaKeys.length > 0) {
+      await db.meta.bulkDelete(metaKeys);
+    }
 
-  return entries.length;
+    return entries.length;
+  };
+  return options.allowDuringReset ? work() : withWriteGuard(work);
 }
 
 export async function listCacheEntries(): Promise<AIRequestCache[]> {
@@ -242,7 +262,15 @@ async function getCachedCoverLetterByMetaKey(
   key: string,
 ): Promise<string | null> {
   const row = await db.meta.get(key);
-  return typeof row?.value === "string" ? row.value : null;
+  if (typeof row?.value === "string") return row.value;
+  if (
+    row?.value &&
+    typeof row.value === "object" &&
+    typeof (row.value as { letter?: unknown }).letter === "string"
+  ) {
+    return (row.value as { letter: string }).letter;
+  }
+  return null;
 }
 
 async function checkCacheEntry<T>(
@@ -251,6 +279,7 @@ async function checkCacheEntry<T>(
   provider: string,
   model: string,
   promptVersion: string,
+  providerPlanHash: string | undefined,
   loader: (key: string) => Promise<T | null>,
 ): Promise<CacheCheckResult<T>> {
   const candidates = await db.aiCache.where({ inputHash, kind }).toArray();
@@ -258,7 +287,8 @@ async function checkCacheEntry<T>(
     (entry) =>
       entry.provider === provider &&
       entry.model === model &&
-      entry.promptVersion === promptVersion,
+      entry.promptVersion === promptVersion &&
+      (providerPlanHash === undefined || entry.providerPlanHash === providerPlanHash),
   );
 
   if (!match) {
@@ -266,12 +296,14 @@ async function checkCacheEntry<T>(
   }
 
   if (match.expiresAt && new Date(match.expiresAt) < new Date()) {
-    await db.aiCache.delete(match.id);
-    await db.meta.delete(
-      kind === "cover_letter"
-        ? coverLetterMetaKey(match.resultRefId)
-        : analysisMetaKey(match.resultRefId),
-    );
+    await withWriteGuard(async () => {
+      await db.aiCache.delete(match.id);
+      await db.meta.delete(
+        kind === "cover_letter"
+          ? coverLetterMetaKey(match.resultRefId)
+          : analysisMetaKey(match.resultRefId),
+      );
+    });
     return { hit: false, value: null, entry: null, inputHash };
   }
 
@@ -282,7 +314,7 @@ async function checkCacheEntry<T>(
   );
 
   if (value == null) {
-    await db.aiCache.delete(match.id);
+    await withWriteGuard(() => db.aiCache.delete(match.id));
     return { hit: false, value: null, entry: null, inputHash };
   }
 

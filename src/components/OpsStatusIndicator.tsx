@@ -9,7 +9,13 @@
  */
 
 import { useState, useEffect, useCallback, type ReactNode } from 'react';
-import { detectCompanionStatus } from '@/services/companion-service';
+import {
+  detectCompanionStatus,
+  invalidateCompanionStatusCache,
+} from '@/services/companion-service';
+import { getOperatingMode } from '@/services/operating-mode';
+import { flushOutboxOnReconnect } from '@/services/outbox-service';
+import { vacancyIntakeTransport } from '@/services/ops-intake';
 import type { CompanionStatus } from '@/adapters/companion/types';
 // ── Status mapping ─────────────────────────────────────────────────────────
 
@@ -55,6 +61,17 @@ interface OpsStatusDotProps {
   onOpenSettings?: () => void;
 }
 
+/** Status metadata must not turn a settings event into another probe. */
+export function hasCompanionConfigChange(
+  change: chrome.storage.StorageChange | undefined,
+): boolean {
+  if (!change) return false;
+  const oldCompanion = (change.oldValue as { companion?: { opsModeEnabled?: boolean; baseUrl?: string } } | undefined)?.companion;
+  const newCompanion = (change.newValue as { companion?: { opsModeEnabled?: boolean; baseUrl?: string } } | undefined)?.companion;
+  return oldCompanion?.opsModeEnabled !== newCompanion?.opsModeEnabled
+    || oldCompanion?.baseUrl !== newCompanion?.baseUrl;
+}
+
 export function OpsStatusDot({ onOpenSettings }: OpsStatusDotProps): ReactNode {
   const [status, setStatus] = useState<CompanionStatus>('unavailable');
   const [visible, setVisible] = useState(false);
@@ -62,9 +79,8 @@ export function OpsStatusDot({ onOpenSettings }: OpsStatusDotProps): ReactNode {
   const refresh = useCallback(async () => {
     // Don't show the indicator if Ops Mode is disabled.
     try {
-      const { loadSettings } = await import('@/db/settings-bridge');
-      const settings = await loadSettings();
-      if (!settings.companion.opsModeEnabled) {
+      const mode = await getOperatingMode();
+      if (!mode.requestedOpsMode) {
         setVisible(false);
         return;
       }
@@ -76,12 +92,6 @@ export function OpsStatusDot({ onOpenSettings }: OpsStatusDotProps): ReactNode {
       // entries so captures made while offline are delivered idempotently.
       if (result.status === 'connected') {
         try {
-          const { flushOutboxOnReconnect } = await import(
-            '@/services/outbox-service'
-          );
-          const { vacancyIntakeTransport } = await import(
-            '@/services/ops-intake'
-          );
           await flushOutboxOnReconnect(vacancyIntakeTransport);
         } catch {
           // Connection status is authoritative here. A failed outbox flush is
@@ -112,9 +122,10 @@ export function OpsStatusDot({ onOpenSettings }: OpsStatusDotProps): ReactNode {
     ) {
       if (areaName !== 'local') return;
       if (
-        changes.app_settings_v1 ||
+        hasCompanionConfigChange(changes.app_settings_v1) ||
         changes.companion_client_token_v1
       ) {
+        invalidateCompanionStatusCache();
         void refresh();
       }
     }

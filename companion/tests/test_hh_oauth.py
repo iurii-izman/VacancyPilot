@@ -7,6 +7,7 @@ from urllib.parse import parse_qs, parse_qsl, urlparse
 import httpx
 import pytest
 
+import app.hh.oauth as oauth_module
 from app.config import settings
 from app.hh.errors import HHApiError, HHConfigurationError
 from app.hh.oauth import HHOAuthService, pkce_challenge
@@ -36,6 +37,15 @@ def configure_oauth(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_pkce_challenge_matches_rfc7636_vector() -> None:
     verifier = 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk'
     assert pkce_challenge(verifier) == 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM'
+
+
+def test_oauth_service_is_initialized_on_first_access(monkeypatch: pytest.MonkeyPatch) -> None:
+    sentinel = object()
+    monkeypatch.setattr(oauth_module, '_oauth_service', None)
+    monkeypatch.setattr(oauth_module, 'HHOAuthService', lambda: sentinel)
+
+    assert oauth_module.get_oauth_service() is sentinel
+    assert oauth_module.get_oauth_service() is sentinel
 
 
 def test_start_requires_exact_registered_redirect(monkeypatch: pytest.MonkeyPatch) -> None:

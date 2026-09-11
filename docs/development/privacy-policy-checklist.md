@@ -30,7 +30,12 @@ Use this checklist when drafting the public privacy policy. Each item must be ad
 - [ ] **Event log**: Timestamps of user actions within the extension (status changes, exports, AI requests initiated).
 - [ ] **AI cache**: Responses from AI provider, keyed by content hash (can be cleared by user).
 
-In Standalone Mode this data is in Dexie/IndexedDB and `chrome.storage.local`. In Ops Mode operational records may be canonical in the user’s local SQLite companion; companion secrets use the OS keyring and the private engine package stays on local disk. None of this is synced to a developer cloud service.
+In Standalone Mode this data is in Dexie/IndexedDB and `chrome.storage.local`.
+In Ops Mode operational records may be canonical in the user's local SQLite
+companion; companion secrets use the OS keyring and the private engine package
+stays on local disk. None of this is synced to a developer cloud service. The
+extension's export covers supported browser-local categories only; it is not a
+Companion SQLite backup.
 
 ### 2.2 Data NOT Collected
 
@@ -82,8 +87,12 @@ In Standalone Mode this data is in Dexie/IndexedDB and `chrome.storage.local`. I
 
 ## 5. User Controls
 
-- [ ] **Export**: User can export all data as CSV or JSON at any time.
-- [ ] **Delete all**: User can delete all locally stored data with one action.
+- [ ] **Export**: User can export supported browser-local extension categories
+  as CSV or JSON at any time. Companion SQLite, keyring secrets and the private
+  engine are not included.
+- [ ] **Delete all**: User can delete all extension-local browser data with one
+  action. This does not silently delete Companion SQLite, keyring secrets or
+  the private engine; Companion data has its own lifecycle.
 - [ ] **AI cache clear**: User can clear cached AI responses independently.
 - [ ] **AI disable**: AI features can be fully disabled (no key configured = no AI requests possible).
 - [ ] **n8n disable**: n8n integration is off by default and can be toggled off (Labs).
@@ -95,7 +104,8 @@ In Standalone Mode this data is in Dexie/IndexedDB and `chrome.storage.local`. I
 
 ## 6. Data Retention
 
-- [ ] Data is stored on the user's device: browser storage in Standalone Mode and local companion SQLite/keyring/engine storage in Ops Mode.
+- [ ] Data is stored on the user's device: browser storage in Standalone Mode
+  and local companion SQLite/keyring/engine storage in Ops Mode.
 - [ ] Data persists until the user deletes the relevant browser or companion data.
 - [ ] Uninstalling the extension may remove browser-managed storage but does not necessarily remove companion data.
 - [ ] No automatic data expiration or deletion (user controls retention).
@@ -167,7 +177,7 @@ The URL must be included in:
 | 2. Data collection | Checklist complete — aligned with current codebase as of ITER-064 |
 | 3. Data sent externally | Checklist complete — aligned with current codebase |
 | 4. Data minimization | Checklist complete — redaction, Strict Privacy, HTML stripping all implemented |
-| 5. User controls | Checklist complete — export, delete, AI disable, n8n disable, Labs kill switch all implemented |
+| 5. User controls | Checklist complete — browser-local export/delete, AI disable, n8n disable and Labs kill switch are implemented; Companion data is separately scoped |
 | 6. Data retention | Checklist complete — local-only storage confirmed |
 | 7. Security | Checklist complete — Manifest V3, CSP, no remote code confirmed |
 | 8. Third-party services | Checklist complete |

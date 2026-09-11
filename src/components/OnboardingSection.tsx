@@ -35,16 +35,10 @@ const STEPS: StepDef[] = [
   {
     id: "first-vacancy",
     number: 4,
-    title: "Save Your First Vacancy",
+    title: "Review Your First Vacancy",
     kind: "required",
   },
   { id: "ai", number: 5, title: "Configure AI (optional)", kind: "optional" },
-  {
-    id: "labs",
-    number: 6,
-    title: "Review Labs / n8n (deferred optional)",
-    kind: "optional",
-  },
 ];
 
 // ── Styles ──
@@ -128,7 +122,7 @@ const chipOptional: React.CSSProperties = {
 
 // ── Component ──
 
-export function OnboardingSection(): ReactNode {
+export function OnboardingSection({ onComplete }: { onComplete?: () => void }): ReactNode {
   const [completed, setCompleted] = useState(false);
   const [saving, setSaving] = useState(false);
   const [expandedSteps, setExpandedSteps] = useState<Set<string>>(
@@ -164,12 +158,13 @@ export function OnboardingSection(): ReactNode {
       settings.onboardingCompleted = true;
       await saveSettings(settings);
       setCompleted(true);
+      onComplete?.();
     } catch {
       // If saving fails, user can retry.
     } finally {
       setSaving(false);
     }
-  }, []);
+  }, [onComplete]);
 
   if (completed) {
     return (
@@ -292,7 +287,7 @@ export function OnboardingSection(): ReactNode {
         children: (
           <div style={{ ...card, marginBottom: 0 }}>
             <p style={stepDesc}>
-              Go to <strong>Profiles</strong> in the sidebar. Add your skills,
+              Go to <strong>Candidate → Profile</strong>. Add your skills,
               role preferences, and experience level. The scoring engine uses
               this to evaluate vacancies.
             </p>
@@ -313,7 +308,7 @@ export function OnboardingSection(): ReactNode {
         children: (
           <div style={{ ...card, marginBottom: 0 }}>
             <p style={stepDesc}>
-              Go to <strong>Resumes</strong> in the sidebar. Add a brief summary
+              Go to <strong>Candidate → Resume</strong>. Add a brief summary
               of your experience. This helps AI generate targeted cover letters
               (if you enable AI later).
             </p>
@@ -325,7 +320,7 @@ export function OnboardingSection(): ReactNode {
         ),
       })}
 
-      {/* ── Step 4: Save First Vacancy ── */}
+      {/* ── Step 4: Review First Vacancy ── */}
       {renderStep({
         step: STEPS[3],
         isExpanded: expandedSteps.has("first-vacancy"),
@@ -336,12 +331,12 @@ export function OnboardingSection(): ReactNode {
             <p style={stepDesc}>
               Open any HH.ru vacancy page (e.g.{" "}
               <code>https://hh.ru/vacancy/12345678</code>) and click the
-              VacancyPilot badge. The extension will extract and score the
-              vacancy automatically.
+              VacancyPilot badge or Side Panel to review it. Saving is always
+              explicit and remains local-first.
             </p>
             <p style={{ ...stepDesc, margin: 0 }}>
-              Save interesting vacancies to track them on the Dashboard →
-              Vacancies board.
+              Saved vacancies appear in Inbox and, in Standalone mode, on the
+              Pipeline board.
             </p>
           </div>
         ),
@@ -385,61 +380,6 @@ export function OnboardingSection(): ReactNode {
               Go to <strong>Settings</strong> → AI. Enter a standalone API key
               only if needed; Ops Mode Full V4 uses the paired companion&apos;s
               OS-keyring configuration.
-            </p>
-          </div>
-        ),
-      })}
-
-      {/* ── Step 6: Enable Labs / n8n (optional) ── */}
-      {renderStep({
-        step: STEPS[5],
-        isExpanded: expandedSteps.has("labs"),
-        isDone: doneSteps.has("labs"),
-        onToggle: () => toggleStep("labs"),
-        children: (
-          <div style={{ ...card, marginBottom: 0 }}>
-            <div style={card}>
-              <h3 style={cardHeading}>How n8n Integration Works</h3>
-              <ul style={listStyle}>
-                <li>
-                  n8n is <strong>opt-in</strong> and part of{" "}
-                  <strong>Labs</strong> (experimental features)
-                </li>
-                <li>
-                  It sends event notifications (e.g., &quot;vacancy saved&quot;,
-                  &quot;interview scheduled&quot;) to your own n8n webhook URL
-                </li>
-                <li>
-                  n8n is <strong>off by default</strong> and deferred from the
-                  current dogfood path — you must enable Labs
-                  and configure a webhook URL
-                </li>
-                <li>
-                  No data is sent until you configure and enable the integration
-                </li>
-              </ul>
-            </div>
-
-            <div style={card}>
-              <h3 style={cardHeading}>Labs: Experimental Features</h3>
-              <p
-                style={{
-                  fontSize: fontSizes.md,
-                  color: colors.textSecondary,
-                  margin: 0,
-                }}
-              >
-                Labs features (n8n, guided apply) are{" "}
-                <strong>off by default</strong> and not required for core
-                functionality. You can ignore Labs completely. Core features —
-                parsing, scoring, tracking, cover letters, and export — work
-                without Labs.
-              </p>
-            </div>
-            <p style={{ ...stepDesc, margin: 0 }}>
-              Go to <strong>Labs</strong> in the sidebar to enable Labs, then
-              configure your n8n webhook URL in Settings → n8n. Skip this if you
-              don&apos;t use n8n.
             </p>
           </div>
         ),

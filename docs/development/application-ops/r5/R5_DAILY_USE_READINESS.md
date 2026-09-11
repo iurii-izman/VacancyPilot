@@ -1,24 +1,93 @@
 # R5 Daily-Use Readiness
 
-Status: `R5 PASS`
+Status: `R5 bounded synthetic QA PASS; Fix 3 execution/privacy/concurrency PASS; Fix 4 data-security PASS; private dogfood final closure PASS (2026-09-11)`
 FEATURE DEVELOPMENT: `FROZEN`
 MODE: `REAL DAILY USE / DOGFOOD`
 
 ## Start checklist
 
 - Companion healthy and paired.
+- Effective Ops Mode is confirmed after migration; an enabled toggle alone is
+  not authority.
 - Engine V4 valid.
 - OpenAI configured only if analysis or letter generation is needed.
 - HH public API available for the explicitly enabled read-only capability.
 - HH capability state is shown honestly: account `AVAILABLE`, resumes
   `DENIED_BY_HH`, negotiations `DENIED_BY_HH`.
 - Preview the Application Factory session before execution.
+- Confirm that the private local engine metadata is valid; the current local
+  package is `4.0.1`. Public `4.0.0` fixtures are synthetic compatibility data.
+- Treat extension reset/export as browser-local controls: they do not delete
+  Companion SQLite, OS-keyring secrets or the private engine.
 
 ## Daily workflow
 
-Search Profiles / HH discovery → Inbox → select → preview → explicit process
-→ review V4 decision → prepare/review letter → manually apply externally →
-Confirm Applied → track response/outcome.
+Search Profiles / HH discovery → Inbox → open full vacancy → Preview Full V4
+→ explicit Confirm and run → review V4 decision/evidence/letter → manually
+apply externally → Confirm Applied → track response/outcome. In Ops, Inbox is
+the Companion vacancy projection (including vacancies with no Application) and
+Pipeline is the Companion Application workflow.
+
+Application Factory Preview makes no provider call and has no database,
+session/item, budget, receipt or keyring side effect. Full V4 Preview is also
+provider-free for the analysis itself, but an incomplete selected vacancy may
+first be hydrated through the official read-only HH API and persisted. Queue
+preparation produces a resumable manual-review state and never creates an
+application or `APPLIED`.
+
+Every executable AI operation is compiled into a canonical plan from current
+authoritative input and the current explicit AI/privacy policy. Preview shows
+the exact redacted dynamic payload, provider/model, plan hash, privacy summary,
+cache predicate, expected attempt count, budget limit and authenticated
+receipt. Execute requires explicit confirmation and an unexpired receipt for
+the same plan; it then performs a semantic single-flight claim and atomic
+provider-attempt reservation before dispatch. Provider retries are disabled;
+one bounded repair may consume one additional attempt. A dispatch timeout is
+outcome-unknown and is not automatically retried. Raw provider output is not
+persisted, logged or exported.
+
+Copying or opening HH is not applying. Generated letter text is not evidence;
+`SKIP` produces no letter. Follow-ups are local and human-controlled, with
+explicit sent confirmation. Interview Pack and backup health are deferred or
+inactive.
+
+In Standalone, the local Confirm Applied action is available only after the
+user has submitted through native HH and confirms that fact. In effective Ops,
+Full V4, hydration, Search Profiles, analytics, Application Factory and Ops
+follow-ups are enabled only when the Companion is connected and paired; stale
+or unavailable transport leaves those controls disabled with an explanation.
+Guided Apply's preparation checklist never marks Applied, and its final local
+mutation remains unavailable in Ops. Fix 2 changes read authority only; it does
+not add an Ops write path.
+
+Fix 4 keeps the browser boundary explicit during daily use: vacancy links are
+canonical HTTPS HH references, the Side Panel trusts the current live tab, and
+the search badge is extension-owned and isolated from HH card state. Companion
+sync requires explicit scope and is bounded to 50 profiles and 2,000 items per
+run. Duplicate scopes are single-flighted; malformed follow-up timestamps are
+rejected before persistence.
+
+## Daily-use UI cues
+
+Today, Discovery, Inbox, Pipeline, Candidate and Settings remain the only
+primary routes. Empty states now provide the next useful destination; Inbox
+keeps the common search/status/decision filters visible and puts secondary
+filters behind `More filters`; Application Card makes provider-free Preview and
+explicit execution confirmation visually distinct. These are presentation
+refinements only and do not change the underlying workflow or safety boundary.
+
+The post-change production render and unpacked browser extension were reviewed
+by a human after pairing and migration. One live Full V4 acceptance completed
+with a persisted ready result; no second live execution is required.
+
+Ops read semantics are explicit: no Application is not `new`, no analysis is
+not score `0`, invalid/unavailable sources are not converted into valid/empty
+state, and multiple Applications or follow-ups are retained rather than
+arbitrarily selected. Refreshing Ops does not update Standalone Dexie domain
+tables. Fix 3 execution, privacy, and concurrency findings are closed by the
+shared plan/receipt/coordination boundary and the standalone Dexie ledger.
+The Fix 4 acceptance report records the exact reset, export, legacy raw-output
+audit and public-release server-identity boundary.
 
 ## Immediate hotfix criteria
 

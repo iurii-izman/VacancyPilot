@@ -1,9 +1,11 @@
 """Application configuration with safe local-development defaults."""
 
 from pathlib import Path
-from typing import Literal
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
+
+from app.security.middleware import validate_loopback_bind
 
 
 class Settings(BaseSettings):
@@ -20,14 +22,20 @@ class Settings(BaseSettings):
     api_version: str = '1'
 
     # Binding — always loopback
-    host: Literal['127.0.0.1'] = '127.0.0.1'
+    host: str = '127.0.0.1'
     port: int = 8765
 
+    @field_validator('host')
+    @classmethod
+    def host_must_be_loopback(cls, value: str) -> str:
+        validate_loopback_bind(value)
+        return value
+
     # Database
-    db_path: str = ''  # empty => default under companion/data/
+    db_path: str = ''  # empty => default under .local/data/companion/
 
     # Engine
-    engine_package_root: str = ''  # empty => default companion/data/engine/
+    engine_package_root: str = ''  # empty => default under .local/data/companion/
 
     # HH OAuth application registration. The client secret is never loaded
     # from configuration; it belongs in the OS keyring.
@@ -50,5 +58,16 @@ def resolve_engine_package_root() -> Path:
     configured = settings.engine_package_root.strip()
     if configured:
         return Path(configured).expanduser().resolve(strict=False)
-    companion_root = Path(__file__).resolve().parents[1]
-    return companion_root / 'data' / 'engine'
+    return resolve_local_companion_root() / 'engine'
+
+
+def resolve_local_companion_root() -> Path:
+    """Return the canonical ignored local runtime root for Companion."""
+    repository_root = Path(__file__).resolve().parents[2]
+    return repository_root / '.local' / 'data' / 'companion'
+
+
+def resolve_private_engine_source() -> Path:
+    """Return the canonical ignored private V4 package source directory."""
+    repository_root = Path(__file__).resolve().parents[2]
+    return repository_root / '.local' / 'private-engine'

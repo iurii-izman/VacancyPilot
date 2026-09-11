@@ -18,13 +18,35 @@ export const sectionHeading: React.CSSProperties = {
   color: colors.navy,
 };
 
+/** Consistent workspace title and lead copy. */
+export const pageTitle: React.CSSProperties = {
+  fontSize: fontSizes.pageTitle,
+  lineHeight: 1.2,
+  fontWeight: fontWeights.bold,
+  margin: 0,
+  color: colors.navy,
+};
+
+export const pageIntro: React.CSSProperties = {
+  maxWidth: 760,
+  margin: "6px 0 18px",
+  fontSize: fontSizes.body,
+  lineHeight: 1.5,
+  color: colors.textMuted,
+};
+
 /** Card container used across trust surfaces and vacancy detail panels. */
 export const card: React.CSSProperties = {
   padding: spacing.xxl,
   border: `1px solid ${colors.border}`,
   borderRadius: borderRadius.xl,
-  background: colors.cardBg,
+  background: colors.surface,
   marginBottom: spacing.xl,
+};
+
+export const compactCard: React.CSSProperties = {
+  ...card,
+  padding: spacing.xl,
 };
 
 /** h3-style heading inside a card. */
@@ -140,22 +162,61 @@ const buttonBase: React.CSSProperties = {
 /** Primary action button. */
 export const primaryButton: React.CSSProperties = {
   ...buttonBase,
-  padding: `${spacing.md}px ${spacing.section}px`,
+  minHeight: 34,
+  padding: `0 ${spacing.section}px`,
   fontSize: fontSizes.body,
   background: colors.blue,
   color: colors.white,
   fontWeight: fontWeights.semibold,
+  boxShadow: "0 1px 2px rgba(26, 58, 92, 0.12)",
 };
 
 /** Secondary / outline button. */
 export const secondaryButton: React.CSSProperties = {
   ...buttonBase,
-  padding: `${spacing.xs}px ${spacing.lg}px`,
+  minHeight: 32,
+  padding: `0 ${spacing.lg}px`,
   fontSize: fontSizes.md,
-  border: `1px solid ${colors.borderLight}`,
+  border: `1px solid ${colors.borderStrong}`,
   borderRadius: borderRadius.md,
   background: colors.white,
   color: colors.text,
+};
+
+export const tertiaryButton: React.CSSProperties = {
+  ...buttonBase,
+  minHeight: 30,
+  padding: `0 ${spacing.md}px`,
+  fontSize: fontSizes.md,
+  border: "1px solid transparent",
+  background: "transparent",
+  color: colors.blue,
+};
+
+export const destructiveButton: React.CSSProperties = {
+  ...secondaryButton,
+  borderColor: colors.redBorder,
+  color: colors.red,
+  background: colors.errorBg,
+};
+
+export function tabButtonStyle(active: boolean): React.CSSProperties {
+  return {
+    ...secondaryButton,
+    minHeight: 34,
+    borderColor: active ? colors.blue : colors.borderStrong,
+    background: active ? colors.activeBg : colors.white,
+    color: active ? colors.navy : colors.textSecondary,
+    fontWeight: active ? fontWeights.semibold : fontWeights.normal,
+    boxShadow: active ? `inset 0 -2px 0 ${colors.blue}` : "none",
+  };
+}
+
+export const tabListStyle: React.CSSProperties = {
+  display: "flex",
+  gap: spacing.sm,
+  flexWrap: "wrap",
+  marginBottom: spacing.xxxl,
 };
 
 /** Small icon/label button (refresh, toggle). */
@@ -267,6 +328,17 @@ export const grantedBadge: React.CSSProperties = {
   fontWeight: fontWeights.semibold,
   background: colors.grantedBadgeBg,
   color: colors.grantedBadgeText,
+};
+
+export const statusBadge: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  minHeight: 22,
+  padding: "0 8px",
+  borderRadius: borderRadius.pill,
+  fontSize: fontSizes.sm,
+  fontWeight: fontWeights.semibold,
+  whiteSpace: "nowrap",
 };
 
 // ── Row ──

@@ -27,7 +27,7 @@ import { OpenAILLMProvider } from "./ai-provider-openai";
 export function getLLMProvider(settings: AppSettings): LLMProvider {
   if (!settings.privacy.aiEnabled) {
     throw new Error(
-      "AI features are disabled. Enable AI in Dashboard → Settings.",
+      "AI features are disabled. Enable AI in Settings → AI.",
     );
   }
 
@@ -35,7 +35,7 @@ export function getLLMProvider(settings: AppSettings): LLMProvider {
 
   if (!provider) {
     throw new Error(
-      "No AI provider selected. Choose a provider in Dashboard → Settings.",
+      "No AI provider selected. Choose a provider in Settings → AI.",
     );
   }
 

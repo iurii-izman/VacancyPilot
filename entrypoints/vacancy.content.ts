@@ -1,5 +1,7 @@
 import { defineContentScript } from "wxt/utils/define-content-script";
 import { HHAdapter } from "@/adapters/hh/hh-adapter";
+import { extractVacancyIdFromUrl as extractVacancyIdFromPageUrl } from "@/services/vacancy-context";
+import { canonicalizeHhVacancyUrl } from "@/services/hh-vacancy-url";
 
 export default defineContentScript({
   // Covers vacancy pages plus read-only HR workflow pages.
@@ -18,8 +20,11 @@ export default defineContentScript({
 
     const adapter = new HHAdapter();
     if (adapter.matchUrl(document.location.href) === "vacancy") {
+      void registerVacancyContext();
       void recordVacancyVisit();
-      void createBadge();
+      void createBadge().catch(() => {
+        console.warn("[VacancyPilot] badge creation skipped: exception");
+      });
     }
   },
 });
@@ -35,6 +40,48 @@ function setupRuntimeBridge(): void {
     if (message.type === "UPDATE_BADGE" && badgeContainer) {
       updateBadgeContent(badgeContainer, message.payload);
       sendResponse({ success: true });
+      return false;
+    }
+
+    if (message.type === "GET_PAGE_VACANCY_CONTEXT") {
+      const vacancyId = extractVacancyIdFromPageUrl(document.location.href);
+      sendResponse(
+        vacancyId
+          ? { success: true, vacancyId, pageKind: "vacancy" }
+          : { success: false },
+      );
+      return false;
+    }
+
+    if (message.type === "GET_PAGE_CONTEXT") {
+      const url = document.location.href;
+      const vacancyId = extractVacancyIdFromPageUrl(url);
+      let pageKind: "vacancy" | "applications" | "messages" | "other" = "other";
+      try {
+        const parsed = new URL(url);
+        if (/^\/applicant\/responses/i.test(parsed.pathname)) pageKind = "applications";
+        else if (/^\/negotiations/i.test(parsed.pathname)) pageKind = "messages";
+        else if (vacancyId) pageKind = "vacancy";
+      } catch {
+        // Keep the safe "other" result for an unavailable/malformed URL.
+      }
+      sendResponse({
+        success: true,
+        pageKind,
+        vacancyId: vacancyId ?? undefined,
+        url: vacancyId ? canonicalizeHhVacancyUrl(url) : undefined,
+      });
+      return false;
+    }
+
+    if (message.type === "VACANCYPILOT_RESET") {
+      const root = badgeContainer?.getRootNode();
+      const host =
+        root && typeof root === "object" && "host" in root
+          ? (root as { host?: unknown }).host
+          : null;
+      if (host instanceof HTMLElement) host.remove();
+      badgeContainer = null;
       return false;
     }
 
@@ -80,6 +127,26 @@ function setupRuntimeBridge(): void {
 
     return false;
   });
+}
+
+async function registerVacancyContext(): Promise<void> {
+  const vacancyId = extractVacancyIdFromPageUrl(document.location.href);
+  if (!vacancyId) {
+    console.debug("[VacancyPilot] vacancy context registration skipped: unsupported page");
+    return;
+  }
+  try {
+    const response = await chrome.runtime.sendMessage({
+      type: "REGISTER_VACANCY_CONTEXT",
+      vacancyId,
+      pageKind: "vacancy",
+    });
+    if (!response?.success) {
+      console.warn("[VacancyPilot] vacancy context registration rejected");
+    }
+  } catch {
+    console.warn("[VacancyPilot] vacancy context registration failed");
+  }
 }
 
 async function recordVacancyVisit(): Promise<void> {
@@ -149,6 +216,12 @@ async function createBadge(): Promise<void> {
     // On read failure, show badge by default.
   }
 
+  const body = await waitForDocumentBody();
+  if (!body) {
+    console.debug("[VacancyPilot] badge creation skipped: document body unavailable");
+    return;
+  }
+
   // Prevent duplicate injection.
   if (document.getElementById("vp-badge-host")) return;
 
@@ -159,7 +232,7 @@ async function createBadge(): Promise<void> {
   host.style.cssText =
     "position:fixed;top:56px;right:16px;z-index:9000;pointer-events:auto;";
 
-  const shadow = host.attachShadow({ mode: "open" });
+  const shadow = host.attachShadow({ mode: "closed" });
 
   // ── Styles (isolated, no global leakage) ──
   const style = document.createElement("style");
@@ -257,11 +330,20 @@ async function createBadge(): Promise<void> {
 
   shadow.appendChild(style);
   shadow.appendChild(container);
-  document.body.appendChild(host);
+  body.appendChild(host);
   badgeContainer = container;
 
   // Try to restore badge state from chrome.storage.local (set by popup on save).
   await restoreBadgeState(container);
+}
+
+/** Content scripts can run before the document body exists during a reload. */
+async function waitForDocumentBody(): Promise<HTMLElement | null> {
+  if (document.body) return document.body;
+  await new Promise<void>((resolve) => {
+    document.addEventListener("DOMContentLoaded", () => resolve(), { once: true });
+  });
+  return document.body;
 }
 
 interface BadgePayload {
@@ -274,8 +356,7 @@ interface BadgePayload {
  * Returns null if not on a vacancy page.
  */
 function extractVacancyIdFromUrl(): string | null {
-  const match = document.location.href.match(/\/vacancy\/(\d+)/);
-  return match ? match[1] : null;
+  return extractVacancyIdFromPageUrl(document.location.href);
 }
 
 /**
