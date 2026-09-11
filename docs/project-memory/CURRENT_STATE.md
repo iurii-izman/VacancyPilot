@@ -1,7 +1,8 @@
 # Current State
 
-Reviewed checkout: branch `hotfix/hh-vacancy-hydration-v4-card`, Fix 4
-data-lifecycle/local-security hardening on top of the Fix 3
+Reviewed checkout: branch `hotfix/hh-vacancy-hydration-v4-card`, final private
+dogfood closure on top of the Fix 4 data-lifecycle/local-security hardening
+and the Fix 3
 execution/privacy/concurrency boundary, Fix 2 authoritative Ops read-model
 correction, Pass 3 daily-use UX polish, and Fix 1 transport/mode-safety
 baseline.
@@ -128,10 +129,12 @@ Pass 3 is presentation-only: the six-route IA remains unchanged. The current
 UI uses clearer page hierarchy, compact action cards, styled tabs, core/secondary
 Inbox filters, and actionable empty states. Fix 2 adds the authoritative Ops
 work-item read model without changing the database schema or HH safety
-boundary. Post-change production static render was inspected; final
-unpacked-extension visual acceptance still needs human review. The projection
-has targeted backend/frontend coverage and the generated OpenAPI snapshot plus
-the checked-in TypeScript wire artifact are current.
+boundary. Post-change production static render and the unpacked extension were
+reviewed by a human after runtime setup. Companion pairing, committed
+migration, Inbox authority, the Application Card, and the Side Panel all
+rendered as expected. The projection has targeted backend/frontend coverage
+and the generated OpenAPI snapshot plus the checked-in TypeScript wire artifact
+are current.
 
 Options and Side Panel authority is explicit: Standalone presentation reads
 Dexie domain state; Ops presentation reads the Companion/SQLite work-item
@@ -195,9 +198,10 @@ explicitly registered and exercised through upgrade tests. Workflow action
 pins, dependency-review blocking, dependency dispositions, release artifact
 privacy checks, and the provider-free `pnpm verify:all` gate are documented in
 [`../development/FIX5_ENGINEERING_HYGIENE.md`](../development/FIX5_ENGINEERING_HYGIENE.md).
-This does not claim live-provider V4 acceptance, final human visual
-acceptance, SEC-SERVER-AUTH-001 closure, public-release readiness, or external
-GitHub branch-protection configuration.
+This does not claim SEC-SERVER-AUTH-001 closure, public-release readiness, or
+external GitHub branch-protection configuration. The final private dogfood
+acceptance is recorded in
+[`../development/FINAL_PRIVATE_DOGFOOD_CLOSURE_2026-09-11.md`](../development/FINAL_PRIVATE_DOGFOOD_CLOSURE_2026-09-11.md).
 
 ## Deferred / incomplete
 
@@ -209,8 +213,8 @@ GitHub branch-protection configuration.
 - Backup/recovery redesign, public release, V4.1 and new providers: backlog or
   later product decision.
 - `n8n` / Telegram: deferred pending an explicit permission-model decision.
-- No new live-provider Full V4 acceptance has been recorded after the current
-  vacancy hydration/card hotfix line; do not infer it from older reports.
+- Exactly one live-provider Full V4 acceptance is recorded for the current
+  vacancy hydration/card hotfix line; no additional live execution is needed.
 
 ## Navigation
 

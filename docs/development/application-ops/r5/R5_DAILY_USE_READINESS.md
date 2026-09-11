@@ -1,8 +1,6 @@
 # R5 Daily-Use Readiness
 
-Status: `R5 bounded synthetic QA PASS; Fix 3 execution/privacy/concurrency PASS; Fix 4 data-security PASS`;
-no new live-provider V4 acceptance after the current vacancy hydration/card
-hotfix line
+Status: `R5 bounded synthetic QA PASS; Fix 3 execution/privacy/concurrency PASS; Fix 4 data-security PASS; private dogfood final closure PASS (2026-09-11)`
 FEATURE DEVELOPMENT: `FROZEN`
 MODE: `REAL DAILY USE / DOGFOOD`
 
@@ -78,9 +76,9 @@ filters behind `More filters`; Application Card makes provider-free Preview and
 explicit execution confirmation visually distinct. These are presentation
 refinements only and do not change the underlying workflow or safety boundary.
 
-The post-change production render was inspected locally. Final visual acceptance
-of the unpacked browser extension still requires a human reload/review; no live
-Full V4/provider acceptance was performed as part of this polish pass.
+The post-change production render and unpacked browser extension were reviewed
+by a human after pairing and migration. One live Full V4 acceptance completed
+with a persisted ready result; no second live execution is required.
 
 Ops read semantics are explicit: no Application is not `new`, no analysis is
 not score `0`, invalid/unavailable sources are not converted into valid/empty
